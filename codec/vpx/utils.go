@@ -67,7 +67,7 @@ func (f *factory) MIMEType() string {
 	case CodecVP9:
 		return "video/vp9"
 	default:
-		panic(fmt.Errorf("unknown codec %t", f.codec))
+		panic(fmt.Errorf("unknown codec %q", f.codec))
 	}
 }
 

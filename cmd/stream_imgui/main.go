@@ -43,7 +43,9 @@ func newViewApp(name string, img image.Image) (*viewApp, error) {
 }
 
 func view(port int, name string, img image.Image) error {
-	remoteView, err := gostream.NewRemoteView(vpx.DefaultRemoteViewConfig)
+	config := vpx.DefaultRemoteViewConfig
+	config.StreamName = "GUI"
+	remoteView, err := gostream.NewRemoteView(config)
 	if err != nil {
 		return err
 	}

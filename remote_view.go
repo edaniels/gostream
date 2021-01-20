@@ -325,13 +325,21 @@ func (brv *basicRemoteView) iceServers() string {
 }
 
 func (brv *basicRemoteView) SinglePageHTML() string {
-	return fmt.Sprintf(viewHTML, brv.streamNum(), brv.iceServers())
+	name := brv.config.StreamName
+	if name != "" {
+		name = " " + name
+	}
+	return fmt.Sprintf(viewHTML, name, brv.streamNum(), brv.iceServers())
 }
 
 func (brv *basicRemoteView) HTML() RemoteViewHTML {
+	name := brv.config.StreamName
+	if name != "" {
+		name = " " + name
+	}
 	return RemoteViewHTML{
-		JavaScript: fmt.Sprintf(viewJS, brv.streamNum(), brv.iceServers()),
-		Body:       fmt.Sprintf(viewBody, brv.streamNum()),
+		JavaScript: fmt.Sprintf(viewJS, name, brv.streamNum(), brv.iceServers()),
+		Body:       fmt.Sprintf(viewBody, name, brv.streamNum()),
 	}
 }
 

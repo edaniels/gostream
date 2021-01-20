@@ -9,8 +9,9 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/edaniels/golog"
+	"github.com/edaniels/gostream"
 
+	"github.com/edaniels/golog"
 	govpx "github.com/xlab/libvpx-go/vpx"
 )
 
@@ -87,7 +88,7 @@ const (
 	CodecVP9 VCodec = "V_VP9"
 )
 
-func NewEncoder(codec VCodec, width, height int, debug bool, logger golog.Logger) (*encoder, error) {
+func NewEncoder(codec VCodec, width, height int, debug bool, logger golog.Logger) (gostream.Encoder, error) {
 	enc := &encoder{ctx: govpx.NewCodecCtx(), debug: debug, logger: logger}
 	switch codec {
 	case CodecVP8:

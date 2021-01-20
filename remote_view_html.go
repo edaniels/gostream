@@ -15,9 +15,9 @@ var viewHTML = `
 `
 
 var viewJS = `
-const start = function() {
+const start_%[2]d = function() {
   let peerConnection = new RTCPeerConnection({
-    iceServers: %[2]s
+    iceServers: %[3]s
   });
 
   const calculateClick = (el, event) => {
@@ -48,7 +48,7 @@ const start = function() {
       coords = calculateClick(videoElement, event);
       clickChannel.send(coords.x + "," + coords.y);
     }
-    document.getElementById('remoteVideo_%[1]d').appendChild(videoElement)
+    document.getElementById('remoteVideo_%[2]d').appendChild(videoElement)
   }
 
   peerConnection.ondatachannel = event => {
@@ -59,7 +59,7 @@ const start = function() {
     if (event.candidate !== null) {
       return;
     }
-    fetch("/offer_%[1]d", {
+    fetch("/offer_%[2]d", {
       method: 'POST',
       mode: 'cors',
       body: btoa(JSON.stringify(peerConnection.localDescription))
@@ -87,6 +87,6 @@ const start = function() {
 
 var viewBody = `
 Video<br />
-<button onclick="start(); this.remove();">Start</button>
-<div id="remoteVideo_%[1]d"></div> <br />
+<button onclick="start_%[2]d(); this.remove();">Start%[1]s</button>
+<div id="remoteVideo_%[2]d"></div> <br />
 `
