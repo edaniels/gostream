@@ -26,6 +26,8 @@ type RemoteView interface {
 	InputFrames() chan<- image.Image // TODO(erd): does duration of frame matter?
 	SetOnClickHandler(func(x, y int))
 	SetOnDataHandler(func(data []byte))
+	SendData(data []byte)
+	SendText(msg string)
 	Debug() bool
 	HTML() RemoteViewHTML
 	SinglePageHTML() string
@@ -388,6 +390,22 @@ func (brv *basicRemoteView) SetOnClickHandler(handler func(x, y int)) {
 	brv.mu.Lock()
 	defer brv.mu.Unlock()
 	brv.onClickHandler = handler
+}
+
+func (brv *basicRemoteView) SendData(data []byte) {
+	for _, rc := range brv.getRemoteClients() {
+		if err := rc.dataChannel.Send(data); err != nil {
+			brv.logger.Error(err)
+		}
+	}
+}
+
+func (brv *basicRemoteView) SendText(msg string) {
+	for _, rc := range brv.getRemoteClients() {
+		if err := rc.dataChannel.SendText(msg); err != nil {
+			brv.logger.Error(err)
+		}
+	}
 }
 
 func (brv *basicRemoteView) InputFrames() chan<- image.Image {

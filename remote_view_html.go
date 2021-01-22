@@ -69,10 +69,16 @@ const start_%[2]d = function() {
   }
   peerConnection.onsignalingstatechange = () => console.log(peerConnection.signalingState);
   peerConnection.oniceconnectionstatechange = () => console.log(peerConnection.iceConnectionState);
-  
+
   // set up offer
   let clickChannel = peerConnection.createDataChannel("clicks", {negotiated: true, id: 1});
   let dataChannel = peerConnection.createDataChannel("data", {negotiated: true, id: 0});
+  clickChannel.onmessage = function(event) {
+    console.log(event.data);
+  }
+  dataChannel.onmessage = function(event) {
+    console.log(event.data);
+  }
   peerConnection.addTransceiver('video', {'direction': 'sendrecv'});
   peerConnection.createOffer()
     .then(desc => peerConnection.setLocalDescription(desc))
@@ -88,7 +94,6 @@ const start_%[2]d = function() {
       return;
     }
     dataChannel.send(textInput.value);
-    console.log("sent", textInput.value)
   }
   document.getElementById("stream_%[2]d").appendChild(textInput);
 }

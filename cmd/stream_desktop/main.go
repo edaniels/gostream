@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"image"
 	"os"
 	"os/signal"
@@ -31,9 +32,11 @@ func main() {
 
 	remoteView.SetOnDataHandler(func(data []byte) {
 		golog.Global.Debugw("data", "raw", string(data))
+		remoteView.SendText(string(data))
 	})
 	remoteView.SetOnClickHandler(func(x, y int) {
 		golog.Global.Debugw("click", "x", x, "y", y)
+		remoteView.SendText(fmt.Sprintf("got click (%d, %d)", x, y))
 	})
 
 	server := gostream.NewRemoteViewServer(*port, remoteView, golog.Global)
