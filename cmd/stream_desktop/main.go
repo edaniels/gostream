@@ -29,6 +29,9 @@ func main() {
 		panic(err)
 	}
 
+	remoteView.SetOnDataHandler(func(data []byte) {
+		golog.Global.Debugw("data", "raw", string(data))
+	})
 	remoteView.SetOnClickHandler(func(x, y int) {
 		golog.Global.Debugw("click", "x", x, "y", y)
 	})

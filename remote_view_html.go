@@ -36,8 +36,6 @@ const start_%[2]d = function() {
     return {x: px, y: py};
   }
 
-  let clickChannel;
-
   peerConnection.ontrack = event => {
     var videoElement = document.createElement(event.track.kind);
     videoElement.srcObject = event.streams[0];
@@ -50,10 +48,6 @@ const start_%[2]d = function() {
     }
     document.getElementById('remoteVideo_%[2]d').appendChild(videoElement)
   }
-
-  peerConnection.ondatachannel = event => {
-    clickChannel = event.channel;
-  };
 
   peerConnection.onicecandidate = event => {
     if (event.candidate !== null) {
@@ -75,18 +69,36 @@ const start_%[2]d = function() {
   }
   peerConnection.onsignalingstatechange = () => console.log(peerConnection.signalingState);
   peerConnection.oniceconnectionstatechange = () => console.log(peerConnection.iceConnectionState);
-
+  
   // set up offer
-  peerConnection.createDataChannel("click", {id: 0});
+  let clickChannel = peerConnection.createDataChannel("clicks", {negotiated: true, id: 1});
+  let dataChannel = peerConnection.createDataChannel("data", {negotiated: true, id: 0});
   peerConnection.addTransceiver('video', {'direction': 'sendrecv'});
   peerConnection.createOffer()
     .then(desc => peerConnection.setLocalDescription(desc))
     .catch(console.log);
+
+  var textInput = document.createElement("input");
+  textInput.setAttribute("type", "text");
+  textInput.onkeydown = function(event) {
+    if(event.key !== 'Enter') {
+      return;
+    }
+    if (textInput.value === "") {
+      return;
+    }
+    dataChannel.send(textInput.value);
+    console.log("sent", textInput.value)
+  }
+  document.getElementById("stream_%[2]d").appendChild(textInput);
 }
 `
 
 var viewBody = `
 Video<br />
 <button onclick="start_%[2]d(); this.remove();">Start%[1]s</button>
-<div id="remoteVideo_%[2]d"></div> <br />
+<div id="stream_%[2]d">
+  <div id="remoteVideo_%[2]d"></div><br />
+</div>
+<br />
 `

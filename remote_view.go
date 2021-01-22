@@ -25,6 +25,7 @@ type RemoteView interface {
 	Ready() <-chan struct{}
 	InputFrames() chan<- image.Image // TODO(erd): does duration of frame matter?
 	SetOnClickHandler(func(x, y int))
+	SetOnDataHandler(func(data []byte))
 	Debug() bool
 	HTML() RemoteViewHTML
 	SinglePageHTML() string
@@ -66,6 +67,7 @@ type basicRemoteView struct {
 	inputFrames          chan image.Image
 	outputFrames         chan []byte
 	encoder              Encoder
+	onDataHandler        func(data []byte)
 	onClickHandler       func(x, y int)
 	shutdownCtx          context.Context
 	shutdownCtxCancel    func()
@@ -174,11 +176,31 @@ func (brv *basicRemoteView) Handler() RemoteViewHandler {
 			panic(err)
 		}
 
-		dataChannel, err := peerConnection.CreateDataChannel("stuff", nil)
+		dataChannelID := uint16(0)
+		dataChannel, err := peerConnection.CreateDataChannel("data", &webrtc.DataChannelInit{
+			ID: &dataChannelID,
+		})
 		if err != nil {
 			panic(err)
 		}
 		dataChannel.OnMessage(func(msg webrtc.DataChannelMessage) {
+			if brv.onDataHandler == nil {
+				return
+			}
+			brv.onDataHandler(msg.Data)
+		})
+
+		clickChannelID := uint16(1)
+		clickChannel, err := peerConnection.CreateDataChannel("clicks", &webrtc.DataChannelInit{
+			ID: &clickChannelID,
+		})
+		if err != nil {
+			panic(err)
+		}
+		clickChannel.OnMessage(func(msg webrtc.DataChannelMessage) {
+			if brv.onClickHandler == nil {
+				return
+			}
 			coords := strings.Split(string(msg.Data), ",")
 			if len(coords) != 2 {
 				panic(len(coords))
@@ -354,6 +376,12 @@ func (brv *basicRemoteView) Ready() <-chan struct{} {
 func (brv *basicRemoteView) Stop() {
 	brv.shutdownCtxCancel()
 	brv.backgroundProcessing.Wait()
+}
+
+func (brv *basicRemoteView) SetOnDataHandler(handler func(data []byte)) {
+	brv.mu.Lock()
+	defer brv.mu.Unlock()
+	brv.onDataHandler = handler
 }
 
 func (brv *basicRemoteView) SetOnClickHandler(handler func(x, y int)) {
