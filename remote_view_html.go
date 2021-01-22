@@ -1,6 +1,6 @@
 package gostream
 
-var viewHTML = `
+var viewSingleHTML = `
 <!DOCTYPE html>
 <html>
 <head>

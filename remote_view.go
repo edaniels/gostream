@@ -353,7 +353,7 @@ func (brv *basicRemoteView) SinglePageHTML() string {
 	if name != "" {
 		name = " " + name
 	}
-	return fmt.Sprintf(viewHTML, name, brv.streamNum(), brv.iceServers())
+	return fmt.Sprintf(viewSingleHTML, name, brv.streamNum(), brv.iceServers())
 }
 
 func (brv *basicRemoteView) HTML() RemoteViewHTML {

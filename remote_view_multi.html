@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script type="text/javascript">
+  {{ range $view := .RemoteViews }}
+    {{ jsSafe $view.JavaScript }}
+  {{ end }}
+  </script>
+</head>
+<body>
+{{ range $view := .RemoteViews }}
+  {{ htmlSafe $view.Body }}
+{{ end }}
+</body>
+</html>
