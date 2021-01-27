@@ -252,7 +252,11 @@ func (brv *basicRemoteView) Handler() RemoteViewHandler {
 		// Block until ICE Gathering is complete, disabling trickle ICE
 		// we do this because we only can exchange one signaling message
 		// in a production application you should exchange ICE Candidates via OnICECandidate
-		<-gatherComplete
+		select {
+		case <-brv.shutdownCtx.Done():
+			return
+		case <-gatherComplete:
+		}
 
 		// Output the answer in base64 so we can paste it in browser
 		if _, err := w.Write([]byte(Encode(*peerConnection.LocalDescription()))); err != nil {
@@ -263,7 +267,11 @@ func (brv *basicRemoteView) Handler() RemoteViewHandler {
 		brv.backgroundProcessing.Add(1)
 		go func() {
 			defer brv.backgroundProcessing.Done()
-			<-iceConnectedCtx.Done()
+			select {
+			case <-brv.shutdownCtx.Done():
+				return
+			case <-iceConnectedCtx.Done():
+			}
 
 			brv.addRemoteClient(peerConnection, remoteClient{dataChannel, videoTrack})
 
