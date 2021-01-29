@@ -32,6 +32,7 @@ type RemoteView interface {
 	HTML() RemoteViewHTML
 	SinglePageHTML() string
 	Handler() RemoteViewHandler
+	CommandRegistry() CommandRegistry
 }
 
 type RemoteViewHTML struct {
@@ -54,6 +55,7 @@ func NewRemoteView(config RemoteViewConfig) (RemoteView, error) {
 		inputFrames:        make(chan image.Image),
 		outputFrames:       make(chan []byte),
 		peerToRemoteClient: map[*webrtc.PeerConnection]remoteClient{},
+		commandRegistry:    NewCommandRegistry(),
 		logger:             logger,
 		shutdownCtx:        ctx,
 		shutdownCtxCancel:  cancelFunc,
@@ -71,6 +73,7 @@ type basicRemoteView struct {
 	encoder              Encoder
 	onDataHandler        func(data []byte)
 	onClickHandler       func(x, y int)
+	commandRegistry      CommandRegistry
 	shutdownCtx          context.Context
 	shutdownCtxCancel    func()
 	backgroundProcessing sync.WaitGroup
@@ -87,6 +90,10 @@ func (brv *basicRemoteView) streamNum() int {
 		return brv.config.StreamNumber
 	}
 	return 0
+}
+
+func (brv *basicRemoteView) CommandRegistry() CommandRegistry {
+	return brv.commandRegistry
 }
 
 func (brv *basicRemoteView) Handler() RemoteViewHandler {
@@ -187,7 +194,37 @@ func (brv *basicRemoteView) Handler() RemoteViewHandler {
 		}
 		dataChannel.OnMessage(func(msg webrtc.DataChannelMessage) {
 			if brv.onDataHandler == nil {
-				return
+				if !msg.IsString {
+					return
+				}
+				cmd, err := UnmarshalCommand(string(msg.Data))
+				if err != nil {
+					brv.logger.Debugw("error unmarshaling command", "error", err)
+					if err := dataChannel.SendText(err.Error()); err != nil {
+						brv.logger.Error(err)
+					}
+					return
+				}
+				resp, err := brv.CommandRegistry().Process(cmd)
+				if err != nil {
+					brv.logger.Debugw("error processing command", "error", err)
+					if err := dataChannel.SendText(err.Error()); err != nil {
+						brv.logger.Error(err)
+					}
+					return
+				}
+				if resp == nil {
+					return
+				}
+				if resp.isText {
+					if err := dataChannel.SendText(string(resp.data)); err != nil {
+						brv.logger.Error(err)
+					}
+					return
+				}
+				if err := dataChannel.Send(resp.data); err != nil {
+					brv.logger.Error(err)
+				}
 			}
 			brv.onDataHandler(msg.Data)
 		})

@@ -6,6 +6,7 @@ import (
 	"image"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -56,6 +57,13 @@ func view(port int, name string, img image.Image) error {
 	}
 	remoteView.SetOnClickHandler(func(x, y int) {
 		golog.Global.Debugw("click", "x", x, "y", y)
+	})
+
+	remoteView.CommandRegistry().Add("ping", func(cmd *gostream.Command) (*gostream.CommandResponse, error) {
+		if len(cmd.Args) == 0 {
+			return gostream.NewCommandResponseText("pong"), nil
+		}
+		return gostream.NewCommandResponseText(strings.Join(cmd.Args, " ")), nil
 	})
 
 	server := gostream.NewRemoteViewServer(port, remoteView, golog.Global)
