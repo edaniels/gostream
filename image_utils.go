@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 
 	"github.com/disintegration/imaging"
+	"github.com/edaniels/golog"
 )
 
 type RotateImageSource struct {
@@ -53,6 +54,7 @@ type AutoTiler struct {
 	sources   []ImageSource
 	maxWidth  int
 	maxHeight int
+	logger    golog.Logger
 }
 
 func NewAutoTiler(maxWidth, maxHeight int, sources ...ImageSource) *AutoTiler {
@@ -61,6 +63,12 @@ func NewAutoTiler(maxWidth, maxHeight int, sources ...ImageSource) *AutoTiler {
 		maxHeight: maxHeight,
 		sources:   sources,
 	}
+}
+
+func (at *AutoTiler) SetLogger(logger golog.Logger) {
+	at.mu.Lock()
+	at.logger = logger
+	at.mu.Unlock()
 }
 
 func (at *AutoTiler) AddSource(src ImageSource) {
@@ -89,7 +97,9 @@ func (at *AutoTiler) Next(ctx context.Context) (image.Image, error) {
 		})
 	}
 	if err := RunParallel(fs); err != nil {
-		return nil, err
+		if at.logger != nil {
+			at.logger.Debugw("error grabbing frames", "error", err)
+		}
 	}
 
 	// We want to divide our space into alternating

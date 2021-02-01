@@ -47,7 +47,7 @@ func streamSource(ctx context.Context, once func(), is ImageSource, remoteView R
 		frame, err := is.Next(ctx)
 		if err != nil {
 			golog.Global.Debugw("error getting frame", "error", err)
-			return
+			continue
 		}
 		remoteView.InputFrames() <- frame
 	}
