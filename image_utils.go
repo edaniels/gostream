@@ -13,6 +13,24 @@ import (
 	"github.com/disintegration/imaging"
 )
 
+type ResizeImageSource struct {
+	ImageSource
+	X, Y int
+}
+
+func (ris ResizeImageSource) Next(ctx context.Context) (image.Image, error) {
+	img, err := ris.ImageSource.Next(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return imaging.Resize(img, ris.X, ris.Y, imaging.NearestNeighbor), nil
+}
+
+func (ris ResizeImageSource) Close() error {
+	return ris.ImageSource.Close()
+}
+
 type AutoTiler struct {
 	mu        sync.Mutex
 	sources   []ImageSource
