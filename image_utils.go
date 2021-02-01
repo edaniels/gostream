@@ -13,6 +13,23 @@ import (
 	"github.com/disintegration/imaging"
 )
 
+type RotateImageSource struct {
+	Original ImageSource
+}
+
+func (rms *RotateImageSource) Next(ctx context.Context) (image.Image, error) {
+	img, err := rms.Original.Next(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return imaging.Rotate(img, 180, color.Black), nil
+}
+
+func (rms *RotateImageSource) Close() {
+	rms.Original.Close()
+}
+
 type ResizeImageSource struct {
 	ImageSource
 	X, Y int
