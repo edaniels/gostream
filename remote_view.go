@@ -475,6 +475,9 @@ func (brv *basicRemoteView) processInputFrames() {
 		case <-brv.shutdownCtx.Done():
 			return
 		}
+		if frame == nil {
+			continue
+		}
 		if firstFrame {
 			bounds := frame.Bounds()
 			if err := brv.initCodec(bounds.Dx(), bounds.Dy()); err != nil {

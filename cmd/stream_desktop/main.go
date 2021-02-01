@@ -19,7 +19,8 @@ import (
 
 func main() {
 	port := flag.Int("port", 5555, "port to run server on")
-	dupe := flag.Bool("dupe", false, "duplicate stream")
+	dupeStream := flag.Bool("dupe_stream", false, "duplicate stream")
+	dupe := flag.Int("dupe", 0, "number of times to duplicate image")
 	flag.Parse()
 
 	config := vpx.DefaultRemoteViewConfig
@@ -40,7 +41,7 @@ func main() {
 
 	server := gostream.NewRemoteViewServer(*port, remoteView, golog.Global)
 	var dupeView gostream.RemoteView
-	if *dupe {
+	if *dupeStream {
 		config.StreamName = "dupe"
 		config.StreamNumber = 1
 		remoteView, err := gostream.NewRemoteView(config)
@@ -71,17 +72,25 @@ func main() {
 
 	bounds := screenshot.GetDisplayBounds(0)
 	captureRate := 33 * time.Millisecond
-	capture := func() image.Image {
+	capture := func(ctx context.Context) (image.Image, error) {
 		img, err := screenshot.CaptureRect(bounds)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
-		return img
+		return img, nil
 	}
 	if dupeView != nil {
 		go gostream.StreamFunc(cancelCtx, capture, dupeView, captureRate)
 	}
-	gostream.StreamFunc(cancelCtx, capture, remoteView, captureRate)
+	if *dupe == 0 {
+		gostream.StreamFunc(cancelCtx, capture, remoteView, captureRate)
+	} else {
+		autoTiler := gostream.NewAutoTiler(800, 600, gostream.ImageSourceFunc(capture))
+		for i := 0; i < *dupe; i++ {
+			autoTiler.AddSource(gostream.ImageSourceFunc(capture))
+		}
+		gostream.StreamSource(cancelCtx, autoTiler, remoteView, captureRate)
+	}
 	if err := server.Stop(context.Background()); err != nil {
 		golog.Global.Error(err)
 	}

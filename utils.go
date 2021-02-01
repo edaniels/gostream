@@ -9,9 +9,26 @@ import (
 	"image"
 	"io/ioutil"
 	"time"
+
+	"github.com/edaniels/golog"
 )
 
-func streamFunc(ctx context.Context, once func(), f func() image.Image, remoteView RemoteView, captureInternal time.Duration) {
+type ImageSource interface {
+	Next(ctx context.Context) (image.Image, error)
+	Close() error
+}
+
+type ImageSourceFunc func(ctx context.Context) (image.Image, error)
+
+func (isf ImageSourceFunc) Next(ctx context.Context) (image.Image, error) {
+	return isf(ctx)
+}
+
+func (isf ImageSourceFunc) Close() error {
+	return nil
+}
+
+func streamSource(ctx context.Context, once func(), is ImageSource, remoteView RemoteView, captureInternal time.Duration) {
 	if once != nil {
 		once()
 	}
@@ -27,16 +44,31 @@ func streamFunc(ctx context.Context, once func(), f func() image.Image, remoteVi
 		default:
 		}
 		time.Sleep(captureInternal)
-		remoteView.InputFrames() <- f()
+		frame, err := is.Next(ctx)
+		if err != nil {
+			golog.Global.Debugw("error getting frame", "error", err)
+			return
+		}
+		remoteView.InputFrames() <- frame
 	}
 }
 
-func StreamFunc(ctx context.Context, f func() image.Image, remoteView RemoteView, captureInternal time.Duration) {
-	StreamFuncOnce(ctx, nil, f, remoteView, captureInternal)
+func StreamSource(ctx context.Context, is ImageSource, remoteView RemoteView, captureInternal time.Duration) {
+	StreamSourceOnce(ctx, nil, is, remoteView, captureInternal)
 }
 
-func StreamFuncOnce(ctx context.Context, once func(), f func() image.Image, remoteView RemoteView, captureInternal time.Duration) {
-	streamFunc(ctx, once, f, remoteView, captureInternal)
+func StreamSourceOnce(ctx context.Context, once func(), is ImageSource, remoteView RemoteView, captureInternal time.Duration) {
+	streamSource(ctx, once, is, remoteView, captureInternal)
+}
+
+//nolint:interfacer
+func StreamFunc(ctx context.Context, isf ImageSourceFunc, remoteView RemoteView, captureInternal time.Duration) {
+	StreamSourceOnce(ctx, nil, isf, remoteView, captureInternal)
+}
+
+//nolint:interfacer
+func StreamFuncOnce(ctx context.Context, once func(), isf ImageSourceFunc, remoteView RemoteView, captureInternal time.Duration) {
+	streamSource(ctx, once, isf, remoteView, captureInternal)
 }
 
 // Allows compressing offer/answer to bypass terminal input limits.
