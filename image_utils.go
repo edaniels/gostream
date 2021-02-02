@@ -84,15 +84,14 @@ func (at *AutoTiler) Next(ctx context.Context) (image.Image, error) {
 	allImgs := make([]image.Image, 0, len(at.sources))
 	fs := make([]func() error, 0, len(at.sources))
 
-	for i, src := range at.sources {
-		iCopy := i
+	for _, src := range at.sources {
 		srcCopy := src
 		fs = append(fs, func() error {
 			img, err := srcCopy.Next(ctx)
 			if err != nil {
 				return err
 			}
-			allImgs[iCopy] = img
+			allImgs = append(allImgs, img)
 			return nil
 		})
 	}
