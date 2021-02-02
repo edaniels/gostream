@@ -81,7 +81,7 @@ func (at *AutoTiler) Next(ctx context.Context) (image.Image, error) {
 	at.mu.Lock()
 	defer at.mu.Unlock()
 
-	allImgs := make([]image.Image, len(at.sources))
+	allImgs := make([]image.Image, 0, len(at.sources))
 	fs := make([]func() error, 0, len(at.sources))
 
 	for i, src := range at.sources {
