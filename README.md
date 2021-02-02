@@ -12,6 +12,12 @@ gostream is a library to simplify the streaming of images as video to a series o
 * Stream current desktop: `go run github.com/edaniels/gostream/cmd/stream_desktop`
 * Stream an im-gui: `go run github.com/edaniels/gostream/cmd/stream_imgui --image some image`
 
+## Notes
+
+### Using mDNS
+
+* mDNS (.local addresses) don't seem to work well with WebRTC yet. Random STUN/TURN failures appear to occur. At your own risk, you can address this in Firefox in `about:config` with `media.peerconnection.ice.obfuscate_host_addresses` set to `false` and in Chrome with `chrome://flags/#enable-webrtc-hide-local-ips-with-mdns` set to `Disabled`.
+
 ## Building
 
 ### Prerequisites
