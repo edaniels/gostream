@@ -19,8 +19,9 @@ import (
 
 func main() {
 	port := flag.Int("port", 5555, "port to run server on")
+	dupeView := flag.Bool("dupe_view", false, "duplicate view")
 	dupeStream := flag.Bool("dupe_stream", false, "duplicate stream")
-	dupe := flag.Int("dupe", 0, "number of times to duplicate image")
+	extraTiles := flag.Int("extra_tiles", 0, "number of times to duplicate screen in tiles")
 	flag.Parse()
 
 	config := vpx.DefaultRemoteViewConfig
@@ -40,8 +41,8 @@ func main() {
 	})
 
 	server := gostream.NewRemoteViewServer(*port, remoteView, golog.Global)
-	var dupeView gostream.RemoteView
-	if *dupeStream {
+	var secondView gostream.RemoteView
+	if *dupeView {
 		config.StreamName = "dupe"
 		config.StreamNumber = 1
 		remoteView, err := gostream.NewRemoteView(config)
@@ -57,8 +58,8 @@ func main() {
 			golog.Global.Debugw("click", "x", x, "y", y)
 			remoteView.SendText(fmt.Sprintf("got click (%d, %d)", x, y))
 		})
-		dupeView = remoteView
-		server.AddView(dupeView)
+		secondView = remoteView
+		server.AddView(secondView)
 	}
 	server.Run()
 
@@ -79,17 +80,20 @@ func main() {
 		}
 		return img, nil
 	}
-	if dupeView != nil {
-		go gostream.StreamFunc(cancelCtx, capture, dupeView, captureRate)
+	if secondView != nil {
+		go gostream.StreamFunc(cancelCtx, capture, secondView, captureRate)
 	}
-	if *dupe == 0 {
-		gostream.StreamFunc(cancelCtx, capture, remoteView, captureRate)
+	if dupeStream != nil {
+		go gostream.StreamNamedFunc(cancelCtx, capture, "dupe", remoteView, captureRate)
+	}
+	if *extraTiles == 0 {
+		gostream.StreamNamedFunc(cancelCtx, capture, "screen", remoteView, captureRate)
 	} else {
 		autoTiler := gostream.NewAutoTiler(800, 600, gostream.ImageSourceFunc(capture))
-		for i := 0; i < *dupe; i++ {
+		for i := 0; i < *extraTiles; i++ {
 			autoTiler.AddSource(gostream.ImageSourceFunc(capture))
 		}
-		gostream.StreamSource(cancelCtx, autoTiler, remoteView, captureRate)
+		gostream.StreamNamedSource(cancelCtx, autoTiler, "tiled screens", remoteView, captureRate)
 	}
 	if err := server.Stop(context.Background()); err != nil {
 		golog.Global.Error(err)

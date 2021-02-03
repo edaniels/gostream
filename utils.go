@@ -28,10 +28,11 @@ func (isf ImageSourceFunc) Close() error {
 	return nil
 }
 
-func streamSource(ctx context.Context, once func(), is ImageSource, remoteView RemoteView, captureInternal time.Duration) {
+func streamSource(ctx context.Context, once func(), is ImageSource, name string, remoteView RemoteView, captureInternal time.Duration) {
 	if once != nil {
 		once()
 	}
+	stream := remoteView.ReserveStream(name)
 	select {
 	case <-ctx.Done():
 		return
@@ -49,7 +50,7 @@ func streamSource(ctx context.Context, once func(), is ImageSource, remoteView R
 			golog.Global.Debugw("error getting frame", "error", err)
 			continue
 		}
-		remoteView.InputFrames() <- frame
+		stream.InputFrames() <- frame
 	}
 }
 
@@ -58,7 +59,7 @@ func StreamSource(ctx context.Context, is ImageSource, remoteView RemoteView, ca
 }
 
 func StreamSourceOnce(ctx context.Context, once func(), is ImageSource, remoteView RemoteView, captureInternal time.Duration) {
-	streamSource(ctx, once, is, remoteView, captureInternal)
+	streamSource(ctx, once, is, "", remoteView, captureInternal)
 }
 
 //nolint:interfacer
@@ -68,7 +69,25 @@ func StreamFunc(ctx context.Context, isf ImageSourceFunc, remoteView RemoteView,
 
 //nolint:interfacer
 func StreamFuncOnce(ctx context.Context, once func(), isf ImageSourceFunc, remoteView RemoteView, captureInternal time.Duration) {
-	streamSource(ctx, once, isf, remoteView, captureInternal)
+	streamSource(ctx, once, isf, "", remoteView, captureInternal)
+}
+
+func StreamNamedSource(ctx context.Context, is ImageSource, name string, remoteView RemoteView, captureInternal time.Duration) {
+	StreamNamedSourceOnce(ctx, nil, is, name, remoteView, captureInternal)
+}
+
+func StreamNamedSourceOnce(ctx context.Context, once func(), is ImageSource, name string, remoteView RemoteView, captureInternal time.Duration) {
+	streamSource(ctx, once, is, name, remoteView, captureInternal)
+}
+
+//nolint:interfacer
+func StreamNamedFunc(ctx context.Context, isf ImageSourceFunc, name string, remoteView RemoteView, captureInternal time.Duration) {
+	StreamNamedFuncOnce(ctx, nil, isf, name, remoteView, captureInternal)
+}
+
+//nolint:interfacer
+func StreamNamedFuncOnce(ctx context.Context, once func(), isf ImageSourceFunc, name string, remoteView RemoteView, captureInternal time.Duration) {
+	streamSource(ctx, once, isf, name, remoteView, captureInternal)
 }
 
 // Allows compressing offer/answer to bypass terminal input limits.

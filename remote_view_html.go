@@ -17,7 +17,7 @@ var viewSingleHTML = `
 var viewJS = `
 const start_%[2]d = function() {
   let peerConnection = new RTCPeerConnection({
-    iceServers: %[3]s
+    iceServers: %[4]s
   });
 
   const calculateClick = (el, event) => {
@@ -37,6 +37,8 @@ const start_%[2]d = function() {
   }
 
   peerConnection.ontrack = event => {
+    var id = event.streams[0].id;
+    var containerElement = document.createElement("div");
     var videoElement = document.createElement(event.track.kind);
     videoElement.srcObject = event.streams[0];
     videoElement.autoplay = true;
@@ -46,7 +48,12 @@ const start_%[2]d = function() {
       coords = calculateClick(videoElement, event);
       clickChannel.send(coords.x + "," + coords.y);
     }
-    document.getElementById('remoteVideo_%[2]d').appendChild(videoElement)
+    var textElement = document.createElement("div");
+    textElement.textContent = id;
+    containerElement.setAttribute("id", id);
+    containerElement.appendChild(textElement);
+    containerElement.appendChild(videoElement);
+    document.getElementById('remoteVideo_%[2]d').appendChild(containerElement);
   }
 
   peerConnection.onicecandidate = event => {
@@ -79,7 +86,9 @@ const start_%[2]d = function() {
   dataChannel.onmessage = function(event) {
     console.log(event.data);
   }
-  peerConnection.addTransceiver('video', {'direction': 'sendrecv'});
+  for (var i = 0; i < %[3]d; i++) {
+    peerConnection.addTransceiver('video', {'direction': 'sendrecv'});
+  }
   peerConnection.createOffer()
     .then(desc => peerConnection.setLocalDescription(desc))
     .catch(console.log);
@@ -100,7 +109,7 @@ const start_%[2]d = function() {
 `
 
 var viewBody = `
-Video<br />
+Remote View<br />
 <button onclick="start_%[2]d(); this.remove();">Start%[1]s</button>
 <div id="stream_%[2]d">
   <div id="remoteVideo_%[2]d"></div><br />

@@ -23,7 +23,6 @@ import (
 type RemoteView interface {
 	Stop()
 	Ready() <-chan struct{}
-	InputFrames() chan<- image.Image // TODO(erd): does duration of frame matter?
 	SetOnClickHandler(func(x, y int))
 	SetOnDataHandler(func(data []byte))
 	SendData(data []byte)
@@ -33,6 +32,11 @@ type RemoteView interface {
 	SinglePageHTML() string
 	Handler() RemoteViewHandler
 	CommandRegistry() CommandRegistry
+	ReserveStream(name string) Stream
+}
+
+type Stream interface {
+	InputFrames() chan<- image.Image // TODO(erd): does duration of frame matter?
 }
 
 type RemoteViewHTML struct {
@@ -52,8 +56,6 @@ func NewRemoteView(config RemoteViewConfig) (RemoteView, error) {
 	return &basicRemoteView{
 		config:             config,
 		readyCh:            make(chan struct{}),
-		inputFrames:        make(chan image.Image),
-		outputFrames:       make(chan []byte),
 		peerToRemoteClient: map[*webrtc.PeerConnection]remoteClient{},
 		commandRegistry:    NewCommandRegistry(),
 		logger:             logger,
@@ -68,9 +70,9 @@ type basicRemoteView struct {
 	readyOnce            sync.Once
 	readyCh              chan struct{}
 	peerToRemoteClient   map[*webrtc.PeerConnection]remoteClient
-	inputFrames          chan image.Image
-	outputFrames         chan []byte
-	encoder              Encoder
+	inoutFrameChans      []inoutFrameChan // not thread-safe
+	encoders             []Encoder        // not thread-safe
+	reservedStreams      []*remoteStream
 	onDataHandler        func(data []byte)
 	onClickHandler       func(x, y int)
 	commandRegistry      CommandRegistry
@@ -172,17 +174,26 @@ func (brv *basicRemoteView) Handler() RemoteViewHandler {
 			}
 		})
 
-		videoTrack, err := webrtc.NewTrackLocalStaticSample(
-			webrtc.RTPCodecCapability{MimeType: brv.config.EncoderFactory.MIMEType()},
-			"video",
-			"pion",
-		)
-		if err != nil {
-			panic(err)
-		}
-
-		if _, err := peerConnection.AddTrack(videoTrack); err != nil {
-			panic(err)
+		videoTracks := make([]*webrtc.TrackLocalStaticSample, 0, brv.numReservedStreams())
+		for i, stream := range brv.getReservedStreams() {
+			var trackName string // shows up as stream id
+			if stream.name == "" {
+				trackName = fmt.Sprintf("video-%d", i)
+			} else {
+				trackName = stream.name
+			}
+			videoTrack, err := webrtc.NewTrackLocalStaticSample(
+				webrtc.RTPCodecCapability{MimeType: brv.config.EncoderFactory.MIMEType()},
+				trackName,
+				trackName,
+			)
+			if err != nil {
+				panic(err)
+			}
+			if _, err := peerConnection.AddTrack(videoTrack); err != nil {
+				panic(err)
+			}
+			videoTracks = append(videoTracks, videoTrack)
 		}
 
 		dataChannelID := uint16(0)
@@ -310,7 +321,7 @@ func (brv *basicRemoteView) Handler() RemoteViewHandler {
 			case <-iceConnectedCtx.Done():
 			}
 
-			brv.addRemoteClient(peerConnection, remoteClient{dataChannel, videoTrack})
+			brv.addRemoteClient(peerConnection, remoteClient{dataChannel, videoTracks})
 
 			brv.readyOnce.Do(func() {
 				close(brv.readyCh)
@@ -393,23 +404,29 @@ func (brv *basicRemoteView) iceServers() string {
 	return strBuf.String()
 }
 
-func (brv *basicRemoteView) SinglePageHTML() string {
+func (brv *basicRemoteView) htmlArgs() []interface{} {
 	name := brv.config.StreamName
 	if name != "" {
 		name = " " + name
 	}
-	return fmt.Sprintf(viewSingleHTML, name, brv.streamNum(), brv.iceServers())
+	return []interface{}{name, brv.streamNum(), brv.numReservedStreams(), brv.iceServers()}
+}
+
+func (brv *basicRemoteView) SinglePageHTML() string {
+	return fmt.Sprintf(viewSingleHTML, brv.htmlArgs()...)
 }
 
 func (brv *basicRemoteView) HTML() RemoteViewHTML {
-	name := brv.config.StreamName
-	if name != "" {
-		name = " " + name
-	}
 	return RemoteViewHTML{
-		JavaScript: fmt.Sprintf(viewJS, name, brv.streamNum(), brv.iceServers()),
-		Body:       fmt.Sprintf(viewBody, name, brv.streamNum()),
+		JavaScript: fmt.Sprintf(viewJS, brv.htmlArgs()...),
+		Body:       fmt.Sprintf(viewBody, brv.htmlArgs()...),
 	}
+}
+
+func (brv *basicRemoteView) numReservedStreams() int {
+	// thread-safe but racey if more chans are added before the first
+	// connection is negotiated.
+	return len(brv.reservedStreams)
 }
 
 func (brv *basicRemoteView) Debug() bool {
@@ -453,86 +470,139 @@ func (brv *basicRemoteView) SendText(msg string) {
 	}
 }
 
-func (brv *basicRemoteView) InputFrames() chan<- image.Image {
-	return brv.inputFrames
+type inoutFrameChan struct {
+	In  chan image.Image
+	Out chan []byte
 }
 
-func (brv *basicRemoteView) processInputFrames() {
-	defer func() {
-		close(brv.outputFrames)
-		brv.backgroundProcessing.Done()
-	}()
-	firstFrame := true
-	for {
-		select {
-		case <-brv.shutdownCtx.Done():
-			return
-		default:
-		}
-		var frame image.Image
-		select {
-		case frame = <-brv.inputFrames:
-		case <-brv.shutdownCtx.Done():
-			return
-		}
-		if frame == nil {
-			continue
-		}
-		if firstFrame {
-			bounds := frame.Bounds()
-			if err := brv.initCodec(bounds.Dx(), bounds.Dy()); err != nil {
-				brv.logger.Error(err)
-				return
-			}
-			firstFrame = false
-		}
+func (brv *basicRemoteView) ReserveStream(name string) Stream {
+	brv.mu.Lock()
+	defer brv.mu.Unlock()
+	inputChan := make(chan image.Image)
+	outputChan := make(chan []byte)
+	brv.inoutFrameChans = append(brv.inoutFrameChans, inoutFrameChan{inputChan, outputChan})
+	stream := &remoteStream{name, inputChan}
+	brv.reservedStreams = append(brv.reservedStreams, stream)
+	return stream
+}
 
-		encodedFrame, err := brv.encoder.Encode(frame)
-		if err != nil {
-			brv.logger.Error(err)
-			continue
-		}
-		if encodedFrame != nil {
-			brv.outputFrames <- encodedFrame
-		}
+type remoteStream struct {
+	name        string
+	inputFrames chan<- image.Image
+}
+
+func (rs *remoteStream) InputFrames() chan<- image.Image {
+	return rs.inputFrames
+}
+
+// TODO(erd): support new chans over time. Right now
+// only what is streamed before the first connection is
+// negotiated is streamed.
+func (brv *basicRemoteView) processInputFrames() {
+	defer brv.backgroundProcessing.Done()
+	brv.backgroundProcessing.Add(brv.numReservedStreams())
+	for i, inout := range brv.inoutFrameChans {
+		iCopy := i
+		inoutCopy := inout
+		go func() {
+			i := iCopy
+			inout := inoutCopy
+			defer func() {
+				close(inout.Out)
+				defer brv.backgroundProcessing.Done()
+			}()
+			firstFrame := true
+			for {
+				select {
+				case <-brv.shutdownCtx.Done():
+					return
+				default:
+				}
+				var frame image.Image
+				select {
+				case frame = <-inout.In:
+				case <-brv.shutdownCtx.Done():
+					return
+				}
+				if frame == nil {
+					continue
+				}
+				if firstFrame {
+					bounds := frame.Bounds()
+					if err := brv.initCodec(i, bounds.Dx(), bounds.Dy()); err != nil {
+						brv.logger.Error(err)
+						return
+					}
+					firstFrame = false
+				}
+
+				// thread-safe because the size is static
+				encodedFrame, err := brv.encoders[i].Encode(frame)
+				if err != nil {
+					brv.logger.Error(err)
+					continue
+				}
+				if encodedFrame != nil {
+					inout.Out <- encodedFrame
+				}
+			}
+		}()
 	}
 }
 
 func (brv *basicRemoteView) processOutputFrames() {
 	defer brv.backgroundProcessing.Done()
-	framesSent := 0
-	for outputFrame := range brv.outputFrames {
-		select {
-		case <-brv.shutdownCtx.Done():
-			return
-		default:
-		}
-		now := time.Now()
-		for _, rc := range brv.getRemoteClients() {
-			if ivfErr := rc.videoTrack.WriteSample(media.Sample{Data: outputFrame, Duration: 33 * time.Millisecond}); ivfErr != nil {
-				panic(ivfErr)
+
+	brv.backgroundProcessing.Add(brv.numReservedStreams())
+	for i, inout := range brv.inoutFrameChans {
+		iCopy := i
+		inoutCopy := inout
+		go func() {
+			i := iCopy
+			inout := inoutCopy
+			defer brv.backgroundProcessing.Done()
+
+			framesSent := 0
+			for outputFrame := range inout.Out {
+				select {
+				case <-brv.shutdownCtx.Done():
+					return
+				default:
+				}
+				now := time.Now()
+				for _, rc := range brv.getRemoteClients() {
+					if ivfErr := rc.videoTracks[i].WriteSample(media.Sample{Data: outputFrame, Duration: 33 * time.Millisecond}); ivfErr != nil {
+						panic(ivfErr)
+					}
+				}
+				framesSent++
+				if brv.config.Debug {
+					brv.logger.Debugw("wrote sample", "track_num", i, "frames_sent", framesSent, "write_time", time.Since(now))
+				}
 			}
-		}
-		framesSent++
-		if brv.config.Debug {
-			brv.logger.Debugw("wrote sample", "frames_sent", framesSent, "write_time", time.Since(now))
-		}
+		}()
 	}
 }
 
-func (brv *basicRemoteView) initCodec(width, height int) error {
-	if brv.encoder != nil {
+func (brv *basicRemoteView) initCodec(num, width, height int) error {
+	brv.mu.Lock()
+	if brv.encoders == nil {
+		// this makes us stuck with this many encoders to stay thread-safe
+		brv.encoders = make([]Encoder, brv.numReservedStreams())
+	}
+	brv.mu.Unlock()
+	if brv.encoders[num] != nil {
 		return errors.New("already initialized codec")
 	}
 
 	var err error
-	brv.encoder, err = brv.config.EncoderFactory.New(width, height, brv.logger)
+	brv.encoders[num], err = brv.config.EncoderFactory.New(width, height, brv.logger)
 	return err
 }
 
 type remoteClient struct {
 	dataChannel *webrtc.DataChannel
-	videoTrack  *webrtc.TrackLocalStaticSample
+	videoTracks []*webrtc.TrackLocalStaticSample
 }
 
 func (brv *basicRemoteView) addRemoteClient(peerConnection *webrtc.PeerConnection, rc remoteClient) {
@@ -556,4 +626,12 @@ func (brv *basicRemoteView) getRemoteClients() []remoteClient {
 		remoteClients = append(remoteClients, rc)
 	}
 	return remoteClients
+}
+
+func (brv *basicRemoteView) getReservedStreams() []*remoteStream {
+	brv.mu.Lock()
+	defer brv.mu.Unlock()
+	// make shallow copy
+	streams := make([]*remoteStream, 0, len(brv.reservedStreams))
+	return append(streams, brv.reservedStreams...)
 }
