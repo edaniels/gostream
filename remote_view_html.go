@@ -104,7 +104,7 @@ const start_%[2]d = function() {
     }
     dataChannel.send(textInput.value);
   }
-  document.getElementById("stream_%[2]d").appendChild(textInput);
+  document.getElementById("stream_%[2]d").prepend(textInput);
 }
 `
 
