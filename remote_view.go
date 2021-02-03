@@ -481,7 +481,7 @@ func (brv *basicRemoteView) ReserveStream(name string) Stream {
 	inputChan := make(chan image.Image)
 	outputChan := make(chan []byte)
 	brv.inoutFrameChans = append(brv.inoutFrameChans, inoutFrameChan{inputChan, outputChan})
-	stream := &remoteStream{name, inputChan}
+	stream := &remoteStream{strings.ReplaceAll(name, " ", "-"), inputChan}
 	brv.reservedStreams = append(brv.reservedStreams, stream)
 	return stream
 }
