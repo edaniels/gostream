@@ -26,6 +26,8 @@ const (
 	CodecVP9 VCodec = "V_VP9"
 )
 
+const bitrate = 20_000_000
+
 func NewEncoder(codecType VCodec, width, height int, debug bool, logger golog.Logger) (gostream.Encoder, error) {
 	enc := &encoder{debug: debug, logger: logger}
 
@@ -37,13 +39,14 @@ func NewEncoder(codecType VCodec, width, height int, debug bool, logger golog.Lo
 			return nil, err
 		}
 		builder = &params
-
+		params.BitRate = bitrate
 	case CodecVP9:
 		params, err := vpx.NewVP9Params()
 		if err != nil {
 			return nil, err
 		}
 		builder = &params
+		params.BitRate = bitrate
 	default:
 		return nil, fmt.Errorf("[WARN] unsupported VPX codec: %s", codecType)
 	}
