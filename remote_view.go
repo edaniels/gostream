@@ -36,7 +36,7 @@ type RemoteView interface {
 }
 
 type Stream interface {
-	InputFrames() chan<- image.Image // TODO(erd): does duration of frame matter?
+	InputFrames() chan<- image.Image
 }
 
 type RemoteViewHTML struct {

@@ -12,6 +12,7 @@ import (
 
 	"github.com/disintegration/imaging"
 	"github.com/edaniels/golog"
+	"go.uber.org/multierr"
 )
 
 type RotateImageSource struct {
@@ -142,13 +143,12 @@ func (at *AutoTiler) Next(ctx context.Context) (image.Image, error) {
 	return dst, nil
 }
 
-// TODO(erd): combine errors
 func (at *AutoTiler) Close() error {
-	var lastErr error
+	var err error
 	for _, src := range at.sources {
-		lastErr = src.Close()
+		err = multierr.Append(err, src.Close())
 	}
-	return lastErr
+	return err
 }
 
 func RunParallel(fs []func() error) error {

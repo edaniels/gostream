@@ -11,6 +11,6 @@ require (
 	github.com/pion/logging v0.2.2
 	github.com/pion/mediadevices v0.1.17
 	github.com/pion/webrtc/v3 v3.0.5
-	go.uber.org/multierr v1.6.0 // indirect
+	go.uber.org/multierr v1.6.0
 	golang.org/x/tools v0.1.0 // indirect
 )
