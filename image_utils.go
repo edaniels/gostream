@@ -54,6 +54,7 @@ type AutoTiler struct {
 	sources   []ImageSource
 	maxWidth  int
 	maxHeight int
+	vert      bool
 	logger    golog.Logger
 }
 
@@ -62,6 +63,15 @@ func NewAutoTiler(maxWidth, maxHeight int, sources ...ImageSource) *AutoTiler {
 		maxWidth:  maxWidth,
 		maxHeight: maxHeight,
 		sources:   sources,
+	}
+}
+
+func NewAutoTilerVertical(maxWidth, maxHeight int, sources ...ImageSource) *AutoTiler {
+	return &AutoTiler{
+		maxWidth:  maxWidth,
+		maxHeight: maxHeight,
+		sources:   sources,
+		vert:      true,
 	}
 }
 
@@ -108,8 +118,15 @@ func (at *AutoTiler) Next(ctx context.Context) (image.Image, error) {
 	// root as x causes it to lag behind the ceil of the square
 	// root as y.
 	sqrt := math.Sqrt(float64(len(allImgs)))
-	xFill := math.Round(sqrt)
-	yFill := math.Ceil(sqrt)
+	var xFill float64
+	var yFill float64
+	if at.vert {
+		xFill = math.Ceil(sqrt)
+		yFill = math.Round(sqrt)
+	} else {
+		xFill = math.Round(sqrt)
+		yFill = math.Ceil(sqrt)
+	}
 	xStride := float64(at.maxWidth) / xFill
 	yStride := float64(at.maxHeight) / yFill
 
