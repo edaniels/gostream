@@ -21,7 +21,10 @@ gostream is a library to simplify the streaming of images as video to a series o
 
 ### Prerequisites
 
-The only supported/tested encoder right now is VP8 which requires libvpx. Follow the instructions at [libvpx-go](https://github.com/xlab/libvpx-go).
+* libvpx
+
+Linux: `libvpx-dev`
+macOS: `brew install libvpx`
 
 ## Development
 
