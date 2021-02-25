@@ -24,6 +24,7 @@ gostream is a library to simplify the streaming of images as video to a series o
 * libvpx
 
 Linux: `libvpx-dev`
+
 macOS: `brew install libvpx`
 
 ## Development
