@@ -4,7 +4,6 @@ gostream is a library to simplify the streaming of images as video to a series o
 
 ## TODO
 
-- [ ] Get VP9 working
 - [ ] Address code TODOs (including context.TODO)
 
 ## Examples
