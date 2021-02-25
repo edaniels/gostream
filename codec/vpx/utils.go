@@ -34,8 +34,6 @@ void rgba2yuv(void *destination, void *source, int width, int height, int stride
 import "C"
 import (
 	"fmt"
-	"image"
-	"unsafe"
 
 	"github.com/edaniels/golog"
 	"github.com/edaniels/gostream"
@@ -69,16 +67,4 @@ func (f *factory) MIMEType() string {
 	default:
 		panic(fmt.Errorf("unknown codec %q", f.codec))
 	}
-}
-
-// rgbaToYuv convert to yuv from rgba
-// From https://github.com/poi5305/go-yuv2webRTC
-func rgbaToYuv(rgba *image.RGBA) []byte {
-	w := rgba.Rect.Max.X
-	h := rgba.Rect.Max.Y
-	size := int(float32(w*h) * 1.5)
-	stride := rgba.Stride - w*4
-	yuv := make([]byte, size)
-	C.rgba2yuv(unsafe.Pointer(&yuv[0]), unsafe.Pointer(&rgba.Pix[0]), C.int(w), C.int(h), C.int(stride))
-	return yuv
 }
