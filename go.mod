@@ -5,7 +5,6 @@ go 1.15
 require (
 	fyne.io/fyne v1.4.3
 	github.com/disintegration/imaging v1.6.2
-	github.com/edaniels/golinters v0.0.4 // indirect
 	github.com/edaniels/golog v0.0.0-20210104162753-3254576d0129
 	github.com/golangci/golangci-lint v1.34.1
 	github.com/kbinani/screenshot v0.0.0-20191211154542-3a185f1ce18f

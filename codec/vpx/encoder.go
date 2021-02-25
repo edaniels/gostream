@@ -71,6 +71,9 @@ func (v *encoder) Read() (img image.Image, release func(), err error) {
 
 func (v *encoder) Encode(img image.Image) ([]byte, error) {
 	v.img = img
-	data, _, err := v.codec.Read()
-	return data, err
+	data, release, err := v.codec.Read()
+	dataCopy := make([]byte, len(data))
+	copy(dataCopy, data)
+	release()
+	return dataCopy, err
 }
