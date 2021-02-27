@@ -20,6 +20,9 @@ import (
 	"github.com/pion/webrtc/v3/pkg/media"
 )
 
+// TODO(erd): raise this back much higher after firefox hang issue fixed
+const DefaultKeyFrameInterval = 1
+
 type RemoteView interface {
 	Stop()
 	Ready() <-chan struct{}

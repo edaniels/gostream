@@ -40,6 +40,7 @@ func NewEncoder(codecType VCodec, width, height int, debug bool, logger golog.Lo
 		}
 		builder = &params
 		params.BitRate = bitrate
+		params.KeyFrameInterval = gostream.DefaultKeyFrameInterval
 	case CodecVP9:
 		params, err := vpx.NewVP9Params()
 		if err != nil {
@@ -47,6 +48,7 @@ func NewEncoder(codecType VCodec, width, height int, debug bool, logger golog.Lo
 		}
 		builder = &params
 		params.BitRate = bitrate
+		params.KeyFrameInterval = gostream.DefaultKeyFrameInterval
 	default:
 		return nil, fmt.Errorf("[WARN] unsupported VPX codec: %s", codecType)
 	}

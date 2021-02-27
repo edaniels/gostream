@@ -30,6 +30,7 @@ func NewEncoder(width, height int, debug bool, logger golog.Logger) (gostream.En
 	}
 	builder = &params
 	params.BitRate = bitrate
+	params.KeyFrameInterval = gostream.DefaultKeyFrameInterval
 
 	codec, err := builder.BuildVideoEncoder(enc, prop.Media{
 		Video: prop.Video{
