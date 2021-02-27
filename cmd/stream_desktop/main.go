@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"image"
 	"os"
 	"os/signal"
 	"syscall"
@@ -92,27 +91,19 @@ func main() {
 	}()
 
 	captureRate := 33 * time.Millisecond
-	capture := func(ctx context.Context) (image.Image, error) {
-		img, release, err := videoReader.Read()
-		if err != nil {
-			return nil, err
-		}
-		cloned := gostream.CloneImage(img)
-		release()
-		return cloned, nil
-	}
+	imgSrc := gostream.VideoReadReleaser{videoReader}
 	if secondView != nil {
-		go gostream.StreamFunc(cancelCtx, capture, secondView, captureRate)
+		go gostream.StreamSource(cancelCtx, imgSrc, secondView, captureRate)
 	}
 	if *dupeStream {
-		go gostream.StreamNamedFunc(cancelCtx, capture, "dupe", remoteView, captureRate)
+		go gostream.StreamNamedSource(cancelCtx, imgSrc, "dupe", remoteView, captureRate)
 	}
 	if *extraTiles == 0 {
-		gostream.StreamNamedFunc(cancelCtx, capture, "screen", remoteView, captureRate)
+		gostream.StreamNamedSource(cancelCtx, imgSrc, "screen", remoteView, captureRate)
 	} else {
-		autoTiler := gostream.NewAutoTiler(800, 600, gostream.ImageSourceFunc(capture))
+		autoTiler := gostream.NewAutoTiler(800, 600, imgSrc)
 		for i := 0; i < *extraTiles; i++ {
-			autoTiler.AddSource(gostream.ImageSourceFunc(capture))
+			autoTiler.AddSource(imgSrc)
 		}
 		gostream.StreamNamedSource(cancelCtx, autoTiler, "tiled screens", remoteView, captureRate)
 	}

@@ -563,6 +563,7 @@ func (brv *basicRemoteView) processOutputFrames() {
 			defer brv.backgroundProcessing.Done()
 
 			framesSent := 0
+			lastTimestamp := time.Now()
 			for outputFrame := range inout.Out {
 				select {
 				case <-brv.shutdownCtx.Done():
@@ -570,8 +571,10 @@ func (brv *basicRemoteView) processOutputFrames() {
 				default:
 				}
 				now := time.Now()
+				duration := now.Sub(lastTimestamp)
+				lastTimestamp = now
 				for _, rc := range brv.getRemoteClients() {
-					if ivfErr := rc.videoTracks[i].WriteSample(media.Sample{Data: outputFrame, Duration: 33 * time.Millisecond}); ivfErr != nil {
+					if ivfErr := rc.videoTracks[i].WriteSample(media.Sample{Data: outputFrame, Duration: duration}); ivfErr != nil {
 						panic(ivfErr)
 					}
 				}

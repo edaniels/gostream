@@ -1,6 +1,7 @@
 package gostream
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"image"
@@ -40,6 +41,24 @@ func (vrc videoReadCloser) Read() (img image.Image, release func(), err error) {
 
 func (vrc videoReadCloser) Close() error {
 	return vrc.videoDriver.Close()
+}
+
+type VideoReadReleaser struct {
+	VideoReadCloser
+}
+
+func (vrr VideoReadReleaser) Read() (img image.Image, err error) {
+	img, release, err := vrr.VideoReadCloser.Read()
+	if err != nil {
+		return nil, err
+	}
+	cloned := CloneImage(img)
+	release()
+	return cloned, nil
+}
+
+func (vrr VideoReadReleaser) Next(ctx context.Context) (img image.Image, err error) {
+	return vrr.Read()
 }
 
 func newVideoReaderFromDriver(videoDriver driver.Driver, mediaProp prop.Media) (VideoReadCloser, error) {

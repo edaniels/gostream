@@ -19,6 +19,11 @@ type ImageSource interface {
 	Close() error
 }
 
+type NoCtxImageSource interface {
+	Next() (image.Image, error)
+	Close() error
+}
+
 type ImageSourceFunc func(ctx context.Context) (image.Image, error)
 
 func (isf ImageSourceFunc) Next(ctx context.Context) (image.Image, error) {
