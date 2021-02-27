@@ -16,12 +16,12 @@ import (
 
 	"github.com/edaniels/golog"
 
+	"github.com/pion/interceptor"
 	"github.com/pion/webrtc/v3"
-	"github.com/pion/webrtc/v3/pkg/media"
 )
 
 // TODO(erd): raise this back much higher after firefox hang issue fixed
-const DefaultKeyFrameInterval = 1
+const DefaultKeyFrameInterval = 60
 
 type RemoteView interface {
 	Stop()
@@ -54,6 +54,9 @@ func NewRemoteView(config RemoteViewConfig) (RemoteView, error) {
 	}
 	if config.EncoderFactory == nil {
 		return nil, errors.New("no encoder factory set")
+	}
+	if config.TargetFrameRate == 0 {
+		config.TargetFrameRate = DefaultKeyFrameInterval
 	}
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	return &basicRemoteView{
@@ -140,7 +143,12 @@ func (brv *basicRemoteView) Handler() RemoteViewHandler {
 		if err := m.RegisterDefaultCodecs(); err != nil {
 			panic(err)
 		}
-		options := []func(a *webrtc.API){webrtc.WithMediaEngine(&m)}
+		i := interceptor.Registry{}
+		if err := webrtc.RegisterDefaultInterceptors(&m, &i); err != nil {
+			panic(err)
+		}
+
+		options := []func(a *webrtc.API){webrtc.WithMediaEngine(&m), webrtc.WithInterceptorRegistry(&i)}
 		if brv.config.Debug {
 			options = append(options, webrtc.WithSettingEngine(webrtc.SettingEngine{
 				LoggerFactory: webrtcLoggerFactory{brv.logger},
@@ -177,7 +185,7 @@ func (brv *basicRemoteView) Handler() RemoteViewHandler {
 			}
 		})
 
-		videoTracks := make([]*webrtc.TrackLocalStaticSample, 0, brv.numReservedStreams())
+		videoTracks := make([]*TrackLocalStaticSample, 0, brv.numReservedStreams())
 		for i, stream := range brv.getReservedStreams() {
 			var trackName string // shows up as stream id
 			if stream.name == "" {
@@ -185,7 +193,7 @@ func (brv *basicRemoteView) Handler() RemoteViewHandler {
 			} else {
 				trackName = stream.name
 			}
-			videoTrack, err := webrtc.NewTrackLocalStaticSample(
+			videoTrack, err := NewTrackLocalStaticSample(
 				webrtc.RTPCodecCapability{MimeType: brv.config.EncoderFactory.MIMEType()},
 				trackName,
 				trackName,
@@ -504,6 +512,7 @@ func (rs *remoteStream) InputFrames() chan<- image.Image {
 func (brv *basicRemoteView) processInputFrames() {
 	defer brv.backgroundProcessing.Done()
 	brv.backgroundProcessing.Add(brv.numReservedStreams())
+	frameLimiterDur := time.Second / time.Duration(brv.config.TargetFrameRate)
 	for i, inout := range brv.inoutFrameChans {
 		iCopy := i
 		inoutCopy := inout
@@ -515,11 +524,18 @@ func (brv *basicRemoteView) processInputFrames() {
 				defer brv.backgroundProcessing.Done()
 			}()
 			firstFrame := true
+			ticker := time.NewTicker(frameLimiterDur)
+			defer ticker.Stop()
 			for {
 				select {
 				case <-brv.shutdownCtx.Done():
 					return
 				default:
+				}
+				select {
+				case <-brv.shutdownCtx.Done():
+					return
+				case <-ticker.C:
 				}
 				var frame image.Image
 				select {
@@ -566,7 +582,6 @@ func (brv *basicRemoteView) processOutputFrames() {
 			defer brv.backgroundProcessing.Done()
 
 			framesSent := 0
-			lastTimestamp := time.Now()
 			for outputFrame := range inout.Out {
 				select {
 				case <-brv.shutdownCtx.Done():
@@ -574,11 +589,9 @@ func (brv *basicRemoteView) processOutputFrames() {
 				default:
 				}
 				now := time.Now()
-				duration := now.Sub(lastTimestamp)
-				lastTimestamp = now
 				for _, rc := range brv.getRemoteClients() {
-					if ivfErr := rc.videoTracks[i].WriteSample(media.Sample{Data: outputFrame, Duration: duration}); ivfErr != nil {
-						panic(ivfErr)
+					if err := rc.videoTracks[i].WriteFrame(outputFrame); err != nil {
+						panic(err)
 					}
 				}
 				framesSent++
@@ -602,13 +615,13 @@ func (brv *basicRemoteView) initCodec(num, width, height int) error {
 	}
 
 	var err error
-	brv.encoders[num], err = brv.config.EncoderFactory.New(width, height, brv.logger)
+	brv.encoders[num], err = brv.config.EncoderFactory.New(width, height, brv.config.TargetFrameRate, brv.logger)
 	return err
 }
 
 type remoteClient struct {
 	dataChannel *webrtc.DataChannel
-	videoTracks []*webrtc.TrackLocalStaticSample
+	videoTracks []*TrackLocalStaticSample
 }
 
 func (brv *basicRemoteView) addRemoteClient(peerConnection *webrtc.PeerConnection, rc remoteClient) {

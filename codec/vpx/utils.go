@@ -22,8 +22,8 @@ type factory struct {
 	debug bool
 }
 
-func (f *factory) New(width, height int, logger golog.Logger) (gostream.Encoder, error) {
-	return NewEncoder(f.codec, width, height, f.debug, logger)
+func (f *factory) New(width, height, keyFrameInterval int, logger golog.Logger) (gostream.Encoder, error) {
+	return NewEncoder(f.codec, width, height, keyFrameInterval, f.debug, logger)
 }
 
 func (f *factory) MIMEType() string {

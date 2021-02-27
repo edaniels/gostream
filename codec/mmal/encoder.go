@@ -18,7 +18,7 @@ type encoder struct {
 	logger golog.Logger
 }
 
-func NewEncoder(width, height int, debug bool, logger golog.Logger) (gostream.Encoder, error) {
+func NewEncoder(width, height, keyFrameInterval int, debug bool, logger golog.Logger) (gostream.Encoder, error) {
 	enc := &encoder{debug: debug, logger: logger}
 
 	var builder codec.VideoEncoderBuilder
@@ -27,7 +27,7 @@ func NewEncoder(width, height int, debug bool, logger golog.Logger) (gostream.En
 		return nil, err
 	}
 	builder = &params
-	params.KeyFrameInterval = gostream.DefaultKeyFrameInterval
+	params.KeyFrameInterval = keyFrameInterval
 
 	codec, err := builder.BuildVideoEncoder(enc, prop.Media{
 		Video: prop.Video{

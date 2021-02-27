@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/edaniels/golog"
 	"github.com/edaniels/gostream"
@@ -90,22 +89,21 @@ func main() {
 		cancelFunc()
 	}()
 
-	captureRate := 33 * time.Millisecond
 	imgSrc := gostream.VideoReadReleaser{videoReader}
 	if secondView != nil {
-		go gostream.StreamSource(cancelCtx, imgSrc, secondView, captureRate)
+		go gostream.StreamSource(cancelCtx, imgSrc, secondView)
 	}
 	if *dupeStream {
-		go gostream.StreamNamedSource(cancelCtx, imgSrc, "dupe", remoteView, captureRate)
+		go gostream.StreamNamedSource(cancelCtx, imgSrc, "dupe", remoteView)
 	}
 	if *extraTiles == 0 {
-		gostream.StreamNamedSource(cancelCtx, imgSrc, "screen", remoteView, captureRate)
+		gostream.StreamNamedSource(cancelCtx, imgSrc, "screen", remoteView)
 	} else {
 		autoTiler := gostream.NewAutoTiler(800, 600, imgSrc)
 		for i := 0; i < *extraTiles; i++ {
 			autoTiler.AddSource(imgSrc)
 		}
-		gostream.StreamNamedSource(cancelCtx, autoTiler, "tiled screens", remoteView, captureRate)
+		gostream.StreamNamedSource(cancelCtx, autoTiler, "tiled screens", remoteView)
 	}
 	if err := server.Stop(context.Background()); err != nil {
 		golog.Global.Error(err)

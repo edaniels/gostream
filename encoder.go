@@ -11,6 +11,6 @@ type Encoder interface {
 }
 
 type EncoderFactory interface {
-	New(height, width int, logger golog.Logger) (Encoder, error)
+	New(height, width, keyFrameInterval int, logger golog.Logger) (Encoder, error)
 	MIMEType() string
 }

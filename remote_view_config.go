@@ -33,10 +33,11 @@ var PartialDefaultRemoteViewConfig = RemoteViewConfig{
 }
 
 type RemoteViewConfig struct {
-	StreamNumber   int
-	StreamName     string
-	WebRTCConfig   webrtc.Configuration
-	Debug          bool
-	EncoderFactory EncoderFactory
-	Logger         golog.Logger
+	StreamNumber    int
+	StreamName      string
+	WebRTCConfig    webrtc.Configuration
+	Debug           bool
+	EncoderFactory  EncoderFactory
+	TargetFrameRate int
+	Logger          golog.Logger
 }

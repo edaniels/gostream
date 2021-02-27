@@ -22,7 +22,9 @@ import (
 var errNotFound = fmt.Errorf("failed to find the best driver that fits the constraints")
 
 var defaultConstraints = mediadevices.MediaStreamConstraints{
-	Video: func(constraint *mediadevices.MediaTrackConstraints) {},
+	Video: func(constraint *mediadevices.MediaTrackConstraints) {
+		constraint.FrameRate = prop.Float(60)
+	},
 }
 
 type VideoReadCloser interface {
@@ -97,7 +99,7 @@ func GetDisplayDriver(constraints mediadevices.MediaStreamConstraints) (driver.D
 	if constraints.Video != nil {
 		constraints.Video(&videoConstraints)
 	}
-	return selectScreen(videoConstraints, constraints.Codec)
+	return selectScreen(videoConstraints)
 }
 
 func GetUserDriver(constraints mediadevices.MediaStreamConstraints) (driver.Driver, prop.Media, error) {
@@ -105,10 +107,10 @@ func GetUserDriver(constraints mediadevices.MediaStreamConstraints) (driver.Driv
 	if constraints.Video != nil {
 		constraints.Video(&videoConstraints)
 	}
-	return selectVideo(videoConstraints, constraints.Codec)
+	return selectVideo(videoConstraints)
 }
 
-func selectVideo(constraints mediadevices.MediaTrackConstraints, selector *mediadevices.CodecSelector) (driver.Driver, prop.Media, error) {
+func selectVideo(constraints mediadevices.MediaTrackConstraints) (driver.Driver, prop.Media, error) {
 	typeFilter := driver.FilterVideoRecorder()
 	notScreenFilter := driver.FilterNot(driver.FilterDeviceType(driver.Screen))
 	filter := driver.FilterAnd(typeFilter, notScreenFilter)
@@ -116,7 +118,7 @@ func selectVideo(constraints mediadevices.MediaTrackConstraints, selector *media
 	return selectBestDriver(filter, constraints)
 }
 
-func selectScreen(constraints mediadevices.MediaTrackConstraints, selector *mediadevices.CodecSelector) (driver.Driver, prop.Media, error) {
+func selectScreen(constraints mediadevices.MediaTrackConstraints) (driver.Driver, prop.Media, error) {
 	typeFilter := driver.FilterVideoRecorder()
 	screenFilter := driver.FilterDeviceType(driver.Screen)
 	filter := driver.FilterAnd(typeFilter, screenFilter)

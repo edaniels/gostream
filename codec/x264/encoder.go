@@ -20,7 +20,7 @@ type encoder struct {
 
 const bitrate = 3_200_000
 
-func NewEncoder(width, height int, debug bool, logger golog.Logger) (gostream.Encoder, error) {
+func NewEncoder(width, height, keyFrameInterval int, debug bool, logger golog.Logger) (gostream.Encoder, error) {
 	enc := &encoder{debug: debug, logger: logger}
 
 	var builder codec.VideoEncoderBuilder
@@ -30,7 +30,7 @@ func NewEncoder(width, height int, debug bool, logger golog.Logger) (gostream.En
 	}
 	builder = &params
 	params.BitRate = bitrate
-	params.KeyFrameInterval = gostream.DefaultKeyFrameInterval
+	params.KeyFrameInterval = keyFrameInterval
 
 	codec, err := builder.BuildVideoEncoder(enc, prop.Media{
 		Video: prop.Video{

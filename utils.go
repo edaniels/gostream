@@ -9,7 +9,6 @@ import (
 	"image"
 	"image/draw"
 	"io/ioutil"
-	"time"
 
 	"github.com/edaniels/golog"
 )
@@ -34,7 +33,7 @@ func (isf ImageSourceFunc) Close() error {
 	return nil
 }
 
-func streamSource(ctx context.Context, once func(), is ImageSource, name string, remoteView RemoteView, captureInternal time.Duration) {
+func streamSource(ctx context.Context, once func(), is ImageSource, name string, remoteView RemoteView) {
 	if once != nil {
 		once()
 	}
@@ -50,7 +49,6 @@ func streamSource(ctx context.Context, once func(), is ImageSource, name string,
 			return
 		default:
 		}
-		time.Sleep(captureInternal)
 		frame, err := is.Next(ctx)
 		if err != nil {
 			golog.Global.Debugw("error getting frame", "error", err)
@@ -60,40 +58,40 @@ func streamSource(ctx context.Context, once func(), is ImageSource, name string,
 	}
 }
 
-func StreamSource(ctx context.Context, is ImageSource, remoteView RemoteView, captureInternal time.Duration) {
-	StreamSourceOnce(ctx, nil, is, remoteView, captureInternal)
+func StreamSource(ctx context.Context, is ImageSource, remoteView RemoteView) {
+	StreamSourceOnce(ctx, nil, is, remoteView)
 }
 
-func StreamSourceOnce(ctx context.Context, once func(), is ImageSource, remoteView RemoteView, captureInternal time.Duration) {
-	streamSource(ctx, once, is, "", remoteView, captureInternal)
-}
-
-//nolint:interfacer
-func StreamFunc(ctx context.Context, isf ImageSourceFunc, remoteView RemoteView, captureInternal time.Duration) {
-	StreamSourceOnce(ctx, nil, isf, remoteView, captureInternal)
+func StreamSourceOnce(ctx context.Context, once func(), is ImageSource, remoteView RemoteView) {
+	streamSource(ctx, once, is, "", remoteView)
 }
 
 //nolint:interfacer
-func StreamFuncOnce(ctx context.Context, once func(), isf ImageSourceFunc, remoteView RemoteView, captureInternal time.Duration) {
-	streamSource(ctx, once, isf, "", remoteView, captureInternal)
-}
-
-func StreamNamedSource(ctx context.Context, is ImageSource, name string, remoteView RemoteView, captureInternal time.Duration) {
-	StreamNamedSourceOnce(ctx, nil, is, name, remoteView, captureInternal)
-}
-
-func StreamNamedSourceOnce(ctx context.Context, once func(), is ImageSource, name string, remoteView RemoteView, captureInternal time.Duration) {
-	streamSource(ctx, once, is, name, remoteView, captureInternal)
+func StreamFunc(ctx context.Context, isf ImageSourceFunc, remoteView RemoteView) {
+	StreamSourceOnce(ctx, nil, isf, remoteView)
 }
 
 //nolint:interfacer
-func StreamNamedFunc(ctx context.Context, isf ImageSourceFunc, name string, remoteView RemoteView, captureInternal time.Duration) {
-	StreamNamedFuncOnce(ctx, nil, isf, name, remoteView, captureInternal)
+func StreamFuncOnce(ctx context.Context, once func(), isf ImageSourceFunc, remoteView RemoteView) {
+	streamSource(ctx, once, isf, "", remoteView)
+}
+
+func StreamNamedSource(ctx context.Context, is ImageSource, name string, remoteView RemoteView) {
+	StreamNamedSourceOnce(ctx, nil, is, name, remoteView)
+}
+
+func StreamNamedSourceOnce(ctx context.Context, once func(), is ImageSource, name string, remoteView RemoteView) {
+	streamSource(ctx, once, is, name, remoteView)
 }
 
 //nolint:interfacer
-func StreamNamedFuncOnce(ctx context.Context, once func(), isf ImageSourceFunc, name string, remoteView RemoteView, captureInternal time.Duration) {
-	streamSource(ctx, once, isf, name, remoteView, captureInternal)
+func StreamNamedFunc(ctx context.Context, isf ImageSourceFunc, name string, remoteView RemoteView) {
+	StreamNamedFuncOnce(ctx, nil, isf, name, remoteView)
+}
+
+//nolint:interfacer
+func StreamNamedFuncOnce(ctx context.Context, once func(), isf ImageSourceFunc, name string, remoteView RemoteView) {
+	streamSource(ctx, once, isf, name, remoteView)
 }
 
 // Allows compressing offer/answer to bypass terminal input limits.

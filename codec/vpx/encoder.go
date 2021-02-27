@@ -28,7 +28,7 @@ const (
 
 const bitrate = 3_200_000
 
-func NewEncoder(codecType VCodec, width, height int, debug bool, logger golog.Logger) (gostream.Encoder, error) {
+func NewEncoder(codecType VCodec, width, height, keyFrameInterval int, debug bool, logger golog.Logger) (gostream.Encoder, error) {
 	enc := &encoder{debug: debug, logger: logger}
 
 	var builder codec.VideoEncoderBuilder
@@ -40,7 +40,7 @@ func NewEncoder(codecType VCodec, width, height int, debug bool, logger golog.Lo
 		}
 		builder = &params
 		params.BitRate = bitrate
-		params.KeyFrameInterval = gostream.DefaultKeyFrameInterval
+		params.KeyFrameInterval = keyFrameInterval
 	case CodecVP9:
 		params, err := vpx.NewVP9Params()
 		if err != nil {
@@ -48,7 +48,7 @@ func NewEncoder(codecType VCodec, width, height int, debug bool, logger golog.Lo
 		}
 		builder = &params
 		params.BitRate = bitrate
-		params.KeyFrameInterval = gostream.DefaultKeyFrameInterval
+		params.KeyFrameInterval = keyFrameInterval
 	default:
 		return nil, fmt.Errorf("[WARN] unsupported VPX codec: %s", codecType)
 	}
