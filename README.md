@@ -27,6 +27,13 @@ Linux: `libvpx-dev`
 
 macOS: `brew install libvpx`
 
+* x264
+
+Linux: `libx264-dev`
+
+macOS: `brew install x264`
+
+
 ## Development
 
 ### Linting
@@ -38,7 +45,5 @@ go vet -vettool=$(which combined) ./...
 ```
 
 ## Acknowledgements
-
-* https://github.com/poi5305/go-yuv2webRTC - for some very helpful utilities and knowledge building
 
 If I somehow took code from somewhere without acknowledging it here or via the go.mod, please file an issue and let me know.

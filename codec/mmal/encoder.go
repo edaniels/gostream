@@ -1,14 +1,13 @@
-package vpx
+package mmal
 
 import (
-	"fmt"
 	"image"
 
 	"github.com/edaniels/gostream"
 
 	"github.com/edaniels/golog"
 	"github.com/pion/mediadevices/pkg/codec"
-	"github.com/pion/mediadevices/pkg/codec/vpx"
+	"github.com/pion/mediadevices/pkg/codec/mmal"
 	"github.com/pion/mediadevices/pkg/prop"
 )
 
@@ -19,37 +18,15 @@ type encoder struct {
 	logger golog.Logger
 }
 
-type VCodec string
-
-const (
-	CodecVP8 VCodec = "V_VP8"
-	CodecVP9 VCodec = "V_VP9"
-)
-
-const bitrate = 3_200_000
-
-func NewEncoder(codecType VCodec, width, height int, debug bool, logger golog.Logger) (gostream.Encoder, error) {
+func NewEncoder(width, height int, debug bool, logger golog.Logger) (gostream.Encoder, error) {
 	enc := &encoder{debug: debug, logger: logger}
 
 	var builder codec.VideoEncoderBuilder
-	switch codecType {
-	case CodecVP8:
-		params, err := vpx.NewVP8Params()
-		if err != nil {
-			return nil, err
-		}
-		builder = &params
-		params.BitRate = bitrate
-	case CodecVP9:
-		params, err := vpx.NewVP9Params()
-		if err != nil {
-			return nil, err
-		}
-		builder = &params
-		params.BitRate = bitrate
-	default:
-		return nil, fmt.Errorf("[WARN] unsupported VPX codec: %s", codecType)
+	params, err := mmal.NewParams()
+	if err != nil {
+		return nil, err
 	}
+	builder = &params
 
 	codec, err := builder.BuildVideoEncoder(enc, prop.Media{
 		Video: prop.Video{

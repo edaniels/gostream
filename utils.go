@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"image"
+	"image/draw"
 	"io/ioutil"
 	"time"
 
@@ -159,4 +160,12 @@ func unzip(in []byte) []byte {
 		panic(err)
 	}
 	return res
+}
+
+// to RGBA, may be lossy
+func CloneImage(src image.Image) image.Image {
+	bounds := src.Bounds()
+	dst := image.NewRGBA(bounds)
+	draw.Draw(dst, bounds, src, bounds.Min, draw.Src)
+	return dst
 }

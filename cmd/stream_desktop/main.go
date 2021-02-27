@@ -13,17 +13,37 @@ import (
 	"github.com/edaniels/golog"
 	"github.com/edaniels/gostream"
 	"github.com/edaniels/gostream/codec/vpx"
-
-	"github.com/kbinani/screenshot"
+	"github.com/edaniels/gostream/codec/x264"
 )
 
 func main() {
 	port := flag.Int("port", 5555, "port to run server on")
+	camera := flag.Bool("camera", false, "use camera")
 	dupeView := flag.Bool("dupe_view", false, "duplicate view")
 	dupeStream := flag.Bool("dupe_stream", false, "duplicate stream")
 	extraTiles := flag.Int("extra_tiles", 0, "number of times to duplicate screen in tiles")
 	flag.Parse()
 
+	var videoReader gostream.VideoReadCloser
+	var err error
+	if *camera {
+		videoReader, err = gostream.GetUserReader()
+
+	} else {
+		videoReader, err = gostream.GetDisplayReader()
+	}
+	if err != nil {
+		panic(err)
+	}
+
+	defer func() {
+		if err := videoReader.Close(); err != nil {
+			golog.Global.Error(err)
+		}
+	}()
+
+	_ = x264.DefaultRemoteViewConfig
+	_ = vpx.DefaultRemoteViewConfig
 	config := vpx.DefaultRemoteViewConfig
 	config.Debug = false
 	remoteView, err := gostream.NewRemoteView(config)
@@ -71,19 +91,20 @@ func main() {
 		cancelFunc()
 	}()
 
-	bounds := screenshot.GetDisplayBounds(0)
 	captureRate := 33 * time.Millisecond
 	capture := func(ctx context.Context) (image.Image, error) {
-		img, err := screenshot.CaptureRect(bounds)
+		img, release, err := videoReader.Read()
 		if err != nil {
 			return nil, err
 		}
-		return img, nil
+		cloned := gostream.CloneImage(img)
+		release()
+		return cloned, nil
 	}
 	if secondView != nil {
 		go gostream.StreamFunc(cancelCtx, capture, secondView, captureRate)
 	}
-	if dupeStream != nil {
+	if *dupeStream {
 		go gostream.StreamNamedFunc(cancelCtx, capture, "dupe", remoteView, captureRate)
 	}
 	if *extraTiles == 0 {
