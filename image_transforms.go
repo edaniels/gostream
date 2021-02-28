@@ -29,8 +29,8 @@ func (rms *RotateImageSource) Next(ctx context.Context) (image.Image, error) {
 }
 
 // Close closes the underlying source.
-func (rms *RotateImageSource) Close() {
-	rms.Src.Close()
+func (rms *RotateImageSource) Close() error {
+	return rms.Src.Close()
 }
 
 // ResizeImageSource resizes images to the set dimensions.

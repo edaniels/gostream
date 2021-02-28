@@ -18,11 +18,13 @@ type encoder struct {
 	logger golog.Logger
 }
 
-type VCodec string
+// Version determines the version of a vpx codec.
+type Version string
 
+// The set of allowed vpx versions.
 const (
-	CodecVP8 VCodec = "V_VP8"
-	CodecVP9 VCodec = "V_VP9"
+	Version8 Version = "vp8"
+	Version9 Version = "vp9"
 )
 
 // Gives suitable results. Probably want to make this configurable this in the future.
@@ -30,12 +32,12 @@ const bitrate = 3_200_000
 
 // NewEncoder returns a vpx encoder of the given type that can encode images of the given width and height. It will
 // also ensure that it produces key frames at the given interval.
-func NewEncoder(codecType VCodec, width, height, keyFrameInterval int, logger golog.Logger) (ourcodec.Encoder, error) {
+func NewEncoder(codecVersion Version, width, height, keyFrameInterval int, logger golog.Logger) (ourcodec.Encoder, error) {
 	enc := &encoder{logger: logger}
 
 	var builder codec.VideoEncoderBuilder
-	switch codecType {
-	case CodecVP8:
+	switch codecVersion {
+	case Version8:
 		params, err := vpx.NewVP8Params()
 		if err != nil {
 			return nil, err
@@ -43,7 +45,7 @@ func NewEncoder(codecType VCodec, width, height, keyFrameInterval int, logger go
 		builder = &params
 		params.BitRate = bitrate
 		params.KeyFrameInterval = keyFrameInterval
-	case CodecVP9:
+	case Version9:
 		params, err := vpx.NewVP9Params()
 		if err != nil {
 			return nil, err
@@ -52,7 +54,7 @@ func NewEncoder(codecType VCodec, width, height, keyFrameInterval int, logger go
 		params.BitRate = bitrate
 		params.KeyFrameInterval = keyFrameInterval
 	default:
-		return nil, fmt.Errorf("[WARN] unsupported VPX codec: %s", codecType)
+		return nil, fmt.Errorf("unsupported vpx version: %s", codecVersion)
 	}
 
 	codec, err := builder.BuildVideoEncoder(enc, prop.Media{

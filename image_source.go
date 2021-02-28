@@ -16,10 +16,12 @@ type ImageSource interface {
 // An ImageSourceFunc is a helper to turn a function into an ImageSource
 type ImageSourceFunc func(ctx context.Context) (image.Image, error)
 
+// Next calls the underlying function to get an image.
 func (isf ImageSourceFunc) Next(ctx context.Context) (image.Image, error) {
 	return isf(ctx)
 }
 
+// Close does nothing.
 func (isf ImageSourceFunc) Close() error {
 	return nil
 }

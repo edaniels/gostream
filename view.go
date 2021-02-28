@@ -355,7 +355,11 @@ func (bv *basicView) Handler() ViewHandler {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		defer r.Body.Close()
+		defer func() {
+			if err := r.Body.Close(); err != nil {
+				Logger.Debugw("error closing body", "error", err)
+			}
+		}()
 		if err := bv.handleOffer(w, r); err != nil {
 			bv.logger.Debugw("error handling offer", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)

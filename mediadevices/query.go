@@ -1,16 +1,13 @@
-package gostream
+package mediadevices
 
 import (
-	"context"
 	"errors"
-	"fmt"
-	"image"
-	"image/draw"
 	"math"
+
+	"github.com/edaniels/gostream"
 
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/pkg/driver"
-	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
 
 	// register
@@ -20,7 +17,8 @@ import (
 
 // below adapted from github.com/pion/mediadevices
 
-var errNotFound = fmt.Errorf("failed to find the best driver that fits the constraints")
+// ErrNotFound happens when there is no driver found in a query.
+var ErrNotFound = errors.New("failed to find the best driver that fits the constraints")
 
 var defaultConstraints = mediadevices.MediaStreamConstraints{
 	Video: func(constraint *mediadevices.MediaTrackConstraints) {
@@ -28,48 +26,56 @@ var defaultConstraints = mediadevices.MediaStreamConstraints{
 	},
 }
 
-type VideoReadCloser interface {
-	video.Reader
-	Close() error
-}
-
-type videoReadCloser struct {
-	videoDriver driver.Driver
-	videoReader video.Reader
-}
-
-func (vrc videoReadCloser) Read() (img image.Image, release func(), err error) {
-	return vrc.videoReader.Read()
-}
-
-func (vrc videoReadCloser) Close() error {
-	return vrc.videoDriver.Close()
-}
-
-type VideoReadReleaser struct {
-	VideoReadCloser
-}
-
-func (vrr VideoReadReleaser) Read() (img image.Image, err error) {
-	img, release, err := vrr.VideoReadCloser.Read()
+// GetNamedScreenReader attempts to find a screen device by the given name.
+func GetNamedScreenReader(name string) (VideoReadCloser, error) {
+	d, selectedMedia, err := getScreenDriver(defaultConstraints, name)
 	if err != nil {
 		return nil, err
 	}
-	cloned := cloneImage(img)
-	release()
-	return cloned, nil
+	return newVideoReaderFromDriver(d, selectedMedia)
 }
 
-// to RGBA, may be lossy
-func cloneImage(src image.Image) image.Image {
-	bounds := src.Bounds()
-	dst := image.NewRGBA(bounds)
-	draw.Draw(dst, bounds, src, bounds.Min, draw.Src)
-	return dst
+// GetNamedVideoReader attempts to find a video device (not a screen) by the given name.
+func GetNamedVideoReader(name string) (VideoReadCloser, error) {
+	d, selectedMedia, err := getUserDriver(defaultConstraints, name)
+	if err != nil {
+		return nil, err
+	}
+	return newVideoReaderFromDriver(d, selectedMedia)
 }
 
-func (vrr VideoReadReleaser) Next(ctx context.Context) (img image.Image, err error) {
-	return vrr.Read()
+// GetAnyScreenReader attempts to find any suitable screen device.
+func GetAnyScreenReader() (VideoReadCloser, error) {
+	d, selectedMedia, err := getScreenDriver(defaultConstraints, "")
+	if err != nil {
+		return nil, err
+	}
+	return newVideoReaderFromDriver(d, selectedMedia)
+}
+
+// GetAnyVideoReader attempts to find any suitable video device (not a screen).
+func GetAnyVideoReader() (VideoReadCloser, error) {
+	d, selectedMedia, err := getUserDriver(defaultConstraints, "")
+	if err != nil {
+		return nil, err
+	}
+	return newVideoReaderFromDriver(d, selectedMedia)
+}
+
+func getScreenDriver(constraints mediadevices.MediaStreamConstraints, label string) (driver.Driver, prop.Media, error) {
+	var videoConstraints mediadevices.MediaTrackConstraints
+	if constraints.Video != nil {
+		constraints.Video(&videoConstraints)
+	}
+	return selectScreen(videoConstraints, label)
+}
+
+func getUserDriver(constraints mediadevices.MediaStreamConstraints, label string) (driver.Driver, prop.Media, error) {
+	var videoConstraints mediadevices.MediaTrackConstraints
+	if constraints.Video != nil {
+		constraints.Video(&videoConstraints)
+	}
+	return selectVideo(videoConstraints, label)
 }
 
 func newVideoReaderFromDriver(videoDriver driver.Driver, mediaProp prop.Media) (VideoReadCloser, error) {
@@ -85,54 +91,6 @@ func newVideoReaderFromDriver(videoDriver driver.Driver, mediaProp prop.Media) (
 		return nil, err
 	}
 	return &videoReadCloser{videoDriver, reader}, nil
-}
-
-func GetNamedDisplayReader(name string) (VideoReadCloser, error) {
-	d, selectedMedia, err := GetDisplayDriver(defaultConstraints, name)
-	if err != nil {
-		return nil, err
-	}
-	return newVideoReaderFromDriver(d, selectedMedia)
-}
-
-func GetNamedUserReader(name string) (VideoReadCloser, error) {
-	d, selectedMedia, err := GetUserDriver(defaultConstraints, name)
-	if err != nil {
-		return nil, err
-	}
-	return newVideoReaderFromDriver(d, selectedMedia)
-}
-
-func GetDisplayReader() (VideoReadCloser, error) {
-	d, selectedMedia, err := GetDisplayDriver(defaultConstraints, "")
-	if err != nil {
-		return nil, err
-	}
-	return newVideoReaderFromDriver(d, selectedMedia)
-}
-
-func GetUserReader() (VideoReadCloser, error) {
-	d, selectedMedia, err := GetUserDriver(defaultConstraints, "")
-	if err != nil {
-		return nil, err
-	}
-	return newVideoReaderFromDriver(d, selectedMedia)
-}
-
-func GetDisplayDriver(constraints mediadevices.MediaStreamConstraints, label string) (driver.Driver, prop.Media, error) {
-	var videoConstraints mediadevices.MediaTrackConstraints
-	if constraints.Video != nil {
-		constraints.Video(&videoConstraints)
-	}
-	return selectScreen(videoConstraints, label)
-}
-
-func GetUserDriver(constraints mediadevices.MediaStreamConstraints, label string) (driver.Driver, prop.Media, error) {
-	var videoConstraints mediadevices.MediaTrackConstraints
-	if constraints.Video != nil {
-		constraints.Video(&videoConstraints)
-	}
-	return selectVideo(videoConstraints, label)
 }
 
 func selectVideo(constraints mediadevices.MediaTrackConstraints, label string) (driver.Driver, prop.Media, error) {
@@ -186,7 +144,7 @@ func selectBestDriver(filter driver.FilterFn, constraints mediadevices.MediaTrac
 	}
 
 	if bestDriver == nil {
-		return nil, prop.Media{}, errNotFound
+		return nil, prop.Media{}, ErrNotFound
 	}
 
 	selectedMedia := prop.Media{}
@@ -215,7 +173,9 @@ func queryDriverProperties(filter driver.FilterFn) map[driver.Driver][]prop.Medi
 
 	for _, d := range needToClose {
 		// Since it was closed, we should close it to avoid a leak
-		d.Close()
+		if err := d.Close(); err != nil {
+			gostream.Logger.Errorw("error closing driver", "error", err)
+		}
 	}
 
 	return m

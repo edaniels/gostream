@@ -13,29 +13,29 @@ import (
 var DefaultViewConfig = gostream.PartialDefaultViewConfig
 
 func init() {
-	DefaultViewConfig.EncoderFactory = NewEncoderFactory(CodecVP8)
+	DefaultViewConfig.EncoderFactory = NewEncoderFactory(Version8)
 }
 
 // NewEncoderFactory returns a vpx factory for the given vpx codec.
-func NewEncoderFactory(codec VCodec) codec.EncoderFactory {
-	return &factory{codec}
+func NewEncoderFactory(codecVersion Version) codec.EncoderFactory {
+	return &factory{codecVersion}
 }
 
 type factory struct {
-	codec VCodec
+	codecVersion Version
 }
 
 func (f *factory) New(width, height, keyFrameInterval int, logger golog.Logger) (codec.Encoder, error) {
-	return NewEncoder(f.codec, width, height, keyFrameInterval, logger)
+	return NewEncoder(f.codecVersion, width, height, keyFrameInterval, logger)
 }
 
 func (f *factory) MIMEType() string {
-	switch f.codec {
-	case CodecVP8:
+	switch f.codecVersion {
+	case Version8:
 		return "video/vp8"
-	case CodecVP9:
+	case Version9:
 		return "video/vp9"
 	default:
-		panic(fmt.Errorf("unknown codec %q", f.codec))
+		panic(fmt.Errorf("unknown codec version %q", f.codecVersion))
 	}
 }
