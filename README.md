@@ -4,12 +4,17 @@ gostream is a library to simplify the streaming of images as video to a series o
 
 ## TODO
 
-- [ ] Address code TODOs (including context.TODO)
+- Address code TODOs (including context.TODO)
+- Documentation
+- Version 0.1.0
+
+## Future Work
+
+- Sound streaming (with video synchronization)
 
 ## Examples
 
 * Stream current desktop: `go run github.com/edaniels/gostream/cmd/stream_desktop`
-* Stream an im-gui: `go run github.com/edaniels/gostream/cmd/stream_imgui --image some image`
 
 ## Notes
 
@@ -39,9 +44,13 @@ macOS: `brew install x264`
 ### Linting
 
 ```
-go run github.com/golangci/golangci-lint/cmd/golangci-lint run -v ./...
-go get -u github.com/edaniels/golinters/cmd/combined
-go vet -vettool=$(which combined) ./...
+make lint
+```
+
+### Testing
+
+```
+make test
 ```
 
 ## Acknowledgements
