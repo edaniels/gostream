@@ -20,7 +20,6 @@ import (
 	"github.com/pion/webrtc/v3"
 )
 
-// TODO(erd): raise this back much higher after firefox hang issue fixed
 const DefaultKeyFrameInterval = 60
 
 type RemoteView interface {
