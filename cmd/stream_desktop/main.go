@@ -11,7 +11,7 @@ import (
 	"github.com/edaniels/gostream"
 	"github.com/edaniels/gostream/codec/vpx"
 	"github.com/edaniels/gostream/codec/x264"
-	"github.com/edaniels/gostream/mediadevices"
+	"github.com/edaniels/gostream/media"
 )
 
 func main() {
@@ -22,13 +22,12 @@ func main() {
 	extraTiles := flag.Int("extra_tiles", 0, "number of times to duplicate screen in tiles")
 	flag.Parse()
 
-	var videoReader mediadevices.VideoReadCloser
+	var videoReader media.VideoReadCloser
 	var err error
 	if *camera {
-		videoReader, err = mediadevices.GetAnyVideoReader()
-
+		videoReader, err = media.GetAnyVideoReader(media.DefaultConstraints)
 	} else {
-		videoReader, err = mediadevices.GetAnyScreenReader()
+		videoReader, err = media.GetAnyScreenReader(media.DefaultConstraints)
 	}
 	if err != nil {
 		gostream.Logger.Fatal(err)
@@ -90,7 +89,7 @@ func main() {
 		cancelFunc()
 	}()
 
-	imgSrc := mediadevices.VideoReadReleaser{videoReader}
+	imgSrc := media.VideoReadReleaser{videoReader}
 	if secondView != nil {
 		go gostream.StreamSource(cancelCtx, imgSrc, secondView)
 	}

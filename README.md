@@ -26,6 +26,10 @@ gostream is a library to simplify the streaming of images as video to a series o
 
 ## Notes
 
+### Firefox freezing
+
+For some reason unknown yet, Firefox appears to freeze frequently. This is very unlikely an issue with pion/webrtc and very likely an issue with this library based on current testing. Current thoughts are that it has to do with the timing of writes causing dropped/faulty packets from the perspective of Firefox. Chromium seems to work just fine. Running Firefox with --MOZ_LOG=webrtc_trace:5 can show the errors it is seeing. There are a lot of no GoP in frame drops as well as NACK frame drops. Also curious if the issue is made worse with larger frames and different frame formats.
+
 ### Using mDNS
 
 * mDNS (.local addresses) don't seem to work well with WebRTC yet. Random STUN/TURN failures appear to occur. At your own risk, you can address this in Firefox in `about:config` with `media.peerconnection.ice.obfuscate_host_addresses` set to `false` and in Chrome with `chrome://flags/#enable-webrtc-hide-local-ips-with-mdns` set to `Disabled`.

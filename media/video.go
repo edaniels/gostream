@@ -1,4 +1,4 @@
-package mediadevices
+package media
 
 import (
 	"context"
