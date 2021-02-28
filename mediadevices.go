@@ -78,8 +78,24 @@ func newVideoReaderFromDriver(videoDriver driver.Driver, mediaProp prop.Media) (
 	return &videoReadCloser{videoDriver, reader}, nil
 }
 
+func GetNamedDisplayReader(name string) (VideoReadCloser, error) {
+	d, selectedMedia, err := GetDisplayDriver(defaultConstraints, name)
+	if err != nil {
+		return nil, err
+	}
+	return newVideoReaderFromDriver(d, selectedMedia)
+}
+
+func GetNamedUserReader(name string) (VideoReadCloser, error) {
+	d, selectedMedia, err := GetUserDriver(defaultConstraints, name)
+	if err != nil {
+		return nil, err
+	}
+	return newVideoReaderFromDriver(d, selectedMedia)
+}
+
 func GetDisplayReader() (VideoReadCloser, error) {
-	d, selectedMedia, err := GetDisplayDriver(defaultConstraints)
+	d, selectedMedia, err := GetDisplayDriver(defaultConstraints, "")
 	if err != nil {
 		return nil, err
 	}
@@ -87,41 +103,51 @@ func GetDisplayReader() (VideoReadCloser, error) {
 }
 
 func GetUserReader() (VideoReadCloser, error) {
-	d, selectedMedia, err := GetUserDriver(defaultConstraints)
+	d, selectedMedia, err := GetUserDriver(defaultConstraints, "")
 	if err != nil {
 		return nil, err
 	}
 	return newVideoReaderFromDriver(d, selectedMedia)
 }
 
-func GetDisplayDriver(constraints mediadevices.MediaStreamConstraints) (driver.Driver, prop.Media, error) {
+func GetDisplayDriver(constraints mediadevices.MediaStreamConstraints, label string) (driver.Driver, prop.Media, error) {
 	var videoConstraints mediadevices.MediaTrackConstraints
 	if constraints.Video != nil {
 		constraints.Video(&videoConstraints)
 	}
-	return selectScreen(videoConstraints)
+	return selectScreen(videoConstraints, label)
 }
 
-func GetUserDriver(constraints mediadevices.MediaStreamConstraints) (driver.Driver, prop.Media, error) {
+func GetUserDriver(constraints mediadevices.MediaStreamConstraints, label string) (driver.Driver, prop.Media, error) {
 	var videoConstraints mediadevices.MediaTrackConstraints
 	if constraints.Video != nil {
 		constraints.Video(&videoConstraints)
 	}
-	return selectVideo(videoConstraints)
+	return selectVideo(videoConstraints, label)
 }
 
-func selectVideo(constraints mediadevices.MediaTrackConstraints) (driver.Driver, prop.Media, error) {
+func selectVideo(constraints mediadevices.MediaTrackConstraints, label string) (driver.Driver, prop.Media, error) {
 	typeFilter := driver.FilterVideoRecorder()
 	notScreenFilter := driver.FilterNot(driver.FilterDeviceType(driver.Screen))
 	filter := driver.FilterAnd(typeFilter, notScreenFilter)
+	if label != "" {
+		filter = driver.FilterAnd(filter, driver.FilterFn(func(d driver.Driver) bool {
+			return d.Info().Label == label
+		}))
+	}
 
 	return selectBestDriver(filter, constraints)
 }
 
-func selectScreen(constraints mediadevices.MediaTrackConstraints) (driver.Driver, prop.Media, error) {
+func selectScreen(constraints mediadevices.MediaTrackConstraints, label string) (driver.Driver, prop.Media, error) {
 	typeFilter := driver.FilterVideoRecorder()
 	screenFilter := driver.FilterDeviceType(driver.Screen)
 	filter := driver.FilterAnd(typeFilter, screenFilter)
+	if label != "" {
+		filter = driver.FilterAnd(filter, driver.FilterFn(func(d driver.Driver) bool {
+			return d.Info().Label == label
+		}))
+	}
 
 	return selectBestDriver(filter, constraints)
 }
