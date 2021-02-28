@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/edaniels/golog"
 	"github.com/edaniels/gostream"
 	"github.com/edaniels/gostream/codec/vpx"
 	"github.com/edaniels/gostream/codec/x264"
@@ -31,55 +30,56 @@ func main() {
 		videoReader, err = gostream.GetDisplayReader()
 	}
 	if err != nil {
-		panic(err)
+		gostream.Logger.Fatal(err)
 	}
 
 	defer func() {
 		if err := videoReader.Close(); err != nil {
-			golog.Global.Error(err)
+			gostream.Logger.Error(err)
 		}
 	}()
 
-	_ = x264.DefaultRemoteViewConfig
-	_ = vpx.DefaultRemoteViewConfig
-	config := vpx.DefaultRemoteViewConfig
-	config.Debug = false
-	remoteView, err := gostream.NewRemoteView(config)
+	_ = x264.DefaultViewConfig
+	_ = vpx.DefaultViewConfig
+	config := vpx.DefaultViewConfig
+	view, err := gostream.NewView(config)
 	if err != nil {
-		panic(err)
+		gostream.Logger.Fatal(err)
 	}
 
-	remoteView.SetOnDataHandler(func(data []byte) {
-		golog.Global.Debugw("data", "raw", string(data))
-		remoteView.SendText(string(data))
+	view.SetOnDataHandler(func(data []byte) {
+		gostream.Logger.Debugw("data", "raw", string(data))
+		view.SendTextToAll(string(data))
 	})
-	remoteView.SetOnClickHandler(func(x, y int) {
-		golog.Global.Debugw("click", "x", x, "y", y)
-		remoteView.SendText(fmt.Sprintf("got click (%d, %d)", x, y))
+	view.SetOnClickHandler(func(x, y int) {
+		gostream.Logger.Debugw("click", "x", x, "y", y)
+		view.SendTextToAll(fmt.Sprintf("got click (%d, %d)", x, y))
 	})
 
-	server := gostream.NewRemoteViewServer(*port, remoteView, golog.Global)
-	var secondView gostream.RemoteView
+	server := gostream.NewViewServer(*port, view, gostream.Logger)
+	var secondView gostream.View
 	if *dupeView {
 		config.StreamName = "dupe"
 		config.StreamNumber = 1
-		remoteView, err := gostream.NewRemoteView(config)
+		view, err := gostream.NewView(config)
 		if err != nil {
-			panic(err)
+			gostream.Logger.Fatal(err)
 		}
 
-		remoteView.SetOnDataHandler(func(data []byte) {
-			golog.Global.Debugw("data", "raw", string(data))
-			remoteView.SendText(string(data))
+		view.SetOnDataHandler(func(data []byte) {
+			gostream.Logger.Debugw("data", "raw", string(data))
+			view.SendTextToAll(string(data))
 		})
-		remoteView.SetOnClickHandler(func(x, y int) {
-			golog.Global.Debugw("click", "x", x, "y", y)
-			remoteView.SendText(fmt.Sprintf("got click (%d, %d)", x, y))
+		view.SetOnClickHandler(func(x, y int) {
+			gostream.Logger.Debugw("click", "x", x, "y", y)
+			view.SendTextToAll(fmt.Sprintf("got click (%d, %d)", x, y))
 		})
-		secondView = remoteView
+		secondView = view
 		server.AddView(secondView)
 	}
-	server.Run()
+	if err := server.Start(); err != nil {
+		gostream.Logger.Fatal(err)
+	}
 
 	cancelCtx, cancelFunc := context.WithCancel(context.Background())
 	c := make(chan os.Signal, 2)
@@ -94,18 +94,18 @@ func main() {
 		go gostream.StreamSource(cancelCtx, imgSrc, secondView)
 	}
 	if *dupeStream {
-		go gostream.StreamNamedSource(cancelCtx, imgSrc, "dupe", remoteView)
+		go gostream.StreamNamedSource(cancelCtx, imgSrc, "dupe", view)
 	}
 	if *extraTiles == 0 {
-		gostream.StreamNamedSource(cancelCtx, imgSrc, "screen", remoteView)
+		gostream.StreamNamedSource(cancelCtx, imgSrc, "screen", view)
 	} else {
 		autoTiler := gostream.NewAutoTiler(800, 600, imgSrc)
 		for i := 0; i < *extraTiles; i++ {
 			autoTiler.AddSource(imgSrc)
 		}
-		gostream.StreamNamedSource(cancelCtx, autoTiler, "tiled screens", remoteView)
+		gostream.StreamNamedSource(cancelCtx, autoTiler, "tiled screens", view)
 	}
 	if err := server.Stop(context.Background()); err != nil {
-		golog.Global.Error(err)
+		gostream.Logger.Error(err)
 	}
 }

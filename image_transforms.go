@@ -2,54 +2,63 @@ package gostream
 
 import (
 	"context"
-	"fmt"
 	"image"
 	"image/color"
 	"math"
-	"strings"
 	"sync"
-	"sync/atomic"
 
 	"github.com/disintegration/imaging"
 	"github.com/edaniels/golog"
 	"go.uber.org/multierr"
 )
 
+// RotateImageSource rotates images by a set amount of degrees.
 type RotateImageSource struct {
-	Original ImageSource
+	Src         ImageSource
+	RotateByDeg float64
 }
 
+// Next returns a rotated image by RotateByDeg degrees.
 func (rms *RotateImageSource) Next(ctx context.Context) (image.Image, error) {
-	img, err := rms.Original.Next(ctx)
+	img, err := rms.Src.Next(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return imaging.Rotate(img, 180, color.Black), nil
+	return imaging.Rotate(img, rms.RotateByDeg, color.Black), nil
 }
 
+// Close closes the underlying source.
 func (rms *RotateImageSource) Close() {
-	rms.Original.Close()
+	rms.Src.Close()
 }
 
+// ResizeImageSource resizes images to the set dimensions.
 type ResizeImageSource struct {
-	ImageSource
-	X, Y int
+	Src           ImageSource
+	Width, Height int
 }
 
+// Next returns a resized image to Width x Height dimensions.
 func (ris ResizeImageSource) Next(ctx context.Context) (image.Image, error) {
-	img, err := ris.ImageSource.Next(ctx)
+	img, err := ris.Src.Next(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return imaging.Resize(img, ris.X, ris.Y, imaging.NearestNeighbor), nil
+	return imaging.Resize(img, ris.Width, ris.Height, imaging.NearestNeighbor), nil
 }
 
+// Close closes the underlying source.
 func (ris ResizeImageSource) Close() error {
-	return ris.ImageSource.Close()
+	return ris.Src.Close()
 }
 
+// An AutoTiler automatically tiles a series of images from sources. It rudimentarily
+// swaps between veritcal and horizontal splits and makes all images the same size
+// within a grid. This can produce aesthetically unappealing results but it gets
+// the job done in a pinch where you don't want multiple streams. AutoTiler supports
+// adding image sources over time (but not removing them yet).
 type AutoTiler struct {
 	mu        sync.Mutex
 	sources   []ImageSource
@@ -59,35 +68,45 @@ type AutoTiler struct {
 	logger    golog.Logger
 }
 
+// NewAutoTiler returns an AutoTiler that adapts its image sources to the given width and height.
 func NewAutoTiler(maxWidth, maxHeight int, sources ...ImageSource) *AutoTiler {
-	return &AutoTiler{
-		maxWidth:  maxWidth,
-		maxHeight: maxHeight,
-		sources:   sources,
-	}
+	return newAutoTiler(maxWidth, maxHeight, false, sources...)
 }
 
+// NewAutoTilerVertical returns an AutoTiler that adapts its image sources to the given width and height.
+// This AutoTiler starts its splits vertically, instead of horizontally.
 func NewAutoTilerVertical(maxWidth, maxHeight int, sources ...ImageSource) *AutoTiler {
+	return newAutoTiler(maxWidth, maxHeight, true, sources...)
+}
+
+func newAutoTiler(maxWidth, maxHeight int, vert bool, sources ...ImageSource) *AutoTiler {
 	return &AutoTiler{
 		maxWidth:  maxWidth,
 		maxHeight: maxHeight,
 		sources:   sources,
-		vert:      true,
+		vert:      vert,
 	}
 }
 
+// SetLogger sets an optional logger to use for debug information.
 func (at *AutoTiler) SetLogger(logger golog.Logger) {
 	at.mu.Lock()
 	at.logger = logger
 	at.mu.Unlock()
 }
 
+// AddSource adds another image source to the tiler. It will appear down and to
+// the right of the main image.
 func (at *AutoTiler) AddSource(src ImageSource) {
 	at.mu.Lock()
 	at.sources = append(at.sources, src)
 	at.mu.Unlock()
 }
 
+// Next produces an image of every source tiled into one main image. If any of
+// the image sources error, the image will not be included in the main image
+// but it can certainly appear in subsequent ones. Images are fetched in
+// parallel with no current constraint on parallelism.
 func (at *AutoTiler) Next(ctx context.Context) (image.Image, error) {
 	at.mu.Lock()
 	defer at.mu.Unlock()
@@ -106,7 +125,7 @@ func (at *AutoTiler) Next(ctx context.Context) (image.Image, error) {
 			return nil
 		})
 	}
-	if err := RunParallel(fs); err != nil {
+	if err := runParallel(fs); err != nil {
 		if at.logger != nil {
 			at.logger.Debugw("error grabbing frames", "error", err)
 		}
@@ -143,42 +162,11 @@ func (at *AutoTiler) Next(ctx context.Context) (image.Image, error) {
 	return dst, nil
 }
 
+// Close closes all underlying image sources.
 func (at *AutoTiler) Close() error {
 	var err error
 	for _, src := range at.sources {
 		err = multierr.Append(err, src.Close())
 	}
 	return err
-}
-
-func RunParallel(fs []func() error) error {
-	var wg sync.WaitGroup
-	wg.Add(len(fs))
-	errs := make([]error, len(fs))
-	var numErrs int32
-	for i, f := range fs {
-		iCopy := i
-		fCopy := f
-		go func() {
-			defer wg.Done()
-			err := fCopy()
-			if err != nil {
-				errs[iCopy] = err
-				atomic.AddInt32(&numErrs, 1)
-			}
-		}()
-	}
-	wg.Wait()
-
-	if numErrs == 0 {
-		return nil
-	}
-	var allErrs []interface{}
-	for _, err := range errs {
-		if err == nil {
-			continue
-		}
-		allErrs = append(allErrs, err)
-	}
-	return fmt.Errorf("encountered errors:"+strings.Repeat(" %w", len(allErrs)), allErrs...)
 }

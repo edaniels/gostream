@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"image/draw"
 	"math"
 
 	"github.com/pion/mediadevices"
@@ -54,9 +55,17 @@ func (vrr VideoReadReleaser) Read() (img image.Image, err error) {
 	if err != nil {
 		return nil, err
 	}
-	cloned := CloneImage(img)
+	cloned := cloneImage(img)
 	release()
 	return cloned, nil
+}
+
+// to RGBA, may be lossy
+func cloneImage(src image.Image) image.Image {
+	bounds := src.Bounds()
+	dst := image.NewRGBA(bounds)
+	draw.Draw(dst, bounds, src, bounds.Min, draw.Src)
+	return dst
 }
 
 func (vrr VideoReadReleaser) Next(ctx context.Context) (img image.Image, err error) {

@@ -2,13 +2,13 @@
 <html>
 <head>
   <script type="text/javascript">
-  {{ range $view := .RemoteViews }}
+  {{ range $view := .Views }}
     {{ jsSafe $view.JavaScript }}
   {{ end }}
   </script>
 </head>
 <body>
-{{ range $view := .RemoteViews }}
+{{ range $view := .Views }}
   {{ htmlSafe $view.Body }}
 {{ end }}
 </body>

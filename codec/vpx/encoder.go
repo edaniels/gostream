@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"image"
 
-	"github.com/edaniels/gostream"
+	ourcodec "github.com/edaniels/gostream/codec"
 
 	"github.com/edaniels/golog"
 	"github.com/pion/mediadevices/pkg/codec"
@@ -15,7 +15,6 @@ import (
 type encoder struct {
 	codec  codec.ReadCloser
 	img    image.Image
-	debug  bool
 	logger golog.Logger
 }
 
@@ -26,10 +25,13 @@ const (
 	CodecVP9 VCodec = "V_VP9"
 )
 
+// Gives suitable results. Probably want to make this configurable this in the future.
 const bitrate = 3_200_000
 
-func NewEncoder(codecType VCodec, width, height, keyFrameInterval int, debug bool, logger golog.Logger) (gostream.Encoder, error) {
-	enc := &encoder{debug: debug, logger: logger}
+// NewEncoder returns a vpx encoder of the given type that can encode images of the given width and height. It will
+// also ensure that it produces key frames at the given interval.
+func NewEncoder(codecType VCodec, width, height, keyFrameInterval int, logger golog.Logger) (ourcodec.Encoder, error) {
+	enc := &encoder{logger: logger}
 
 	var builder codec.VideoEncoderBuilder
 	switch codecType {
@@ -67,10 +69,12 @@ func NewEncoder(codecType VCodec, width, height, keyFrameInterval int, debug boo
 	return enc, nil
 }
 
+// Read returns an image for codec to process.
 func (v *encoder) Read() (img image.Image, release func(), err error) {
 	return v.img, nil, nil
 }
 
+// Encode asks the codec to process the given image.
 func (v *encoder) Encode(img image.Image) ([]byte, error) {
 	v.img = img
 	data, release, err := v.codec.Read()

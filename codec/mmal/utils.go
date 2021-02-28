@@ -5,22 +5,22 @@ import (
 	"github.com/edaniels/gostream"
 )
 
-var DefaultRemoteViewConfig = gostream.PartialDefaultRemoteViewConfig
+// DefaultViewConfig configures MMAL as the encoder for a view.
+var DefaultViewConfig = gostream.PartialDefaultViewConfig
 
 func init() {
-	DefaultRemoteViewConfig.EncoderFactory = NewEncoderFactory(false)
+	DefaultViewConfig.EncoderFactory = NewEncoderFactory(false)
 }
 
-func NewEncoderFactory(debug bool) gostream.EncoderFactory {
-	return &factory{debug}
+// NewEncoderFactory returns an MMAL encoder factory.
+func NewEncoderFactory() codec.EncoderFactory {
+	return &factory{}
 }
 
-type factory struct {
-	debug bool
-}
+type factory struct{}
 
-func (f *factory) New(width, height, keyFrameInterval int, logger golog.Logger) (gostream.Encoder, error) {
-	return NewEncoder(width, height, keyFrameInterval, f.debug, logger)
+func (f *factory) New(width, height, keyFrameInterval int, logger golog.Logger) (codec.Encoder, error) {
+	return NewEncoder(width, height, keyFrameInterval, logger)
 }
 
 func (f *factory) MIMEType() string {

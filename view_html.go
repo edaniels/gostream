@@ -1,5 +1,24 @@
 package gostream
 
+import "fmt"
+
+// ViewHTML is the HTML needed to interact with the view in a browser.
+type ViewHTML struct {
+	JavaScript string
+	Body       string
+}
+
+func (bv *basicView) SinglePageHTML() string {
+	return fmt.Sprintf(viewSingleHTML, bv.htmlArgs()...)
+}
+
+func (bv *basicView) HTML() ViewHTML {
+	return ViewHTML{
+		JavaScript: fmt.Sprintf(viewJS, bv.htmlArgs()...),
+		Body:       fmt.Sprintf(viewBody, bv.htmlArgs()...),
+	}
+}
+
 var viewSingleHTML = `
 <!DOCTYPE html>
 <html>
@@ -109,7 +128,7 @@ const start_%[2]d = function() {
 `
 
 var viewBody = `
-Remote View<br />
+View<br />
 <button onclick="start_%[2]d(); this.remove();">Start%[1]s</button>
 <div id="stream_%[2]d">
   <div id="remoteVideo_%[2]d"></div><br />

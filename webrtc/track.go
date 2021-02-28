@@ -1,4 +1,4 @@
-package gostream
+package webrtc
 
 import (
 	"math"
@@ -12,7 +12,9 @@ import (
 	"go.uber.org/multierr"
 )
 
-// adapted from github.com/pion/webrtc/v3
+// Adapted from https://github.com/pion/webrtc/blob/master/track_local_static.go
+// TODO(erd): go through these comments and write them in your own words so that
+// it's consistent and you understand what's going on here.
 
 // trackBinding is a single bind for a Track
 // Bind can be called multiple times, this stores the
@@ -24,18 +26,18 @@ type trackBinding struct {
 	writeStream webrtc.TrackLocalWriter
 }
 
-// TrackLocalStaticRTP  is a TrackLocal that has a pre-set codec and accepts RTP Packets.
+// trackLocalStaticRTP  is a TrackLocal that has a pre-set codec and accepts RTP Packets.
 // If you wish to send a media.Sample use TrackLocalStaticSample
-type TrackLocalStaticRTP struct {
+type trackLocalStaticRTP struct {
 	mu           sync.RWMutex
 	bindings     []trackBinding
 	codec        webrtc.RTPCodecCapability
 	id, streamID string
 }
 
-// NewTrackLocalStaticRTP returns a TrackLocalStaticRTP.
-func NewTrackLocalStaticRTP(c webrtc.RTPCodecCapability, id, streamID string) (*TrackLocalStaticRTP, error) {
-	return &TrackLocalStaticRTP{
+// newtrackLocalStaticRTP returns a trackLocalStaticRTP.
+func newtrackLocalStaticRTP(c webrtc.RTPCodecCapability, id, streamID string) (*trackLocalStaticRTP, error) {
+	return &trackLocalStaticRTP{
 		codec:    c,
 		bindings: []trackBinding{},
 		id:       id,
@@ -46,7 +48,7 @@ func NewTrackLocalStaticRTP(c webrtc.RTPCodecCapability, id, streamID string) (*
 // Bind is called by the PeerConnection after negotiation is complete
 // This asserts that the code requested is supported by the remote peer.
 // If so it setups all the state (SSRC and PayloadType) to have a call
-func (s *TrackLocalStaticRTP) Bind(t webrtc.TrackLocalContext) (webrtc.RTPCodecParameters, error) {
+func (s *trackLocalStaticRTP) Bind(t webrtc.TrackLocalContext) (webrtc.RTPCodecParameters, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -66,7 +68,7 @@ func (s *TrackLocalStaticRTP) Bind(t webrtc.TrackLocalContext) (webrtc.RTPCodecP
 
 // Unbind implements the teardown logic when the track is no longer needed. This happens
 // because a track has been stopped.
-func (s *TrackLocalStaticRTP) Unbind(t webrtc.TrackLocalContext) error {
+func (s *trackLocalStaticRTP) Unbind(t webrtc.TrackLocalContext) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -84,13 +86,13 @@ func (s *TrackLocalStaticRTP) Unbind(t webrtc.TrackLocalContext) error {
 // ID is the unique identifier for this Track. This should be unique for the
 // stream, but doesn't have to globally unique. A common example would be 'audio' or 'video'
 // and StreamID would be 'desktop' or 'webcam'
-func (s *TrackLocalStaticRTP) ID() string { return s.id }
+func (s *trackLocalStaticRTP) ID() string { return s.id }
 
 // StreamID is the group this track belongs too. This must be unique
-func (s *TrackLocalStaticRTP) StreamID() string { return s.streamID }
+func (s *trackLocalStaticRTP) StreamID() string { return s.streamID }
 
 // Kind controls if this TrackLocal is audio or video
-func (s *TrackLocalStaticRTP) Kind() webrtc.RTPCodecType {
+func (s *trackLocalStaticRTP) Kind() webrtc.RTPCodecType {
 	switch {
 	case strings.HasPrefix(s.codec.MimeType, "audio/"):
 		return webrtc.RTPCodecTypeAudio
@@ -102,15 +104,15 @@ func (s *TrackLocalStaticRTP) Kind() webrtc.RTPCodecType {
 }
 
 // Codec gets the Codec of the track
-func (s *TrackLocalStaticRTP) Codec() webrtc.RTPCodecCapability {
+func (s *trackLocalStaticRTP) Codec() webrtc.RTPCodecCapability {
 	return s.codec
 }
 
-// WriteRTP writes a RTP Packet to the TrackLocalStaticRTP
+// WriteRTP writes a RTP Packet to the trackLocalStaticRTP
 // If one PeerConnection fails the packets will still be sent to
 // all PeerConnections. The error message will contain the ID of the failed
 // PeerConnections so you can remove them
-func (s *TrackLocalStaticRTP) WriteRTP(p *rtp.Packet) error {
+func (s *trackLocalStaticRTP) WriteRTP(p *rtp.Packet) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -128,11 +130,11 @@ func (s *TrackLocalStaticRTP) WriteRTP(p *rtp.Packet) error {
 	return multierr.Combine(writeErrs...)
 }
 
-// Write writes a RTP Packet as a buffer to the TrackLocalStaticRTP
+// Write writes a RTP Packet as a buffer to the trackLocalStaticRTP
 // If one PeerConnection fails the packets will still be sent to
 // all PeerConnections. The error message will contain the ID of the failed
 // PeerConnections so you can remove them
-func (s *TrackLocalStaticRTP) Write(b []byte) (n int, err error) {
+func (s *trackLocalStaticRTP) Write(b []byte) (n int, err error) {
 	packet := &rtp.Packet{}
 	if err = packet.Unmarshal(b); err != nil {
 		return 0, err
@@ -142,16 +144,16 @@ func (s *TrackLocalStaticRTP) Write(b []byte) (n int, err error) {
 }
 
 // TrackLocalStaticSample is a TrackLocal that has a pre-set codec and accepts Samples.
-// If you wish to send a RTP Packet use TrackLocalStaticRTP
+// If you wish to send a RTP Packet use trackLocalStaticRTP
 type TrackLocalStaticSample struct {
 	packetizer rtp.Packetizer
-	rtpTrack   *TrackLocalStaticRTP
+	rtpTrack   *trackLocalStaticRTP
 	sampler    samplerFunc
 }
 
 // NewTrackLocalStaticSample returns a TrackLocalStaticSample
 func NewTrackLocalStaticSample(c webrtc.RTPCodecCapability, id, streamID string) (*TrackLocalStaticSample, error) {
-	rtpTrack, err := NewTrackLocalStaticRTP(c, id, streamID)
+	rtpTrack, err := newtrackLocalStaticRTP(c, id, streamID)
 	if err != nil {
 		return nil, err
 	}

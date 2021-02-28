@@ -144,24 +144,22 @@ linters-settings:
       - valSwap
       - weakCond
       - yodaStyleExpr
-
-      # Unused
-      # - appendAssign
-      # - commentFormatting
-      # - emptyStringTest
-      # - exitAfterDefer
-      # - ifElseChain
-      # - hugeParam
-      # - importShadow
-      # - nestingReduce
-      # - paramTypeCombine
-      # - ptrToRefParam
-      # - rangeValCopy
-      # - singleCaseSwitch
-      # - sloppyReassign
-      # - unlabelStmt
-      # - unnamedResult
-      # - wrapperFunc
+      - appendAssign
+      - commentFormatting
+      - emptyStringTest
+      - exitAfterDefer
+      - ifElseChain
+      - hugeParam
+      - importShadow
+      - nestingReduce
+      - paramTypeCombine
+      - ptrToRefParam
+      - rangeValCopy
+      - singleCaseSwitch
+      - sloppyReassign
+      - unlabelStmt
+      - unnamedResult
+      - wrapperFunc
 
 issues:
   exclude:

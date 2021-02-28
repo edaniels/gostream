@@ -3,8 +3,6 @@ package mmal
 import (
 	"image"
 
-	"github.com/edaniels/gostream"
-
 	"github.com/edaniels/golog"
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/codec/mmal"
@@ -14,12 +12,13 @@ import (
 type encoder struct {
 	codec  codec.ReadCloser
 	img    image.Image
-	debug  bool
 	logger golog.Logger
 }
 
-func NewEncoder(width, height, keyFrameInterval int, debug bool, logger golog.Logger) (gostream.Encoder, error) {
-	enc := &encoder{debug: debug, logger: logger}
+// NewEncoder returns an MMAL encoder that can encode images of the given width and height. It will
+// also ensure that it produces key frames at the given interval.
+func NewEncoder(width, height, keyFrameInterval int, logger golog.Logger) (codec.Encoder, error) {
+	enc := &encoder{logger: logger}
 
 	var builder codec.VideoEncoderBuilder
 	params, err := mmal.NewParams()
@@ -43,10 +42,12 @@ func NewEncoder(width, height, keyFrameInterval int, debug bool, logger golog.Lo
 	return enc, nil
 }
 
+// Read returns an image for codec to process.
 func (v *encoder) Read() (img image.Image, release func(), err error) {
 	return v.img, nil, nil
 }
 
+// Encode asks the codec to process the given image.
 func (v *encoder) Encode(img image.Image) ([]byte, error) {
 	v.img = img
 	data, release, err := v.codec.Read()
