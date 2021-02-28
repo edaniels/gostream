@@ -1,6 +1,7 @@
 package mediadevices
 
 import (
+	"context"
 	"image"
 	"image/draw"
 
@@ -52,4 +53,10 @@ func cloneImage(src image.Image) image.Image {
 	dst := image.NewRGBA(bounds)
 	draw.Draw(dst, bounds, src, bounds.Min, draw.Src)
 	return dst
+}
+
+// Next returns the next image read. This method satisfies APIs that use Next instead
+// of Read with a given context.
+func (vrr VideoReadReleaser) Next(ctx context.Context) (img image.Image, err error) {
+	return vrr.Read()
 }
