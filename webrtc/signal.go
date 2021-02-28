@@ -16,12 +16,12 @@ func EncodeSDP(sdp *webrtc.SessionDescription) (string, error) {
 		return "", err
 	}
 
-	return base64.RawStdEncoding.EncodeToString(b), nil
+	return base64.StdEncoding.EncodeToString(b), nil
 }
 
 // DecodeSDP decodes the input from base64 into the given SDP.
 func DecodeSDP(in string, sdp *webrtc.SessionDescription) error {
-	b, err := base64.RawStdEncoding.DecodeString(in)
+	b, err := base64.StdEncoding.DecodeString(in)
 	if err != nil {
 		return err
 	}
