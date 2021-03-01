@@ -98,18 +98,23 @@ func GetAnyVideoReader(constraints mediadevices.MediaStreamConstraints) (VideoRe
 
 // QueryScreenDevicesLabels lists all known screen devices.
 func QueryScreenDevicesLabels() []string {
-	return getDriverLabels(driver.GetManager().Query(getScreenFilterBase()))
+	return getDriverLabels(driver.GetManager().Query(getScreenFilterBase()), false)
 }
 
 // QueryVideoDeviceLabels lists all known video devices (not a screen).
 func QueryVideoDeviceLabels() []string {
-	return getDriverLabels(driver.GetManager().Query(getVideoFilterBase()))
+	return getDriverLabels(driver.GetManager().Query(getVideoFilterBase()), true)
 }
 
-func getDriverLabels(drivers []driver.Driver) []string {
+func getDriverLabels(drivers []driver.Driver, useSep bool) []string {
 	var labels []string
 	for _, d := range drivers {
-		labels = append(labels, d.Info().Label)
+		if !useSep {
+			labels = append(labels, d.Info().Label)
+			continue
+		}
+		ls := strings.Split(d.Info().Label, camera.LabelSeparator)
+		labels = append(labels, ls...)
 	}
 	return labels
 }
