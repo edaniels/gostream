@@ -3,16 +3,17 @@ package media
 import (
 	"errors"
 	"math"
+	"strings"
 
 	"github.com/edaniels/gostream"
 
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/pkg/driver"
+	"github.com/pion/mediadevices/pkg/driver/camera"
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/prop"
 
 	// register
-	_ "github.com/pion/mediadevices/pkg/driver/camera"
 	_ "github.com/pion/mediadevices/pkg/driver/screen"
 )
 
@@ -107,14 +108,27 @@ func newVideoReaderFromDriver(videoDriver driver.Driver, mediaProp prop.Media) (
 	return &videoReadCloser{videoDriver, reader}, nil
 }
 
+func labelFilter(target string, useSep bool) driver.FilterFn {
+	return driver.FilterFn(func(d driver.Driver) bool {
+		if !useSep {
+			return d.Info().Label == target
+		}
+		labels := strings.Split(d.Info().Label, camera.LabelSeparator)
+		for _, label := range labels {
+			if label == target {
+				return true
+			}
+		}
+		return false
+	})
+}
+
 func selectVideo(constraints mediadevices.MediaTrackConstraints, label string) (driver.Driver, prop.Media, error) {
 	typeFilter := driver.FilterVideoRecorder()
 	notScreenFilter := driver.FilterNot(driver.FilterDeviceType(driver.Screen))
 	filter := driver.FilterAnd(typeFilter, notScreenFilter)
 	if label != "" {
-		filter = driver.FilterAnd(filter, driver.FilterFn(func(d driver.Driver) bool {
-			return d.Info().Label == label
-		}))
+		filter = driver.FilterAnd(filter, labelFilter(label, true))
 	}
 
 	return selectBestDriver(filter, constraints)
@@ -125,9 +139,7 @@ func selectScreen(constraints mediadevices.MediaTrackConstraints, label string) 
 	screenFilter := driver.FilterDeviceType(driver.Screen)
 	filter := driver.FilterAnd(typeFilter, screenFilter)
 	if label != "" {
-		filter = driver.FilterAnd(filter, driver.FilterFn(func(d driver.Driver) bool {
-			return d.Info().Label == label
-		}))
+		filter = driver.FilterAnd(filter, labelFilter(label, false))
 	}
 
 	return selectBestDriver(filter, constraints)

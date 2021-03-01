@@ -66,8 +66,8 @@ github.com/disintegration/imaging v1.6.2 h1:w1LecBlG2Lnp8B3jk5zSuNqd7b4DXhcjwek1
 github.com/disintegration/imaging v1.6.2/go.mod h1:44/5580QXChDfwIclfc/PCwrr44amcmDAg8hxG0Ewe4=
 github.com/edaniels/golog v0.0.0-20210104162753-3254576d0129 h1:5aUMHuQvy2Ia/cwaiZECzZla8apET/s97xhquWyluOA=
 github.com/edaniels/golog v0.0.0-20210104162753-3254576d0129/go.mod h1:mSoRCzs6vkNHT1wf3cB+0r3IfBIWOpp5L+woJAmUsXI=
-github.com/edaniels/mediadevices v0.1.20 h1:ZKNudxzpCCmShcsH6cgZ6AotFr2eHbEJv3wVNQsGdXs=
-github.com/edaniels/mediadevices v0.1.20/go.mod h1:2eVwoWjBIlii5R5xTeV2BUECqX2hftbrHwt3Exy4/oM=
+github.com/edaniels/mediadevices v0.1.21 h1:Olutt+AQelXt258fWQdNSnBiwX6ZY2dPORE+L8Q4rbk=
+github.com/edaniels/mediadevices v0.1.21/go.mod h1:2eVwoWjBIlii5R5xTeV2BUECqX2hftbrHwt3Exy4/oM=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
 github.com/fatih/color v1.9.0/go.mod h1:eQcE1qtQxscV5RaZvpXrrb8Drkc3/DdQ+uUYCNjL+zU=
 github.com/fatih/color v1.10.0 h1:s36xzo75JdqLaaWoiEHk767eHiwo0598uUxyfiPkDsg=
