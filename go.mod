@@ -16,4 +16,4 @@ require (
 	golang.org/x/tools v0.1.0 // indirect
 )
 
-replace github.com/pion/mediadevices => github.com/edaniels/mediadevices v0.1.21
+replace github.com/pion/mediadevices => github.com/edaniels/mediadevices v0.1.22

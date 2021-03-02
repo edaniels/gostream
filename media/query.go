@@ -37,6 +37,7 @@ var DefaultConstraints = mediadevices.MediaStreamConstraints{
 			frame.FormatRGBA,
 			frame.FormatMJPEG,
 			frame.FormatNV12,
+			frame.FormatZ16,
 			frame.FormatNV21, // gives blue tinted image?
 		}
 	},
