@@ -44,7 +44,7 @@ var DefaultConstraints = mediadevices.MediaStreamConstraints{
 
 // GetNamedScreenReader attempts to find a screen device by the given name.
 func GetNamedScreenReader(name string, constraints mediadevices.MediaStreamConstraints) (VideoReadCloser, error) {
-	d, selectedMedia, err := getScreenDriver(constraints, name)
+	d, selectedMedia, err := getScreenDriver(constraints, &name)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func GetPatternedScreenReader(labelPattern *regexp.Regexp, constraints mediadevi
 
 // GetNamedVideoReader attempts to find a video device (not a screen) by the given name.
 func GetNamedVideoReader(name string, constraints mediadevices.MediaStreamConstraints) (VideoReadCloser, error) {
-	d, selectedMedia, err := getUserDriver(constraints, name)
+	d, selectedMedia, err := getUserDriver(constraints, &name)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func GetPatternedVideoReader(labelPattern *regexp.Regexp, constraints mediadevic
 
 // GetAnyScreenReader attempts to find any suitable screen device.
 func GetAnyScreenReader(constraints mediadevices.MediaStreamConstraints) (VideoReadCloser, error) {
-	d, selectedMedia, err := getScreenDriver(constraints, "")
+	d, selectedMedia, err := getScreenDriver(constraints, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func GetAnyScreenReader(constraints mediadevices.MediaStreamConstraints) (VideoR
 
 // GetAnyVideoReader attempts to find any suitable video device (not a screen).
 func GetAnyVideoReader(constraints mediadevices.MediaStreamConstraints) (VideoReadCloser, error) {
-	d, selectedMedia, err := getUserDriver(constraints, "")
+	d, selectedMedia, err := getUserDriver(constraints, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func getDriverLabels(drivers []driver.Driver, useSep bool) []string {
 	return labels
 }
 
-func getScreenDriver(constraints mediadevices.MediaStreamConstraints, label string) (driver.Driver, prop.Media, error) {
+func getScreenDriver(constraints mediadevices.MediaStreamConstraints, label *string) (driver.Driver, prop.Media, error) {
 	var videoConstraints mediadevices.MediaTrackConstraints
 	if constraints.Video != nil {
 		constraints.Video(&videoConstraints)
@@ -135,7 +135,7 @@ func getScreenDriverPattern(constraints mediadevices.MediaStreamConstraints, lab
 	return selectScreenPattern(videoConstraints, labelPattern)
 }
 
-func getUserDriver(constraints mediadevices.MediaStreamConstraints, label string) (driver.Driver, prop.Media, error) {
+func getUserDriver(constraints mediadevices.MediaStreamConstraints, label *string) (driver.Driver, prop.Media, error) {
 	var videoConstraints mediadevices.MediaTrackConstraints
 	if constraints.Video != nil {
 		constraints.Video(&videoConstraints)
@@ -186,7 +186,6 @@ func labelFilterPattern(labelPattern *regexp.Regexp, useSep bool) driver.FilterF
 		if !useSep {
 			return labelPattern.MatchString(d.Info().Label)
 		}
-		println(d.Info().Label)
 		labels := strings.Split(d.Info().Label, camera.LabelSeparator)
 		for _, label := range labels {
 			if labelPattern.MatchString(label) {
@@ -197,7 +196,7 @@ func labelFilterPattern(labelPattern *regexp.Regexp, useSep bool) driver.FilterF
 	})
 }
 
-func selectVideo(constraints mediadevices.MediaTrackConstraints, label string) (driver.Driver, prop.Media, error) {
+func selectVideo(constraints mediadevices.MediaTrackConstraints, label *string) (driver.Driver, prop.Media, error) {
 	return selectBestDriver(getVideoFilter(label), constraints)
 }
 
@@ -205,7 +204,7 @@ func selectVideoPattern(constraints mediadevices.MediaTrackConstraints, labelPat
 	return selectBestDriver(getVideoFilterPattern(labelPattern), constraints)
 }
 
-func selectScreen(constraints mediadevices.MediaTrackConstraints, label string) (driver.Driver, prop.Media, error) {
+func selectScreen(constraints mediadevices.MediaTrackConstraints, label *string) (driver.Driver, prop.Media, error) {
 	return selectBestDriver(getScreenFilter(label), constraints)
 }
 
@@ -219,10 +218,10 @@ func getVideoFilterBase() driver.FilterFn {
 	return driver.FilterAnd(typeFilter, notScreenFilter)
 }
 
-func getVideoFilter(label string) driver.FilterFn {
+func getVideoFilter(label *string) driver.FilterFn {
 	filter := getVideoFilterBase()
-	if label != "" {
-		filter = driver.FilterAnd(filter, labelFilter(label, true))
+	if label != nil {
+		filter = driver.FilterAnd(filter, labelFilter(*label, true))
 	}
 	return filter
 }
@@ -239,10 +238,10 @@ func getScreenFilterBase() driver.FilterFn {
 	return driver.FilterAnd(typeFilter, screenFilter)
 }
 
-func getScreenFilter(label string) driver.FilterFn {
+func getScreenFilter(label *string) driver.FilterFn {
 	filter := getScreenFilterBase()
-	if label != "" {
-		filter = driver.FilterAnd(filter, labelFilter(label, true))
+	if label != nil {
+		filter = driver.FilterAnd(filter, labelFilter(*label, true))
 	}
 	return filter
 }
