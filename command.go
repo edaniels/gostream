@@ -9,6 +9,7 @@ import (
 
 // A Command describes an action for the server side of
 // a connection to take.
+// TODO(erd): Consider replacing with concepts from wsapi
 type Command struct {
 	Name string
 	Args []string
@@ -78,6 +79,19 @@ func (cr *commandRegistry) Process(cmd *Command) (*CommandResponse, error) {
 type CommandResponse struct {
 	data   []byte
 	isText bool
+}
+
+// Data returns the response data.
+func (cr *CommandResponse) Data() []byte {
+	return cr.data
+}
+
+// Text returns the textual data, if present.
+func (cr *CommandResponse) Text() (string, bool) {
+	if !cr.isText {
+		return "", false
+	}
+	return string(cr.data), true
 }
 
 // NewCommandResponseText creates a CommandResponse with textual data.
