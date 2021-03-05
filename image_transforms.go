@@ -24,9 +24,11 @@ func (rms *RotateImageSource) Next(ctx context.Context) (image.Image, func(), er
 	if err != nil {
 		return nil, nil, err
 	}
-	defer release()
+	if release != nil {
+		defer release()
+	}
 
-	return imaging.Rotate(img, rms.RotateByDeg, color.Black), nil, nil
+	return imaging.Rotate(img, rms.RotateByDeg, color.Black), func() {}, nil
 }
 
 // Close closes the underlying source.
@@ -46,9 +48,11 @@ func (ris ResizeImageSource) Next(ctx context.Context) (image.Image, func(), err
 	if err != nil {
 		return nil, nil, err
 	}
-	defer release()
+	if release != nil {
+		defer release()
+	}
 
-	return imaging.Resize(img, ris.Width, ris.Height, imaging.NearestNeighbor), nil, nil
+	return imaging.Resize(img, ris.Width, ris.Height, imaging.NearestNeighbor), func() {}, nil
 }
 
 // Close closes the underlying source.
@@ -166,7 +170,7 @@ func (at *AutoTiler) Next(ctx context.Context) (image.Image, func(), error) {
 			imgNum++
 		}
 	}
-	return dst, nil, nil
+	return dst, func() {}, nil
 }
 
 // Close closes all underlying image sources.
