@@ -89,19 +89,18 @@ func main() {
 		cancelFunc()
 	}()
 
-	imgSrc := media.VideoReadReleaser{videoReader}
 	if secondView != nil {
-		go gostream.StreamSource(cancelCtx, imgSrc, secondView)
+		go gostream.StreamSource(cancelCtx, videoReader, secondView)
 	}
 	if *dupeStream {
-		go gostream.StreamNamedSource(cancelCtx, imgSrc, "dupe", view)
+		go gostream.StreamNamedSource(cancelCtx, videoReader, "dupe", view)
 	}
 	if *extraTiles == 0 {
-		gostream.StreamNamedSource(cancelCtx, imgSrc, "screen", view)
+		gostream.StreamNamedSource(cancelCtx, videoReader, "screen", view)
 	} else {
-		autoTiler := gostream.NewAutoTiler(800, 600, imgSrc)
+		autoTiler := gostream.NewAutoTiler(800, 600, videoReader)
 		for i := 0; i < *extraTiles; i++ {
-			autoTiler.AddSource(imgSrc)
+			autoTiler.AddSource(videoReader)
 		}
 		gostream.StreamNamedSource(cancelCtx, autoTiler, "tiled screens", view)
 	}

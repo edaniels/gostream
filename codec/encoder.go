@@ -9,7 +9,7 @@ import (
 // DefaultKeyFrameInterval is the default interval chosen
 // in order to produce high enough quality results at a low
 // latency.
-const DefaultKeyFrameInterval = 60
+const DefaultKeyFrameInterval = 30
 
 // An Encoder is anything that can encode images into bytes. This means that
 // the encoder must follow some type of format dictated by a type (see EncoderFactory.MimeType).

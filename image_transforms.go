@@ -19,13 +19,14 @@ type RotateImageSource struct {
 }
 
 // Next returns a rotated image by RotateByDeg degrees.
-func (rms *RotateImageSource) Next(ctx context.Context) (image.Image, error) {
-	img, err := rms.Src.Next(ctx)
+func (rms *RotateImageSource) Next(ctx context.Context) (image.Image, func(), error) {
+	img, release, err := rms.Src.Next(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+	defer release()
 
-	return imaging.Rotate(img, rms.RotateByDeg, color.Black), nil
+	return imaging.Rotate(img, rms.RotateByDeg, color.Black), nil, nil
 }
 
 // Close closes the underlying source.
@@ -40,13 +41,14 @@ type ResizeImageSource struct {
 }
 
 // Next returns a resized image to Width x Height dimensions.
-func (ris ResizeImageSource) Next(ctx context.Context) (image.Image, error) {
-	img, err := ris.Src.Next(ctx)
+func (ris ResizeImageSource) Next(ctx context.Context) (image.Image, func(), error) {
+	img, release, err := ris.Src.Next(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+	defer release()
 
-	return imaging.Resize(img, ris.Width, ris.Height, imaging.NearestNeighbor), nil
+	return imaging.Resize(img, ris.Width, ris.Height, imaging.NearestNeighbor), nil, nil
 }
 
 // Close closes the underlying source.
@@ -107,21 +109,23 @@ func (at *AutoTiler) AddSource(src ImageSource) {
 // the image sources error, the image will not be included in the main image
 // but it can certainly appear in subsequent ones. Images are fetched in
 // parallel with no current constraint on parallelism.
-func (at *AutoTiler) Next(ctx context.Context) (image.Image, error) {
+func (at *AutoTiler) Next(ctx context.Context) (image.Image, func(), error) {
 	at.mu.Lock()
 	defer at.mu.Unlock()
 
 	allImgs := make([]image.Image, 0, len(at.sources))
+	allReleases := make([]func(), 0, len(at.sources))
 	fs := make([]func() error, 0, len(at.sources))
 
 	for _, src := range at.sources {
 		srcCopy := src
 		fs = append(fs, func() error {
-			img, err := srcCopy.Next(ctx)
+			img, release, err := srcCopy.Next(ctx)
 			if err != nil {
 				return err
 			}
 			allImgs = append(allImgs, img)
+			allReleases = append(allReleases, release)
 			return nil
 		})
 	}
@@ -129,6 +133,9 @@ func (at *AutoTiler) Next(ctx context.Context) (image.Image, error) {
 		if at.logger != nil {
 			at.logger.Debugw("error grabbing frames", "error", err)
 		}
+	}
+	for _, r := range allReleases {
+		defer r()
 	}
 
 	// We want to divide our space into alternating
@@ -159,7 +166,7 @@ func (at *AutoTiler) Next(ctx context.Context) (image.Image, error) {
 			imgNum++
 		}
 	}
-	return dst, nil
+	return dst, nil, nil
 }
 
 // Close closes all underlying image sources.

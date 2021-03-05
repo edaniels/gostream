@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"image"
 	"io"
 	"net/http"
 	"strconv"
@@ -493,14 +492,14 @@ func (bv *basicView) SendTextToAll(msg string) {
 }
 
 type inoutFrameChan struct {
-	In  chan image.Image
+	In  chan FrameReleasePair
 	Out chan []byte
 }
 
 func (bv *basicView) ReserveStream(name string) Stream {
 	bv.mu.Lock()
 	defer bv.mu.Unlock()
-	inputChan := make(chan image.Image)
+	inputChan := make(chan FrameReleasePair)
 	outputChan := make(chan []byte)
 	bv.inoutFrameChans = append(bv.inoutFrameChans, inoutFrameChan{inputChan, outputChan})
 	stream := &remoteStream{strings.ReplaceAll(name, " ", "-"), inputChan}
@@ -510,10 +509,10 @@ func (bv *basicView) ReserveStream(name string) Stream {
 
 type remoteStream struct {
 	name        string
-	inputFrames chan<- image.Image
+	inputFrames chan<- FrameReleasePair
 }
 
-func (rs *remoteStream) InputFrames() chan<- image.Image {
+func (rs *remoteStream) InputFrames() chan<- FrameReleasePair {
 	return rs.inputFrames
 }
 
@@ -548,32 +547,40 @@ func (bv *basicView) processInputFrames() {
 					return
 				case <-ticker.C:
 				}
-				var frame image.Image
+				var framePair FrameReleasePair
 				select {
-				case frame = <-inout.In:
+				case framePair = <-inout.In:
 				case <-bv.shutdownCtx.Done():
 					return
 				}
-				if frame == nil {
+				if framePair.Frame == nil {
 					continue
 				}
-				if firstFrame {
-					bounds := frame.Bounds()
-					if err := bv.initCodec(i, bounds.Dx(), bounds.Dy()); err != nil {
+				var initErr bool
+				func() {
+					defer framePair.Release()
+					if firstFrame {
+						bounds := framePair.Frame.Bounds()
+						if err := bv.initCodec(i, bounds.Dx(), bounds.Dy()); err != nil {
+							bv.logger.Error(err)
+							initErr = true
+							return
+						}
+						firstFrame = false
+					}
+
+					// thread-safe because the size is static
+					encodedFrame, err := bv.encoders[i].Encode(framePair.Frame)
+					if err != nil {
 						bv.logger.Error(err)
 						return
 					}
-					firstFrame = false
-				}
-
-				// thread-safe because the size is static
-				encodedFrame, err := bv.encoders[i].Encode(frame)
-				if err != nil {
-					bv.logger.Error(err)
-					continue
-				}
-				if encodedFrame != nil {
-					inout.Out <- encodedFrame
+					if encodedFrame != nil {
+						inout.Out <- encodedFrame
+					}
+				}()
+				if initErr {
+					return
 				}
 			}
 		}()

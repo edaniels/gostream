@@ -21,12 +21,12 @@ func streamSource(ctx context.Context, once func(), is ImageSource, name string,
 			return
 		default:
 		}
-		frame, err := is.Next(ctx)
+		frame, release, err := is.Next(ctx)
 		if err != nil {
 			Logger.Debugw("error getting frame", "error", err)
 			continue
 		}
-		stream.InputFrames() <- frame
+		stream.InputFrames() <- FrameReleasePair{frame, release}
 	}
 }
 
