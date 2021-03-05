@@ -558,7 +558,9 @@ func (bv *basicView) processInputFrames() {
 				}
 				var initErr bool
 				func() {
-					defer framePair.Release()
+					if framePair.Release != nil {
+						defer framePair.Release()
+					}
 					if firstFrame {
 						bounds := framePair.Frame.Bounds()
 						if err := bv.initCodec(i, bounds.Dx(), bounds.Dy()); err != nil {
