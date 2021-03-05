@@ -9,11 +9,9 @@ require (
 	github.com/golangci/golangci-lint v1.34.1
 	github.com/pion/interceptor v0.0.9
 	github.com/pion/logging v0.2.2
-	github.com/pion/mediadevices v0.1.17
+	github.com/pion/mediadevices v0.1.18-0.20210305000905-3d3830f7ffa2
 	github.com/pion/rtp v1.6.2
 	github.com/pion/webrtc/v3 v3.0.11
 	go.uber.org/multierr v1.6.0
 	golang.org/x/tools v0.1.0 // indirect
 )
-
-replace github.com/pion/mediadevices => github.com/edaniels/mediadevices v0.1.22
