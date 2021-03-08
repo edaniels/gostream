@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/edaniels/gostream"
+	"go.uber.org/multierr"
 
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/pkg/driver"
@@ -97,27 +98,69 @@ func GetAnyVideoReader(constraints mediadevices.MediaStreamConstraints) (VideoRe
 	return newVideoReaderFromDriver(d, selectedMedia)
 }
 
+// DeviceInfo describes a driver.
+type DeviceInfo struct {
+	ID         string
+	Labels     []string
+	Properties []prop.Media
+	Priority   driver.Priority
+}
+
+// QueryVideoDevices lists all known video devices (not a screen).
+func QueryVideoDevices() ([]DeviceInfo, error) {
+	return getDriverInfo(driver.GetManager().Query(getVideoFilterBase()), true)
+}
+
+// QueryScreenDevices lists all known screen devices.
+func QueryScreenDevices() ([]DeviceInfo, error) {
+	return getDriverInfo(driver.GetManager().Query(getScreenFilterBase()), true)
+}
+
+func getDriverInfo(drivers []driver.Driver, useSep bool) (deviceInfo []DeviceInfo, err error) {
+	infos := make([]DeviceInfo, 0, len(drivers))
+	for _, d := range drivers {
+		if d.Status() == driver.StateClosed {
+			if err := d.Open(); err != nil {
+				return nil, err
+			}
+			defer func() {
+				err = multierr.Combine(err, d.Close())
+			}()
+		}
+		labels := getDriverLabels(d, useSep)
+		infos = append(infos, DeviceInfo{
+			ID:         d.ID(),
+			Labels:     labels,
+			Properties: d.Properties(),
+			Priority:   d.Info().Priority,
+		})
+	}
+	return infos, nil
+}
+
 // QueryScreenDevicesLabels lists all known screen devices.
 func QueryScreenDevicesLabels() []string {
-	return getDriverLabels(driver.GetManager().Query(getScreenFilterBase()), false)
+	return getDriversLabels(driver.GetManager().Query(getScreenFilterBase()), false)
 }
 
 // QueryVideoDeviceLabels lists all known video devices (not a screen).
 func QueryVideoDeviceLabels() []string {
-	return getDriverLabels(driver.GetManager().Query(getVideoFilterBase()), true)
+	return getDriversLabels(driver.GetManager().Query(getVideoFilterBase()), true)
 }
 
-func getDriverLabels(drivers []driver.Driver, useSep bool) []string {
+func getDriversLabels(drivers []driver.Driver, useSep bool) []string {
 	var labels []string
 	for _, d := range drivers {
-		if !useSep {
-			labels = append(labels, d.Info().Label)
-			continue
-		}
-		ls := strings.Split(d.Info().Label, camera.LabelSeparator)
-		labels = append(labels, ls...)
+		labels = append(labels, getDriverLabels(d, useSep)...)
 	}
 	return labels
+}
+
+func getDriverLabels(d driver.Driver, useSep bool) []string {
+	if !useSep {
+		return []string{d.Info().Label}
+	}
+	return strings.Split(d.Info().Label, camera.LabelSeparator)
 }
 
 func getScreenDriver(constraints mediadevices.MediaStreamConstraints, label *string) (driver.Driver, prop.Media, error) {
