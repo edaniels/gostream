@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/edaniels/gostream"
-	"go.uber.org/multierr"
 
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/pkg/driver"
@@ -104,38 +103,37 @@ type DeviceInfo struct {
 	Labels     []string
 	Properties []prop.Media
 	Priority   driver.Priority
+	Error      error
 }
 
 // QueryVideoDevices lists all known video devices (not a screen).
-func QueryVideoDevices() ([]DeviceInfo, error) {
+func QueryVideoDevices() []DeviceInfo {
 	return getDriverInfo(driver.GetManager().Query(getVideoFilterBase()), true)
 }
 
 // QueryScreenDevices lists all known screen devices.
-func QueryScreenDevices() ([]DeviceInfo, error) {
+func QueryScreenDevices() []DeviceInfo {
 	return getDriverInfo(driver.GetManager().Query(getScreenFilterBase()), true)
 }
 
-func getDriverInfo(drivers []driver.Driver, useSep bool) (deviceInfo []DeviceInfo, err error) {
-	infos := make([]DeviceInfo, 0, len(drivers))
-	for _, d := range drivers {
+func getDriverInfo(drivers []driver.Driver, useSep bool) []DeviceInfo {
+	infos := make([]DeviceInfo, len(drivers))
+	for i, d := range drivers {
 		if d.Status() == driver.StateClosed {
 			if err := d.Open(); err != nil {
-				return nil, err
+				infos[i].Error = err
+			} else {
+				defer func() {
+					infos[i].Error = d.Close()
+				}()
 			}
-			defer func() {
-				err = multierr.Combine(err, d.Close())
-			}()
 		}
-		labels := getDriverLabels(d, useSep)
-		infos = append(infos, DeviceInfo{
-			ID:         d.ID(),
-			Labels:     labels,
-			Properties: d.Properties(),
-			Priority:   d.Info().Priority,
-		})
+		infos[i].ID = d.ID()
+		infos[i].Labels = getDriverLabels(d, useSep)
+		infos[i].Properties = d.Properties()
+		infos[i].Priority = d.Info().Priority
 	}
-	return infos, nil
+	return infos
 }
 
 // QueryScreenDevicesLabels lists all known screen devices.
