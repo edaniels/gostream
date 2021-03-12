@@ -117,19 +117,20 @@ func (at *AutoTiler) Next(ctx context.Context) (image.Image, func(), error) {
 	at.mu.Lock()
 	defer at.mu.Unlock()
 
-	allImgs := make([]image.Image, 0, len(at.sources))
-	allReleases := make([]func(), 0, len(at.sources))
+	allImgs := make([]image.Image, len(at.sources))
+	allReleases := make([]func(), len(at.sources))
 	fs := make([]func() error, 0, len(at.sources))
 
-	for _, src := range at.sources {
+	for i, src := range at.sources {
+		iCopy := i
 		srcCopy := src
 		fs = append(fs, func() error {
 			img, release, err := srcCopy.Next(ctx)
 			if err != nil {
 				return err
 			}
-			allImgs = append(allImgs, img)
-			allReleases = append(allReleases, release)
+			allImgs[iCopy] = img
+			allReleases[iCopy] = release
 			return nil
 		})
 	}
@@ -139,6 +140,9 @@ func (at *AutoTiler) Next(ctx context.Context) (image.Image, func(), error) {
 		}
 	}
 	for _, r := range allReleases {
+		if r == nil {
+			continue
+		}
 		defer r()
 	}
 
@@ -165,6 +169,9 @@ func (at *AutoTiler) Next(ctx context.Context) (image.Image, func(), error) {
 	var imgNum int
 	for x := float64(0); x < float64(at.maxWidth); x += xStride {
 		for y := float64(0); imgNum < len(allImgs) && y < float64(at.maxHeight); y += yStride {
+			if allImgs[imgNum] == nil {
+				continue // blank
+			}
 			resized := imaging.Resize(allImgs[imgNum], int(xStride), int(yStride), imaging.NearestNeighbor)
 			dst = imaging.Paste(dst, resized, image.Pt(int(x), int(y)))
 			imgNum++
