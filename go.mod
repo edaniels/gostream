@@ -4,7 +4,7 @@ go 1.15
 
 require (
 	github.com/disintegration/imaging v1.6.2
-	github.com/edaniels/golinters v0.0.4 // indirect
+	github.com/edaniels/golinters v0.0.4
 	github.com/edaniels/golog v0.0.0-20210104162753-3254576d0129
 	github.com/golangci/golangci-lint v1.34.1
 	github.com/pion/interceptor v0.0.9
