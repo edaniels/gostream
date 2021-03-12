@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/edaniels/golog"
@@ -25,11 +26,12 @@ type ViewServer interface {
 }
 
 type viewServer struct {
-	port       int
-	views      []View
-	httpServer *http.Server
-	started    bool
-	logger     golog.Logger
+	port                 int
+	views                []View
+	httpServer           *http.Server
+	started              bool
+	logger               golog.Logger
+	backgroundProcessing sync.WaitGroup
 }
 
 // NewViewServer returns a server that will run on the given port and initially starts
@@ -108,7 +110,9 @@ func (rvs *viewServer) Start() error {
 		mux.Handle("/"+handler.Name, handler.Func)
 	}
 
+	rvs.backgroundProcessing.Add(1)
 	go func() {
+		defer rvs.backgroundProcessing.Done()
 		rvs.logger.Infow("listening", "url", fmt.Sprintf("http://localhost:%d", rvs.port), "port", rvs.port)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			rvs.logger.Errorw("error listening and serving", "error", err)
@@ -121,5 +125,7 @@ func (rvs *viewServer) Stop(ctx context.Context) error {
 	for _, view := range rvs.views {
 		view.Stop()
 	}
-	return rvs.httpServer.Shutdown(ctx)
+	err := rvs.httpServer.Shutdown(ctx)
+	rvs.backgroundProcessing.Wait()
+	return err
 }
