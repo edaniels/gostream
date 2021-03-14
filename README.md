@@ -11,6 +11,7 @@ gostream is a library to simplify the streaming of images as video to a series o
 
 ## TODO
 
+- Support multiple codes (e.g. Firefox macos-arm does not support h264 by default yet)
 - Address code TODOs (including context.TODO)
 - Documentation (inner func docs, package docs, example docs)
 - Version 0.1.0
