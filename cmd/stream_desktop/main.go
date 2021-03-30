@@ -47,13 +47,13 @@ func main() {
 		gostream.Logger.Fatal(err)
 	}
 
-	view.SetOnDataHandler(func(data []byte) {
+	view.SetOnDataHandler(func(data []byte, responder gostream.ClientResponder) {
 		gostream.Logger.Debugw("data", "raw", string(data))
-		view.SendTextToAll(string(data))
+		responder.SendText(string(data))
 	})
-	view.SetOnClickHandler(func(x, y int) {
+	view.SetOnClickHandler(func(x, y int, responder gostream.ClientResponder) {
 		gostream.Logger.Debugw("click", "x", x, "y", y)
-		view.SendTextToAll(fmt.Sprintf("got click (%d, %d)", x, y))
+		responder.SendText(fmt.Sprintf("got click (%d, %d)", x, y))
 	})
 
 	server := gostream.NewViewServer(*port, view, gostream.Logger)
@@ -66,13 +66,13 @@ func main() {
 			gostream.Logger.Fatal(err)
 		}
 
-		view.SetOnDataHandler(func(data []byte) {
+		view.SetOnDataHandler(func(data []byte, responder gostream.ClientResponder) {
 			gostream.Logger.Debugw("data", "raw", string(data))
-			view.SendTextToAll(string(data))
+			responder.SendText(string(data))
 		})
-		view.SetOnClickHandler(func(x, y int) {
+		view.SetOnClickHandler(func(x, y int, responder gostream.ClientResponder) {
 			gostream.Logger.Debugw("click", "x", x, "y", y)
-			view.SendTextToAll(fmt.Sprintf("got click (%d, %d)", x, y))
+			responder.SendText(fmt.Sprintf("got click (%d, %d)", x, y))
 		})
 		secondView = view
 		server.AddView(secondView)

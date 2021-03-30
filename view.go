@@ -32,11 +32,11 @@ type View interface {
 	StreamingReady() <-chan struct{}
 	// SetOnClickHandler sets a handler for clicks on the view. This is typically
 	// used to alter the view or send information back with SendDataToAll or SendTextToAll.
-	SetOnClickHandler(func(x, y int))
+	SetOnClickHandler(func(x, y int, responder ClientResponder))
 	// SetOnDataHandler sets a handler for data sent to the view. This is typically
 	// used to alter the view or send information back with SendDataToAll or SendTextToAll. For
 	// higher level processing of data, prefer the CommandRegistry.
-	SetOnDataHandler(func(data []byte))
+	SetOnDataHandler(func(data []byte, responder ClientResponder))
 	// SendDataToAll allows sending arbitrary data to all clients.
 	SendDataToAll(data []byte)
 	// SendTextToAll allows sending arbitrary messages to all clients.
@@ -90,13 +90,37 @@ type basicView struct {
 	inoutFrameChans      []inoutFrameChan // not thread-safe
 	encoders             []codec.Encoder  // not thread-safe
 	reservedStreams      []*remoteStream
-	onDataHandler        func(data []byte)
-	onClickHandler       func(x, y int)
+	onDataHandler        func(data []byte, responder ClientResponder)
+	onClickHandler       func(x, y int, responder ClientResponder)
 	commandRegistry      CommandRegistry
 	shutdownCtx          context.Context
 	shutdownCtxCancel    func()
 	backgroundProcessing sync.WaitGroup
 	logger               golog.Logger
+}
+
+// A ClientResponder is able to respond directly to a client. This
+// is used in the onData/Click handlers.
+type ClientResponder interface {
+	Send(data []byte)
+	SendText(s string)
+}
+
+type dataChannelClientResponder struct {
+	dc     *webrtc.DataChannel
+	logger golog.Logger
+}
+
+func (r dataChannelClientResponder) Send(data []byte) {
+	if err := r.dc.Send(data); err != nil {
+		r.logger.Error(err)
+	}
+}
+
+func (r dataChannelClientResponder) SendText(s string) {
+	if err := r.dc.SendText(s); err != nil {
+		r.logger.Error(err)
+	}
 }
 
 // A ViewHandler names a view and its http.Handler for processing
@@ -251,7 +275,7 @@ func (bv *basicView) handleOffer(w io.Writer, r *http.Request) error {
 				bv.logger.Error(err)
 			}
 		}
-		bv.onDataHandler(msg.Data)
+		bv.onDataHandler(msg.Data, dataChannelClientResponder{dataChannel, bv.logger})
 	})
 
 	clickChannelID := uint16(1)
@@ -280,7 +304,8 @@ func (bv *basicView) handleOffer(w io.Writer, r *http.Request) error {
 			bv.logger.Debugw("error parsing coords", "error", err)
 			return
 		}
-		bv.onClickHandler(int(x), int(y)) // handler should return fast otherwise it could block
+		// handler should return fast otherwise it could block
+		bv.onClickHandler(int(x), int(y), dataChannelClientResponder{dataChannel, bv.logger})
 	})
 
 	// Set the remote SessionDescription
@@ -463,13 +488,13 @@ func (bv *basicView) Stop() {
 	bv.backgroundProcessing.Wait()
 }
 
-func (bv *basicView) SetOnDataHandler(handler func(data []byte)) {
+func (bv *basicView) SetOnDataHandler(handler func(data []byte, responder ClientResponder)) {
 	bv.mu.Lock()
 	defer bv.mu.Unlock()
 	bv.onDataHandler = handler
 }
 
-func (bv *basicView) SetOnClickHandler(handler func(x, y int)) {
+func (bv *basicView) SetOnClickHandler(handler func(x, y int, responder ClientResponder)) {
 	bv.mu.Lock()
 	defer bv.mu.Unlock()
 	bv.onClickHandler = handler
