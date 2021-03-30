@@ -34,8 +34,7 @@ type View interface {
 	// used to alter the view or send information back with SendDataToAll or SendTextToAll.
 	SetOnClickHandler(func(x, y int, responder ClientResponder))
 	// SetOnDataHandler sets a handler for data sent to the view. This is typically
-	// used to alter the view or send information back with SendDataToAll or SendTextToAll. For
-	// higher level processing of data, prefer the CommandRegistry.
+	// used to alter the view or send information back with the responder.
 	SetOnDataHandler(func(data []byte, responder ClientResponder))
 	// SendDataToAll allows sending arbitrary data to all clients.
 	SendDataToAll(data []byte)
@@ -47,9 +46,6 @@ type View interface {
 	SinglePageHTML() string
 	// Handler returns a named http.Handler that handles new WebRTC connections.
 	Handler() ViewHandler
-	// CommandRegistry returns the command registry associated with this view. This is helpful
-	// for high level interactions with the view and implementing application.
-	CommandRegistry() CommandRegistry
 	// ReserveStream allocates a Stream of the given name to be able to stream images to. Reserving
 	// streams after the Ready signal is fired is currently not allowed but the method will not fail.
 	// This is a lower level method and typically StreamSource is used instead.
@@ -74,7 +70,6 @@ func NewView(config ViewConfig) (View, error) {
 		config:             config,
 		streamingReadyCh:   make(chan struct{}),
 		peerToRemoteClient: map[*webrtc.PeerConnection]remoteClient{},
-		commandRegistry:    NewCommandRegistry(),
 		logger:             logger,
 		shutdownCtx:        ctx,
 		shutdownCtxCancel:  cancelFunc,
@@ -92,7 +87,6 @@ type basicView struct {
 	reservedStreams      []*remoteStream
 	onDataHandler        func(data []byte, responder ClientResponder)
 	onClickHandler       func(x, y int, responder ClientResponder)
-	commandRegistry      CommandRegistry
 	shutdownCtx          context.Context
 	shutdownCtxCancel    func()
 	backgroundProcessing sync.WaitGroup
@@ -135,10 +129,6 @@ func (bv *basicView) streamNum() int {
 		return bv.config.StreamNumber
 	}
 	return 0
-}
-
-func (bv *basicView) CommandRegistry() CommandRegistry {
-	return bv.commandRegistry
 }
 
 // TODO(erd): this method is insanely long, refactor it into some readable/manageable
@@ -242,40 +232,9 @@ func (bv *basicView) handleOffer(w io.Writer, r *http.Request) error {
 		return err
 	}
 	dataChannel.OnMessage(func(msg webrtc.DataChannelMessage) {
-		if bv.onDataHandler == nil {
-			if !msg.IsString {
-				return
-			}
-			cmd, err := UnmarshalCommand(string(msg.Data))
-			if err != nil {
-				bv.logger.Debugw("error unmarshaling command", "error", err)
-				if err := dataChannel.SendText(err.Error()); err != nil {
-					bv.logger.Error(err)
-				}
-				return
-			}
-			resp, err := bv.CommandRegistry().Process(cmd)
-			if err != nil {
-				bv.logger.Debugw("error processing command", "error", err)
-				if err := dataChannel.SendText(err.Error()); err != nil {
-					bv.logger.Error(err)
-				}
-				return
-			}
-			if resp == nil {
-				return
-			}
-			if resp.isText {
-				if err := dataChannel.SendText(string(resp.data)); err != nil {
-					bv.logger.Error(err)
-				}
-				return
-			}
-			if err := dataChannel.Send(resp.data); err != nil {
-				bv.logger.Error(err)
-			}
+		if bv.onDataHandler != nil {
+			bv.onDataHandler(msg.Data, dataChannelClientResponder{dataChannel, bv.logger})
 		}
-		bv.onDataHandler(msg.Data, dataChannelClientResponder{dataChannel, bv.logger})
 	})
 
 	clickChannelID := uint16(1)
