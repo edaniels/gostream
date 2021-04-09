@@ -32,10 +32,10 @@ type View interface {
 	StreamingReady() <-chan struct{}
 	// SetOnClickHandler sets a handler for clicks on the view. This is typically
 	// used to alter the view or send information back with SendDataToAll or SendTextToAll.
-	SetOnClickHandler(func(x, y int, responder ClientResponder))
+	SetOnClickHandler(func(ctx context.Context, x, y int, responder ClientResponder))
 	// SetOnDataHandler sets a handler for data sent to the view. This is typically
 	// used to alter the view or send information back with the responder.
-	SetOnDataHandler(func(data []byte, responder ClientResponder))
+	SetOnDataHandler(func(ctx context.Context, data []byte, responder ClientResponder))
 	// SendDataToAll allows sending arbitrary data to all clients.
 	SendDataToAll(data []byte)
 	// SendTextToAll allows sending arbitrary messages to all clients.
@@ -85,8 +85,8 @@ type basicView struct {
 	inoutFrameChans      []inoutFrameChan // not thread-safe
 	encoders             []codec.Encoder  // not thread-safe
 	reservedStreams      []*remoteStream
-	onDataHandler        func(data []byte, responder ClientResponder)
-	onClickHandler       func(x, y int, responder ClientResponder)
+	onDataHandler        func(ctx context.Context, data []byte, responder ClientResponder)
+	onClickHandler       func(ctx context.Context, x, y int, responder ClientResponder)
 	shutdownCtx          context.Context
 	shutdownCtxCancel    func()
 	backgroundProcessing sync.WaitGroup
@@ -179,7 +179,15 @@ func (bv *basicView) handleOffer(w io.Writer, r *http.Request) error {
 		return err
 	}
 
-	iceConnectedCtx, iceConnectedCtxCancel := context.WithCancel(context.TODO())
+	clientCtx, clientCtxCancel := context.WithCancel(context.Background())
+	var clientCreated bool
+	defer func() {
+		if !clientCreated {
+			clientCtxCancel()
+		}
+	}()
+
+	iceConnectedCtx, iceConnectedCtxCancel := context.WithCancel(clientCtx)
 
 	// Set the handler for ICE connection state
 	// This will notify you when the peer has connected/disconnected
@@ -233,7 +241,7 @@ func (bv *basicView) handleOffer(w io.Writer, r *http.Request) error {
 	}
 	dataChannel.OnMessage(func(msg webrtc.DataChannelMessage) {
 		if bv.onDataHandler != nil {
-			bv.onDataHandler(msg.Data, dataChannelClientResponder{dataChannel, bv.logger})
+			bv.onDataHandler(clientCtx, msg.Data, dataChannelClientResponder{dataChannel, bv.logger})
 		}
 	})
 
@@ -264,7 +272,7 @@ func (bv *basicView) handleOffer(w io.Writer, r *http.Request) error {
 			return
 		}
 		// handler should return fast otherwise it could block
-		bv.onClickHandler(int(x), int(y), dataChannelClientResponder{dataChannel, bv.logger})
+		bv.onClickHandler(clientCtx, int(x), int(y), dataChannelClientResponder{dataChannel, bv.logger})
 	})
 
 	// Set the remote SessionDescription
@@ -303,16 +311,18 @@ func (bv *basicView) handleOffer(w io.Writer, r *http.Request) error {
 		return err
 	}
 
+	clientCreated = true
 	bv.backgroundProcessing.Add(1)
 	go func() {
 		defer bv.backgroundProcessing.Done()
 		select {
 		case <-bv.shutdownCtx.Done():
+			clientCtxCancel()
 			return
 		case <-iceConnectedCtx.Done():
 		}
 
-		bv.addRemoteClient(peerConnection, remoteClient{dataChannel, videoTracks})
+		bv.addRemoteClient(peerConnection, remoteClient{dataChannel, videoTracks, clientCtxCancel})
 
 		bv.readyOnce.Do(func() {
 			close(bv.streamingReadyCh)
@@ -447,13 +457,13 @@ func (bv *basicView) Stop() {
 	bv.backgroundProcessing.Wait()
 }
 
-func (bv *basicView) SetOnDataHandler(handler func(data []byte, responder ClientResponder)) {
+func (bv *basicView) SetOnDataHandler(handler func(ctx context.Context, data []byte, responder ClientResponder)) {
 	bv.mu.Lock()
 	defer bv.mu.Unlock()
 	bv.onDataHandler = handler
 }
 
-func (bv *basicView) SetOnClickHandler(handler func(x, y int, responder ClientResponder)) {
+func (bv *basicView) SetOnClickHandler(handler func(ctx context.Context, x, y int, responder ClientResponder)) {
 	bv.mu.Lock()
 	defer bv.mu.Unlock()
 	bv.onClickHandler = handler
@@ -626,6 +636,7 @@ func (bv *basicView) initCodec(num, width, height int) error {
 type remoteClient struct {
 	dataChannel *webrtc.DataChannel
 	videoTracks []*ourwebrtc.TrackLocalStaticSample
+	ctxCancel   func()
 }
 
 func (bv *basicView) addRemoteClient(peerConnection *webrtc.PeerConnection, rc remoteClient) {
@@ -637,7 +648,12 @@ func (bv *basicView) addRemoteClient(peerConnection *webrtc.PeerConnection, rc r
 func (bv *basicView) removeRemoteClient(peerConnection *webrtc.PeerConnection) {
 	bv.mu.Lock()
 	defer bv.mu.Unlock()
+	client, ok := bv.peerToRemoteClient[peerConnection]
+	if ok {
+		client.ctxCancel()
+	}
 	delete(bv.peerToRemoteClient, peerConnection)
+
 }
 
 func (bv *basicView) getRemoteClients() []remoteClient {

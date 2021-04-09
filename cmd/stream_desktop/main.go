@@ -47,11 +47,11 @@ func main() {
 		gostream.Logger.Fatal(err)
 	}
 
-	view.SetOnDataHandler(func(data []byte, responder gostream.ClientResponder) {
+	view.SetOnDataHandler(func(ctx context.Context, data []byte, responder gostream.ClientResponder) {
 		gostream.Logger.Debugw("data", "raw", string(data))
 		responder.SendText(string(data))
 	})
-	view.SetOnClickHandler(func(x, y int, responder gostream.ClientResponder) {
+	view.SetOnClickHandler(func(ctx context.Context, x, y int, responder gostream.ClientResponder) {
 		gostream.Logger.Debugw("click", "x", x, "y", y)
 		responder.SendText(fmt.Sprintf("got click (%d, %d)", x, y))
 	})
@@ -66,11 +66,11 @@ func main() {
 			gostream.Logger.Fatal(err)
 		}
 
-		view.SetOnDataHandler(func(data []byte, responder gostream.ClientResponder) {
+		view.SetOnDataHandler(func(ctx context.Context, data []byte, responder gostream.ClientResponder) {
 			gostream.Logger.Debugw("data", "raw", string(data))
 			responder.SendText(string(data))
 		})
-		view.SetOnClickHandler(func(x, y int, responder gostream.ClientResponder) {
+		view.SetOnClickHandler(func(ctx context.Context, x, y int, responder gostream.ClientResponder) {
 			gostream.Logger.Debugw("click", "x", x, "y", y)
 			responder.SendText(fmt.Sprintf("got click (%d, %d)", x, y))
 		})
