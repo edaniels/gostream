@@ -26,7 +26,11 @@ func streamSource(ctx context.Context, once func(), is ImageSource, name string,
 			Logger.Debugw("error getting frame", "error", err)
 			continue
 		}
-		stream.InputFrames() <- FrameReleasePair{frame, release}
+		select {
+		case <-ctx.Done():
+			return
+		case stream.InputFrames() <- FrameReleasePair{frame, release}:
+		}
 	}
 }
 

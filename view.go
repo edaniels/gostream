@@ -455,6 +455,11 @@ func (bv *basicView) StreamingReady() <-chan struct{} {
 func (bv *basicView) Stop() {
 	bv.shutdownCtxCancel()
 	bv.backgroundProcessing.Wait()
+	for pc := range bv.peerToRemoteClient {
+		if err := pc.Close(); err != nil {
+			bv.logger.Errorw("error closing peer connection", "error", err)
+		}
+	}
 }
 
 func (bv *basicView) SetOnDataHandler(handler func(ctx context.Context, data []byte, responder ClientResponder)) {
