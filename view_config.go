@@ -11,17 +11,9 @@ var (
 	// DefaultICEServers is the default set of ICE servers to use for WebRTC session negotiation.
 	// There is no guarantee that the defaults here will remain usable.
 	DefaultICEServers = []webrtc.ICEServer{
-		// feel free to use your own ICE servers;
-		// the provided is a basic coturn service with no guarantees :)
-		// screen turnserver -vvvv -L 0.0.0.0 -J "mongodb://localhost" -r default -a -X "54.164.16.193/172.31.31.242"
+		// feel free to use your own ICE servers
 		{
-			URLs: []string{"stun:stun.erdaniels.com"},
-		},
-		{
-			URLs:           []string{"turn:stun.erdaniels.com"},
-			Username:       "username",
-			Credential:     "password",
-			CredentialType: webrtc.ICECredentialTypePassword,
+			URLs: []string{"stun:stun.viam.cloud"},
 		},
 	}
 )
