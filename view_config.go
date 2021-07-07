@@ -9,11 +9,15 @@ import (
 
 var (
 	// DefaultICEServers is the default set of ICE servers to use for WebRTC session negotiation.
-	// There is no guarantee that the defaults here will remain usable.
 	DefaultICEServers = []webrtc.ICEServer{
-		// feel free to use your own ICE servers
+		// {
+		// 	URLs: []string{"stun:stun.l.google.com:19302"},
+		// },
 		{
-			URLs: []string{"stun:stun.viam.cloud"},
+			URLs:           []string{"stun:stun.trevor.jp:3478", "turn:turn.trevor.jp:3478?transport=udp"},
+			Username:       "trevor",
+			Credential:     "redacted",
+			CredentialType: webrtc.ICECredentialTypePassword,
 		},
 	}
 )

@@ -18,9 +18,9 @@ type encoder struct {
 }
 
 // Gives suitable results. Probably want to make this configurable this in the future.
-const bitrate = 3_200_000
+const bitrate = 3_600_000
 
-// NewEncoder returns an MMAL encoder that can encode images of the given width and height. It will
+// NewEncoder returns an x264 encoder that can encode images of the given width and height. It will
 // also ensure that it produces key frames at the given interval.
 func NewEncoder(width, height, keyFrameInterval int, logger golog.Logger) (ourcodec.Encoder, error) {
 	enc := &encoder{logger: logger}
@@ -33,6 +33,7 @@ func NewEncoder(width, height, keyFrameInterval int, logger golog.Logger) (ourco
 	builder = &params
 	params.BitRate = bitrate
 	params.KeyFrameInterval = keyFrameInterval
+	params.Preset = x264.PresetUltrafast
 
 	codec, err := builder.BuildVideoEncoder(enc, prop.Media{
 		Video: prop.Video{

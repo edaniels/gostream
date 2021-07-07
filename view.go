@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"image"
 	"io"
 	"net/http"
 	"strconv"
@@ -32,12 +34,14 @@ type View interface {
 	StreamingReady() <-chan struct{}
 	// SetOnClickHandler sets a handler for clicks on the view. This is typically
 	// used to alter the view or send information back with SendDataToAll or SendTextToAll.
-	SetOnClickHandler(func(ctx context.Context, x, y int, responder ClientResponder))
+	SetOnSizeHandler(func(ctx context.Context, x, y int, responder ClientResponder))
 	// SetOnDataHandler sets a handler for data sent to the view. This is typically
 	// used to alter the view or send information back with the responder.
 	SetOnDataHandler(func(ctx context.Context, data []byte, responder ClientResponder))
 	// SendDataToAll allows sending arbitrary data to all clients.
 	SendDataToAll(data []byte)
+	// SendCursorToAll ...
+	SendCursorToAll(img image.Image, width int, height int, hotx int, hoty int)
 	// SendTextToAll allows sending arbitrary messages to all clients.
 	SendTextToAll(msg string)
 	// HTML returns the HTML needed to interact with the view in a browser.
@@ -86,7 +90,7 @@ type basicView struct {
 	encoders             []codec.Encoder  // not thread-safe
 	reservedStreams      []*remoteStream
 	onDataHandler        func(ctx context.Context, data []byte, responder ClientResponder)
-	onClickHandler       func(ctx context.Context, x, y int, responder ClientResponder)
+	onSizeHandler        func(ctx context.Context, w, h int, responder ClientResponder)
 	shutdownCtx          context.Context
 	shutdownCtxCancel    func()
 	backgroundProcessing sync.WaitGroup
@@ -245,15 +249,15 @@ func (bv *basicView) handleOffer(w io.Writer, r *http.Request) error {
 		}
 	})
 
-	clickChannelID := uint16(1)
-	clickChannel, err := peerConnection.CreateDataChannel("clicks", &webrtc.DataChannelInit{
-		ID: &clickChannelID,
+	sizeChannelID := uint16(1)
+	sizeChannel, err := peerConnection.CreateDataChannel("resize", &webrtc.DataChannelInit{
+		ID: &sizeChannelID,
 	})
 	if err != nil {
 		return err
 	}
-	clickChannel.OnMessage(func(msg webrtc.DataChannelMessage) {
-		if bv.onClickHandler == nil {
+	sizeChannel.OnMessage(func(msg webrtc.DataChannelMessage) {
+		if bv.onSizeHandler == nil {
 			return
 		}
 		coords := strings.Split(string(msg.Data), ",")
@@ -261,18 +265,29 @@ func (bv *basicView) handleOffer(w io.Writer, r *http.Request) error {
 			bv.logger.Debug("malformed coords")
 			return
 		}
-		x, err := strconv.ParseFloat(coords[0], 32)
+		w, err := strconv.ParseFloat(coords[0], 32)
 		if err != nil {
 			bv.logger.Debugw("error parsing coords", "error", err)
 			return
 		}
-		y, err := strconv.ParseFloat(coords[1], 32)
+		h, err := strconv.ParseFloat(coords[1], 32)
 		if err != nil {
 			bv.logger.Debugw("error parsing coords", "error", err)
 			return
 		}
 		// handler should return fast otherwise it could block
-		bv.onClickHandler(clientCtx, int(x), int(y), dataChannelClientResponder{dataChannel, bv.logger})
+		bv.onSizeHandler(clientCtx, int(w), int(h), dataChannelClientResponder{dataChannel, bv.logger})
+	})
+
+	cursorChannelID := uint16(2)
+	cursorChannel, err := peerConnection.CreateDataChannel("cursor", &webrtc.DataChannelInit{
+		ID: &cursorChannelID,
+	})
+	if err != nil {
+		return err
+	}
+	cursorChannel.OnMessage(func(msg webrtc.DataChannelMessage) {
+		fmt.Println("incomming on cursorChannel")
 	})
 
 	// Set the remote SessionDescription
@@ -322,7 +337,7 @@ func (bv *basicView) handleOffer(w io.Writer, r *http.Request) error {
 		case <-iceConnectedCtx.Done():
 		}
 
-		bv.addRemoteClient(peerConnection, remoteClient{dataChannel, videoTracks, clientCtxCancel})
+		bv.addRemoteClient(peerConnection, remoteClient{cursorChannel, dataChannel, videoTracks, clientCtxCancel})
 
 		bv.readyOnce.Do(func() {
 			close(bv.streamingReadyCh)
@@ -406,8 +421,9 @@ func (bv *basicView) iceServers() string {
 	strBuf.WriteString("[")
 	for _, server := range bv.config.WebRTCConfig.ICEServers {
 		strBuf.WriteString("{")
-		strBuf.WriteString("urls: ['")
+		strBuf.WriteString("urls: [")
 		for _, u := range server.URLs {
+			strBuf.WriteString("'")
 			strBuf.WriteString(u)
 			strBuf.WriteString("',")
 		}
@@ -468,15 +484,30 @@ func (bv *basicView) SetOnDataHandler(handler func(ctx context.Context, data []b
 	bv.onDataHandler = handler
 }
 
-func (bv *basicView) SetOnClickHandler(handler func(ctx context.Context, x, y int, responder ClientResponder)) {
+func (bv *basicView) SetOnSizeHandler(handler func(ctx context.Context, x, y int, responder ClientResponder)) {
 	bv.mu.Lock()
 	defer bv.mu.Unlock()
-	bv.onClickHandler = handler
+	bv.onSizeHandler = handler
 }
 
 func (bv *basicView) SendDataToAll(data []byte) {
 	for _, rc := range bv.getRemoteClients() {
 		if err := rc.dataChannel.Send(data); err != nil {
+			bv.logger.Error(err)
+		}
+	}
+}
+
+func (bv *basicView) SendCursorToAll(img image.Image, width int, height int, hotx int, hoty int) {
+	var buf bytes.Buffer
+	binary.Write(&buf, binary.LittleEndian, uint8(width))
+	binary.Write(&buf, binary.LittleEndian, uint8(height))
+	binary.Write(&buf, binary.LittleEndian, uint8(hotx))
+	binary.Write(&buf, binary.LittleEndian, uint8(hoty))
+	buf.Write(img.(*image.RGBA).Pix)
+
+	for _, rc := range bv.getRemoteClients() {
+		if err := rc.cursorChannel.Send(buf.Bytes()); err != nil {
 			bv.logger.Error(err)
 		}
 	}
@@ -639,9 +670,10 @@ func (bv *basicView) initCodec(num, width, height int) error {
 }
 
 type remoteClient struct {
-	dataChannel *webrtc.DataChannel
-	videoTracks []*ourwebrtc.TrackLocalStaticSample
-	ctxCancel   func()
+	cursorChannel *webrtc.DataChannel
+	dataChannel   *webrtc.DataChannel
+	videoTracks   []*ourwebrtc.TrackLocalStaticSample
+	ctxCancel     func()
 }
 
 func (bv *basicView) addRemoteClient(peerConnection *webrtc.PeerConnection, rc remoteClient) {

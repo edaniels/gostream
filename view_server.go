@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"image"
 	"net/http"
 	"path/filepath"
 	"runtime"
@@ -12,6 +13,10 @@ import (
 	"time"
 
 	"github.com/edaniels/golog"
+	"github.com/edaniels/gostream/pkg/macos"
+	"github.com/evangwt/go-vncproxy"
+	"github.com/gorilla/mux"
+	"golang.org/x/net/websocket"
 )
 
 // A ViewServer is a convenience helper for solely streaming a series
@@ -72,48 +77,64 @@ func (rvs *viewServer) Start() error {
 		"htmlSafe": func(html string) template.HTML {
 			return template.HTML(html)
 		},
-	}).ParseGlob(fmt.Sprintf("%s/*.html", thisDirPath))
+	}).ParseGlob(fmt.Sprintf("%s/assets/*.html.tpl", thisDirPath))
 	if err != nil {
 		return fmt.Errorf("error parsing templates: %w", err)
 	}
-	template := t.Lookup("remote_view_multi.html")
+	tmpl := t.Lookup("vnc.html.tpl")
 
-	mux := http.NewServeMux()
+	mux := mux.NewRouter() //http.NewServeMux()
 	httpServer.Handler = mux
+
+	staticDirectory := "./assets/static"
+	staticPaths := map[string]string{
+		"app":    filepath.Join(staticDirectory, "app"),
+		"core":   filepath.Join(staticDirectory, "core"),
+		"vendor": filepath.Join(staticDirectory, "vendor"),
+	}
+	for pathName, pathValue := range staticPaths {
+		pathPrefix := "/" + pathName + "/"
+		srv := http.FileServer(http.Dir(pathValue))
+		mux.PathPrefix(pathPrefix).Handler(http.StripPrefix(pathPrefix, srv))
+	}
+
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if len(rvs.views) == 1 {
-			if _, err := w.Write([]byte(rvs.views[0].SinglePageHTML())); err != nil {
-				rvs.logger.Error(err)
-			}
+		bv := rvs.views[0]
+		servers := bv.SinglePageHTML()
+
+		if err := tmpl.Execute(w, servers); err != nil {
+			rvs.logger.Error(err)
 			return
-		}
-		type Temp struct {
-			Views []ViewHTML
-		}
-
-		temp := Temp{}
-		for _, view := range rvs.views {
-			htmlData := view.HTML()
-			temp.Views = append(temp.Views, ViewHTML{
-				htmlData.JavaScript,
-				htmlData.Body,
-			})
-		}
-
-		err := template.Execute(w, temp)
-		if err != nil {
-			rvs.logger.Errorw("couldn't execute web page", "error", err)
 		}
 	})
 	for _, view := range rvs.views {
 		handler := view.Handler()
+		fmt.Println("handler.Name", handler.Name)
 		mux.Handle("/"+handler.Name, handler.Func)
 	}
+
+	vncProxy := vncproxy.New(&vncproxy.Config{
+		LogLevel: vncproxy.DebugLevel,
+		TokenHandler: func(r *http.Request) (addr string, err error) {
+			addr = "192.168.55.1:5900"
+			return
+		},
+	})
+	proxy := websocket.Handler(vncProxy.ServeWS)
+	mux.Handle("/vnc_ws", proxy)
+
+	handle := macos.NewCursorHandle()
+	handle.Start(func(img image.Image, width int, height int, hotx int, hoty int) {
+		for _, view := range rvs.views {
+			view.SendCursorToAll(img, width, height, hotx, hoty)
+		}
+		fmt.Println("detected new cursor", len(img.(*image.RGBA).Pix))
+	})
 
 	rvs.backgroundProcessing.Add(1)
 	go func() {
 		defer rvs.backgroundProcessing.Done()
-		rvs.logger.Infow("listening", "url", fmt.Sprintf("http://localhost:%d", rvs.port), "port", rvs.port)
+		rvs.logger.Infow("listening", "url", fmt.Sprintf("http://0.0.0.0:%d", rvs.port), "port", rvs.port)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			rvs.logger.Errorw("error listening and serving", "error", err)
 		}
