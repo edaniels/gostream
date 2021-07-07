@@ -7,9 +7,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/edaniels/gostream"
-	"github.com/edaniels/gostream/codec/x264"
-	"github.com/edaniels/gostream/media"
+	"github.com/trevor403/gostream"
+	"github.com/trevor403/gostream/codec/x264"
+	"github.com/trevor403/gostream/media"
 )
 
 func main() {

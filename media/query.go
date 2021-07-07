@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/edaniels/gostream"
+	"github.com/trevor403/gostream"
 
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/pkg/driver"

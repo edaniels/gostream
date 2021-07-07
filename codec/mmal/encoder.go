@@ -3,7 +3,7 @@ package mmal
 import (
 	"image"
 
-	ourcodec "github.com/edaniels/gostream/codec"
+	ourcodec "github.com/trevor403/gostream/codec"
 
 	"github.com/edaniels/golog"
 	"github.com/pion/mediadevices/pkg/codec"

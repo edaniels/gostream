@@ -1,8 +1,8 @@
 package x264
 
 import (
-	"github.com/edaniels/gostream"
-	"github.com/edaniels/gostream/codec"
+	"github.com/trevor403/gostream"
+	"github.com/trevor403/gostream/codec"
 
 	"github.com/edaniels/golog"
 )

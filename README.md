@@ -3,8 +3,8 @@
 gostream is a library to simplify the streaming of images as video to a series of WebRTC peers. The impetus for this existing was for doing simple GUI / video streaming to a browser all within go with as little cgo as possible. The package will likely be refactored over time to support some more generalized use cases and as such will be in version 0 for the time being. Many parameters are hard coded and need to be configurable over time. Use at your own risk, and please file issues!
 
 <p align="center">
-  <a href="https://pkg.go.dev/github.com/edaniels/gostream"><img src="https://pkg.go.dev/badge/github.com/edaniels/gostream" alt="PkgGoDev"></a>
-  <a href="https://goreportcard.com/report/github.com/edaniels/gostream"><img src="https://goreportcard.com/badge/github.com/edaniels/gostream" alt="Go Report Card"></a>
+  <a href="https://pkg.go.dev/github.com/trevor403/gostream"><img src="https://pkg.go.dev/badge/github.com/trevor403/gostream" alt="PkgGoDev"></a>
+  <a href="https://goreportcard.com/report/github.com/trevor403/gostream"><img src="https://goreportcard.com/badge/github.com/trevor403/gostream" alt="Go Report Card"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
 </p>
 <br>
@@ -23,7 +23,7 @@ gostream is a library to simplify the streaming of images as video to a series o
 
 ## Examples
 
-* Stream current desktop: `go run github.com/edaniels/gostream/cmd/stream_desktop`
+* Stream current desktop: `go run github.com/trevor403/gostream/cmd/stream_desktop`
 
 ## Notes
 

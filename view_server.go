@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/edaniels/golog"
-	"github.com/edaniels/gostream/pkg/macos"
 	"github.com/evangwt/go-vncproxy"
 	"github.com/gorilla/mux"
+	"github.com/trevor403/gostream/pkg/macos"
 	"golang.org/x/net/websocket"
 )
 

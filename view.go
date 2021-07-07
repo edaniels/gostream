@@ -15,8 +15,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/edaniels/gostream/codec"
-	ourwebrtc "github.com/edaniels/gostream/webrtc"
+	"github.com/trevor403/gostream/codec"
+	ourwebrtc "github.com/trevor403/gostream/webrtc"
 
 	"github.com/edaniels/golog"
 	"github.com/pion/interceptor"

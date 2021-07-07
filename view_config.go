@@ -1,7 +1,7 @@
 package gostream
 
 import (
-	"github.com/edaniels/gostream/codec"
+	"github.com/trevor403/gostream/codec"
 
 	"github.com/edaniels/golog"
 	"github.com/pion/webrtc/v3"

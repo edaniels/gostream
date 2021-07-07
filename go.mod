@@ -1,4 +1,4 @@
-module github.com/edaniels/gostream
+module github.com/trevor403/gostream
 
 go 1.15
 
