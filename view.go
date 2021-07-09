@@ -15,6 +15,7 @@ import (
 
 	"github.com/edaniels/gostream/codec"
 	ourwebrtc "github.com/edaniels/gostream/webrtc"
+	"go.uber.org/multierr"
 
 	"github.com/edaniels/golog"
 	"github.com/pion/interceptor"
@@ -133,7 +134,7 @@ func (bv *basicView) streamNum() int {
 
 // TODO(erd): this method is insanely long, refactor it into some readable/manageable
 // bits.
-func (bv *basicView) handleOffer(w io.Writer, r *http.Request) error {
+func (bv *basicView) handleOffer(w io.Writer, r *http.Request) (err error) {
 	reader := bufio.NewReader(r.Body)
 
 	var in string
@@ -178,6 +179,13 @@ func (bv *basicView) handleOffer(w io.Writer, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+
+	var successful bool
+	defer func() {
+		if !successful {
+			err = multierr.Combine(err, peerConnection.Close())
+		}
+	}()
 
 	clientCtx, clientCtxCancel := context.WithCancel(context.Background())
 	var clientCreated bool
@@ -311,12 +319,16 @@ func (bv *basicView) handleOffer(w io.Writer, r *http.Request) error {
 		return err
 	}
 
+	successful = true
 	clientCreated = true
 	bv.backgroundProcessing.Add(1)
 	go func() {
 		defer bv.backgroundProcessing.Done()
 		select {
 		case <-bv.shutdownCtx.Done():
+			if err := peerConnection.Close(); err != nil {
+				bv.logger.Errorw("error closing peer connection", "error", err)
+			}
 			clientCtxCancel()
 			return
 		case <-iceConnectedCtx.Done():
@@ -656,6 +668,9 @@ func (bv *basicView) removeRemoteClient(peerConnection *webrtc.PeerConnection) {
 	client, ok := bv.peerToRemoteClient[peerConnection]
 	if ok {
 		client.ctxCancel()
+	}
+	if err := peerConnection.Close(); err != nil {
+		bv.logger.Errorw("error closing peer connection on removal", "error", err)
 	}
 	delete(bv.peerToRemoteClient, peerConnection)
 
