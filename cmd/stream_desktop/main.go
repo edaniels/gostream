@@ -34,9 +34,8 @@ func main() {
 		}
 	}()
 
-	// _ = x264.DefaultViewConfig
-	// _ = vpx.DefaultViewConfig
 	config := x264.DefaultViewConfig
+	// config := vpx.DefaultViewConfig
 	config.TargetFrameRate = 24
 	view, err := gostream.NewView(config)
 	if err != nil {

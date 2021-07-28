@@ -28,7 +28,7 @@ const (
 )
 
 // Gives suitable results. Probably want to make this configurable this in the future.
-const bitrate = 3_200_000
+const bitrate = 3_600_000
 
 // NewEncoder returns a vpx encoder of the given type that can encode images of the given width and height. It will
 // also ensure that it produces key frames at the given interval.
