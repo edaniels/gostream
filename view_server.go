@@ -15,7 +15,7 @@ import (
 	"github.com/edaniels/golog"
 	"github.com/evangwt/go-vncproxy"
 	"github.com/gorilla/mux"
-	"github.com/trevor403/gostream/pkg/macos"
+	"github.com/trevor403/gostream/pkg/platform"
 	"golang.org/x/net/websocket"
 )
 
@@ -123,7 +123,7 @@ func (rvs *viewServer) Start() error {
 	proxy := websocket.Handler(vncProxy.ServeWS)
 	mux.Handle("/vnc_ws", proxy)
 
-	handle := macos.NewCursorHandle()
+	handle := platform.NewCursorHandle()
 	handle.Start(func(img image.Image, width int, height int, hotx int, hoty int) {
 		for _, view := range rvs.views {
 			view.SendCursorToAll(img, width, height, hotx, hoty)

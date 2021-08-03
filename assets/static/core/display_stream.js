@@ -48,11 +48,11 @@ const start_stream = async function(target, cursorHandler) {
 
     // set up offer
     const cursorChannel = peerConnection.createDataChannel("cursor", { negotiated: true, id: 2 });
-    const clickChannel = peerConnection.createDataChannel("clicks", { negotiated: true, id: 1 });
+    const resizeChannel = peerConnection.createDataChannel("resize", { negotiated: true, id: 1 });
     const dataChannel = peerConnection.createDataChannel("data", { negotiated: true, id: 0 });
     cursorChannel.onmessage = cursorHandler;
-    clickChannel.onmessage = function (event) {
-        console.log("clickChannel", event.data);
+    resizeChannel.onmessage = function (event) {
+        console.log("resizeChannel", event.data);
     }
     dataChannel.onmessage = function (event) {
         console.log("dataChannel", event.data);

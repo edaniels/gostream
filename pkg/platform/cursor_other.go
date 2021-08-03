@@ -1,4 +1,4 @@
-package macos
+package platform
 
 import "C"
 

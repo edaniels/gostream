@@ -1,4 +1,4 @@
-package macos
+package platform
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/bridge -x objective-c
