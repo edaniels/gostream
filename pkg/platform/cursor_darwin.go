@@ -3,7 +3,7 @@ package platform
 /*
 #cgo CFLAGS: -I${SRCDIR}/bridge -x objective-c
 #cgo LDFLAGS: -L${SRCDIR}/bridge -framework Foundation -framework AppKit -mmacosx-version-min=10.15 -lFBRetainCycleDetector
-#import "library.h"
+#import "library.m"
 */
 import "C"
 import (
