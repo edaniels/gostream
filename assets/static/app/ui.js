@@ -987,6 +987,7 @@ const UI = {
         const path = UI.getSetting('path');
 
         if (typeof password === 'undefined') {
+            // password = WebUtil.getConfigVar('password', "bypass");
             password = WebUtil.getConfigVar('password');
             UI.reconnectPassword = password;
         }

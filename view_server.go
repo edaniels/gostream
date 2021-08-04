@@ -16,6 +16,7 @@ import (
 	"github.com/evangwt/go-vncproxy"
 	"github.com/gorilla/mux"
 	"github.com/trevor403/gostream/pkg/platform"
+	"gitlab.com/avarf/getenvs"
 	"golang.org/x/net/websocket"
 )
 
@@ -116,7 +117,7 @@ func (rvs *viewServer) Start() error {
 	vncProxy := vncproxy.New(&vncproxy.Config{
 		LogLevel: vncproxy.DebugLevel,
 		TokenHandler: func(r *http.Request) (addr string, err error) {
-			addr = "192.168.55.1:5900"
+			addr = getenvs.GetEnvString("VNC_SERVER", "192.168.55.1:5900")
 			return
 		},
 	})
@@ -124,12 +125,20 @@ func (rvs *viewServer) Start() error {
 	mux.Handle("/vnc_ws", proxy)
 
 	handle := platform.NewCursorHandle()
-	handle.Start(func(img image.Image, width int, height int, hotx int, hoty int) {
+	handle.SetCallback(func(img image.Image, width int, height int, hotx int, hoty int) {
 		for _, view := range rvs.views {
 			view.SendCursorToAll(img, width, height, hotx, hoty)
 		}
 		fmt.Println("detected new cursor", len(img.(*image.RGBA).Pix))
 	})
+	handle.Start()
+
+	for _, view := range rvs.views {
+		view.SetOnSizeHandler(func(ctx context.Context, factor float32, responder ClientResponder) {
+			Logger.Debugw("scaled", "factor", factor)
+			handle.UpdateScale(factor)
+		})
+	}
 
 	rvs.backgroundProcessing.Add(1)
 	go func() {

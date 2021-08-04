@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"image"
 	"io"
+	"math"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -35,7 +35,7 @@ type View interface {
 	StreamingReady() <-chan struct{}
 	// SetOnClickHandler sets a handler for clicks on the view. This is typically
 	// used to alter the view or send information back with SendDataToAll or SendTextToAll.
-	SetOnSizeHandler(func(ctx context.Context, x, y int, responder ClientResponder))
+	SetOnSizeHandler(func(ctx context.Context, factor float32, responder ClientResponder))
 	// SetOnDataHandler sets a handler for data sent to the view. This is typically
 	// used to alter the view or send information back with the responder.
 	SetOnDataHandler(func(ctx context.Context, data []byte, responder ClientResponder))
@@ -91,7 +91,7 @@ type basicView struct {
 	encoders             []codec.Encoder  // not thread-safe
 	reservedStreams      []*remoteStream
 	onDataHandler        func(ctx context.Context, data []byte, responder ClientResponder)
-	onSizeHandler        func(ctx context.Context, w, h int, responder ClientResponder)
+	onSizeHandler        func(ctx context.Context, factor float32, responder ClientResponder)
 	shutdownCtx          context.Context
 	shutdownCtxCancel    func()
 	backgroundProcessing sync.WaitGroup
@@ -268,23 +268,18 @@ func (bv *basicView) handleOffer(w io.Writer, r *http.Request) (err error) {
 		if bv.onSizeHandler == nil {
 			return
 		}
-		coords := strings.Split(string(msg.Data), ",")
-		if len(coords) != 2 {
+		if len(msg.Data) != 4 {
 			bv.logger.Debug("malformed coords")
 			return
 		}
-		w, err := strconv.ParseFloat(coords[0], 32)
-		if err != nil {
-			bv.logger.Debugw("error parsing coords", "error", err)
-			return
-		}
-		h, err := strconv.ParseFloat(coords[1], 32)
-		if err != nil {
-			bv.logger.Debugw("error parsing coords", "error", err)
-			return
-		}
+		bits := binary.LittleEndian.Uint32(msg.Data)
+		factor := math.Float32frombits(bits)
+		// if err != nil {
+		// 	bv.logger.Debugw("error parsing coords", "error", err)
+		// 	return
+		// }
 		// handler should return fast otherwise it could block
-		bv.onSizeHandler(clientCtx, int(w), int(h), dataChannelClientResponder{dataChannel, bv.logger})
+		bv.onSizeHandler(clientCtx, factor, dataChannelClientResponder{dataChannel, bv.logger})
 	})
 
 	cursorChannelID := uint16(2)
@@ -496,7 +491,7 @@ func (bv *basicView) SetOnDataHandler(handler func(ctx context.Context, data []b
 	bv.onDataHandler = handler
 }
 
-func (bv *basicView) SetOnSizeHandler(handler func(ctx context.Context, x, y int, responder ClientResponder)) {
+func (bv *basicView) SetOnSizeHandler(handler func(ctx context.Context, factor float32, responder ClientResponder)) {
 	bv.mu.Lock()
 	defer bv.mu.Unlock()
 	bv.onSizeHandler = handler

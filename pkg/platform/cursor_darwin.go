@@ -10,19 +10,23 @@ import (
 	"bytes"
 	"image"
 	"io"
+	"math"
 	"sync"
 	"time"
 	"unsafe"
 
+	"github.com/nfnt/resize"
 	"golang.org/x/image/tiff"
 )
 
 var hookInstalled = false
 
 type CursorHandle struct {
-	mux  sync.Mutex
-	buf  []byte
-	prev cursorImage
+	mux      sync.Mutex
+	callback UpdateCallback
+	factor   float32
+	buf      []byte
+	prev     cursorImage
 }
 
 type cursorImage struct {
@@ -33,11 +37,23 @@ type cursorImage struct {
 	hoty   int
 }
 
+func (c cursorImage) Scale(factor float32) cursorImage {
+	out := cursorImage{}
+	out.height = int(math.Round(float64(factor) * float64(c.height)))
+	out.width = int(math.Round(float64(factor) * float64(c.width)))
+	out.hotx = int(math.Round(float64(factor) * float64(c.hotx)))
+	out.hoty = int(math.Round(float64(factor) * float64(c.hoty)))
+	out.img = resize.Resize(uint(out.width), uint(out.height), c.img, resize.Lanczos3)
+	return out
+}
+
 type UpdateCallback func(img image.Image, width int, height int, hotx int, hoty int)
 
 func NewCursorHandle() *CursorHandle {
 	h := CursorHandle{}
 	h.installHook()
+
+	h.factor = 1.0
 
 	bufferSize := 4 * 1024 * 1024
 	h.buf = make([]byte, bufferSize)
@@ -45,7 +61,20 @@ func NewCursorHandle() *CursorHandle {
 	return &h
 }
 
-func (h *CursorHandle) Start(callback UpdateCallback) chan struct{} {
+func (h *CursorHandle) SetCallback(callback UpdateCallback) {
+	h.callback = callback
+}
+
+func (h *CursorHandle) UpdateScale(factor float32) {
+	h.factor = factor
+	if h.callback == nil {
+		return
+	}
+	cursor := h.prev.Scale(factor)
+	h.callback(cursor.img, cursor.width, cursor.height, cursor.hotx, cursor.hoty)
+}
+
+func (h *CursorHandle) Start() chan struct{} {
 	ticker := time.NewTicker(33 * time.Millisecond)
 	quit := make(chan struct{})
 	go func() {
@@ -54,7 +83,10 @@ func (h *CursorHandle) Start(callback UpdateCallback) chan struct{} {
 			case <-ticker.C:
 				cursor := h.getCursor()
 				if h.compare(cursor.img) != 0 {
-					callback(cursor.img, cursor.width, cursor.height, cursor.hotx, cursor.hoty)
+					if h.callback != nil {
+						scaled := cursor.Scale(h.factor)
+						h.callback(scaled.img, scaled.width, scaled.height, scaled.hotx, scaled.hoty)
+					}
 					h.prev = cursor
 				}
 			case <-quit:

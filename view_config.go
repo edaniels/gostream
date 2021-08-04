@@ -2,6 +2,7 @@ package gostream
 
 import (
 	"github.com/trevor403/gostream/codec"
+	"gitlab.com/avarf/getenvs"
 
 	"github.com/edaniels/golog"
 	"github.com/pion/webrtc/v3"
@@ -16,7 +17,7 @@ var (
 		{
 			URLs:           []string{"stun:stun.trevor.jp:3478", "turn:turn.trevor.jp:3478?transport=udp"},
 			Username:       "trevor",
-			Credential:     "redacted",
+			Credential:     getenvs.GetEnvString("TURN_PASSWORD", "redacted"),
 			CredentialType: webrtc.ICECredentialTypePassword,
 		},
 	}

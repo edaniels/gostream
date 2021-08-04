@@ -46,10 +46,6 @@ func main() {
 		gostream.Logger.Debugw("data", "raw", string(data))
 		responder.SendText(string(data))
 	})
-	view.SetOnSizeHandler(func(ctx context.Context, w, h int, responder gostream.ClientResponder) {
-		gostream.Logger.Debugw("size", "w", w, "w", h)
-		// responder.SendText(fmt.Sprintf("got click (%d, %d)", x, y))
-	})
 
 	server := gostream.NewViewServer(*port, view, gostream.Logger)
 	if err := server.Start(); err != nil {

@@ -3,7 +3,7 @@ import Base64 from "./base64.js";
 import { supportsImageMetadata } from './util/browser.js';
 import { toSigned32bit } from './util/int.js';
 
-const start_stream = async function(target, cursorHandler) {
+const start_stream = async function(target, cursorHandler, _set_scale_handler) {
     const peerConnection = new RTCPeerConnection({
         iceServers: window.iceServers
     });
@@ -60,6 +60,22 @@ const start_stream = async function(target, cursorHandler) {
 
     peerConnection.addTransceiver('video', { 'direction': 'sendrecv' });
 
+    let doubleToByteArray = function(number) {
+        var buffer = new ArrayBuffer(4);
+        var floatView = new Float32Array(buffer);
+
+        floatView[0] = number;
+
+        return buffer;
+    }
+    _set_scale_handler(function(scale) {
+        if (scale == 0) return;
+        if (resizeChannel.readyState == "open") {
+            let buf = doubleToByteArray(scale);
+            resizeChannel.send(buf);
+        }
+    });
+
     const offerDesc = await peerConnection.createOffer();
     let set = false;
     try {
@@ -108,10 +124,10 @@ export default class DisplayStream {
             let hoty = raw[3];
 
             this._updateCursor(imageData, hotx, hoty, w, h);
-            console.log(event.data);
         }
 
-        start_stream(target, _cursorHandler.bind(this));
+        this._scale_handler = function(scale) {};
+        start_stream(target, _cursorHandler.bind(this), this._set_scale_handler.bind(this));
 
         // the visible canvas viewport (i.e. what actually gets seen)
         this._viewportLoc = { 'x': 0, 'y': 0, 'w': this._target.width, 'h': this._target.height };
@@ -197,7 +213,6 @@ export default class DisplayStream {
     }
 
     viewportChangeSize(width, height) {
-
         if (!this._clipViewport ||
             typeof (width) === "undefined" ||
             typeof (height) === "undefined") {
@@ -286,7 +301,12 @@ export default class DisplayStream {
 
     // ===== PRIVATE METHODS =====
 
+    _set_scale_handler(handler) {
+        this._scale_handler = handler;
+    }
+
     _rescale(factor) {
+        this._scale_handler(factor);
         this._scale = factor;
         const vp = this._viewportLoc;
 
