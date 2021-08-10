@@ -4,8 +4,8 @@ import (
 	"context"
 	"image"
 
-	"github.com/pion/mediadevices/pkg/driver"
-	"github.com/pion/mediadevices/pkg/io/video"
+	"github.com/trevor403/mediadevices/pkg/driver"
+	"github.com/trevor403/mediadevices/pkg/io/video"
 )
 
 // A VideoReadCloser is a video.Reader that requires it be closed.

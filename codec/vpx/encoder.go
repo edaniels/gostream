@@ -7,9 +7,9 @@ import (
 	ourcodec "github.com/trevor403/gostream/codec"
 
 	"github.com/edaniels/golog"
-	"github.com/pion/mediadevices/pkg/codec"
-	"github.com/pion/mediadevices/pkg/codec/vpx"
-	"github.com/pion/mediadevices/pkg/prop"
+	"github.com/trevor403/mediadevices/pkg/codec"
+	"github.com/trevor403/mediadevices/pkg/codec/vpx"
+	"github.com/trevor403/mediadevices/pkg/prop"
 )
 
 type encoder struct {

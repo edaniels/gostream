@@ -1,6 +1,5 @@
 #import <Foundation/Foundation.h>
 #import <AppKit/AppKit.h>
-#import "FBAssociationManager.h"
 
 typedef struct {
     int width;
@@ -8,10 +7,6 @@ typedef struct {
     int hotx;
     int hoty;
 } cursor_metadata;
-
-static void installHook() {
-    [FBAssociationManager hook];
-}
 
 static int readCursor(char *imageOutput, cursor_metadata *metadataOutput) {
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];

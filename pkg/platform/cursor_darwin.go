@@ -1,8 +1,10 @@
+// +build darwin
+
 package platform
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/bridge -x objective-c
-#cgo LDFLAGS: -L${SRCDIR}/bridge -framework Foundation -framework AppKit -mmacosx-version-min=10.15 -lFBRetainCycleDetector
+#cgo LDFLAGS: -framework Foundation -framework AppKit
 #import "library.m"
 */
 import "C"
@@ -18,8 +20,6 @@ import (
 	"github.com/nfnt/resize"
 	"golang.org/x/image/tiff"
 )
-
-var hookInstalled = false
 
 type CursorHandle struct {
 	mux      sync.Mutex
@@ -47,11 +47,8 @@ func (c cursorImage) Scale(factor float32) cursorImage {
 	return out
 }
 
-type UpdateCallback func(img image.Image, width int, height int, hotx int, hoty int)
-
 func NewCursorHandle() *CursorHandle {
 	h := CursorHandle{}
-	h.installHook()
 
 	h.factor = 1.0
 
@@ -98,13 +95,6 @@ func (h *CursorHandle) Start() chan struct{} {
 	return quit
 }
 
-func (h *CursorHandle) installHook() {
-	if !hookInstalled {
-		C.installHook()
-		hookInstalled = true
-	}
-}
-
 func (h *CursorHandle) getCursor() cursorImage {
 	h.mux.Lock()
 	cbuf := (*C.char)(unsafe.Pointer(&h.buf[0]))
@@ -136,12 +126,6 @@ func (h *CursorHandle) getCursor() cursorImage {
 }
 
 func (h *CursorHandle) compare(img image.Image) int64 {
-	// if h.prev == nil {
-	// 	return -1
-	// }
-
-	// fmt.Println(img.(*image.NRGBA))
-
 	raw1, ok := h.prev.img.(*image.RGBA)
 	if !ok {
 		return -1
@@ -161,16 +145,4 @@ func (h *CursorHandle) compare(img image.Image) int64 {
 	}
 
 	return 1
-	// accumError := int64(0)
-
-	// for i := 0; i < len(raw1.Pix); i++ {
-	// 	accumError += int64(sqDiffUInt8(raw1.Pix[i], raw2.Pix[i]))
-	// }
-
-	// return int64(math.Sqrt(float64(accumError)))
 }
-
-// func sqDiffUInt8(x, y uint8) uint64 {
-// 	d := uint64(x) - uint64(y)
-// 	return d * d
-// }

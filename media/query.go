@@ -8,17 +8,17 @@ import (
 
 	"github.com/trevor403/gostream"
 
-	"github.com/pion/mediadevices"
-	"github.com/pion/mediadevices/pkg/driver"
-	"github.com/pion/mediadevices/pkg/driver/camera"
-	"github.com/pion/mediadevices/pkg/frame"
-	"github.com/pion/mediadevices/pkg/prop"
+	"github.com/trevor403/mediadevices"
+	"github.com/trevor403/mediadevices/pkg/driver"
+	"github.com/trevor403/mediadevices/pkg/driver/camera"
+	"github.com/trevor403/mediadevices/pkg/frame"
+	"github.com/trevor403/mediadevices/pkg/prop"
 
 	// register
-	_ "github.com/pion/mediadevices/pkg/driver/screen"
+	_ "github.com/trevor403/mediadevices/pkg/driver/screen"
 )
 
-// below adapted from github.com/pion/mediadevices
+// below adapted from github.com/trevor403/mediadevices
 
 // ErrNotFound happens when there is no driver found in a query.
 var ErrNotFound = errors.New("failed to find the best driver that fits the constraints")

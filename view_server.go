@@ -7,8 +7,8 @@ import (
 	"html/template"
 	"image"
 	"net/http"
+	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
 	"time"
 
@@ -66,8 +66,7 @@ func (rvs *viewServer) Start() error {
 	}
 	rvs.httpServer = httpServer
 
-	_, thisFilePath, _, _ := runtime.Caller(0)
-	thisDirPath, err := filepath.Abs(filepath.Dir(thisFilePath))
+	thisDirPath, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("error locating current file: %w", err)
 	}
