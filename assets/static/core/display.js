@@ -7,7 +7,6 @@
  */
 
 import * as Log from './util/logging.js';
-import Base64 from "./base64.js";
 import { supportsImageMetadata } from './util/browser.js';
 import { toSigned32bit } from './util/int.js';
 
@@ -355,25 +354,6 @@ export default class Display {
                                     newX, newY, w, h);
             this._damage(newX, newY, w, h);
         }
-    }
-
-    imageRect(x, y, width, height, mime, arr) {
-        /* The internal logic cannot handle empty images, so bail early */
-        if ((width === 0) || (height === 0)) {
-            return;
-        }
-
-        const img = new Image();
-        img.src = "data: " + mime + ";base64," + Base64.encode(arr);
-
-        this._renderQPush({
-            'type': 'img',
-            'img': img,
-            'x': x,
-            'y': y,
-            'width': width,
-            'height': height
-        });
     }
 
     blitImage(x, y, width, height, arr, offset, fromQueue) {

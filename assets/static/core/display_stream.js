@@ -1,5 +1,4 @@
 import * as Log from './util/logging.js';
-import Base64 from "./base64.js";
 import { supportsImageMetadata } from './util/browser.js';
 import { toSigned32bit } from './util/int.js';
 

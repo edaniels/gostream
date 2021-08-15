@@ -26,17 +26,6 @@ export default class Websock {
     constructor() {
         this._websocket = null;  // WebSocket object
 
-        this._rQi = 0;           // Receive queue index
-        this._rQlen = 0;         // Next write position in the receive queue
-        this._rQbufferSize = 1024 * 1024 * 4; // Receive queue buffer size (4 MiB)
-        // called in init: this._rQ = new Uint8Array(this._rQbufferSize);
-        this._rQ = null; // Receive queue
-
-        this._sQbufferSize = 1024 * 10;  // 10 KiB
-        // called in init: this._sQ = new Uint8Array(this._sQbufferSize);
-        this._sQlen = 0;
-        this._sQ = null;  // Send queue
-
         this._eventHandlers = {
             message: () => {},
             open: () => {},
