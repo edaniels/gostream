@@ -2,13 +2,14 @@ package gostream
 
 import (
 	"context"
+	"embed"
 	"errors"
 	"fmt"
-	"html/template"
 	"image"
+	"io"
+	"io/fs"
 	"net/http"
-	"os"
-	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -66,46 +67,54 @@ func (rvs *viewServer) Start() error {
 	}
 	rvs.httpServer = httpServer
 
-	thisDirPath, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("error locating current file: %w", err)
-	}
-	t, err := template.New("foo").Funcs(template.FuncMap{
-		"jsSafe": func(js string) template.JS {
-			return template.JS(js)
-		},
-		"htmlSafe": func(html string) template.HTML {
-			return template.HTML(html)
-		},
-	}).ParseGlob(fmt.Sprintf("%s/assets/*.html.tpl", thisDirPath))
-	if err != nil {
-		return fmt.Errorf("error parsing templates: %w", err)
-	}
-	tmpl := t.Lookup("vnc.html.tpl")
+	// thisDirPath, err := os.Getwd()
+	// if err != nil {
+	// 	return fmt.Errorf("error locating current file: %w", err)
+	// }
 
 	mux := mux.NewRouter() //http.NewServeMux()
 	httpServer.Handler = mux
 
-	staticDirectory := "./assets/static"
-	staticPaths := map[string]string{
-		"app":    filepath.Join(staticDirectory, "app"),
-		"core":   filepath.Join(staticDirectory, "core"),
-		"vendor": filepath.Join(staticDirectory, "vendor"),
+	// staticDirectory := "./assets/static"
+	// staticPaths := map[string]string{
+	// 	"app":    filepath.Join(staticDirectory, "app"),
+	// 	"core":   filepath.Join(staticDirectory, "core"),
+	// 	"vendor": filepath.Join(staticDirectory, "vendor"),
+	// }
+	// for pathName, pathValue := range staticPaths {
+	// 	pathPrefix := "/" + pathName + "/"
+	// 	srv := http.FileServer(http.Dir(pathValue))
+	// 	mux.PathPrefix(pathPrefix).Handler(http.StripPrefix(pathPrefix, srv))
+	// }
+
+	staticDirectory := "assets/static"
+	staticPaths := map[string]embed.FS{
+		"app":    appFS,
+		"core":   coreFS,
+		"vendor": vendorFS,
 	}
-	for pathName, pathValue := range staticPaths {
+	for pathName, pathFS := range staticPaths {
 		pathPrefix := "/" + pathName + "/"
-		srv := http.FileServer(http.Dir(pathValue))
-		mux.PathPrefix(pathPrefix).Handler(http.StripPrefix(pathPrefix, srv))
+
+		fs, err := fs.Sub(pathFS, staticDirectory)
+		fmt.Println(err)
+		srv := http.FileServer(http.FS(fs))
+		mux.PathPrefix(pathPrefix).Handler(srv)
 	}
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path[1:]
+		if path == "" {
+			path = "index.html"
+		}
+		s := strings.NewReader(mainHTML)
+		http.ServeContent(w, r, "index.html", time.Now(), s)
+	})
+
+	mux.HandleFunc("/servers", func(w http.ResponseWriter, r *http.Request) {
 		bv := rvs.views[0]
 		servers := bv.SinglePageHTML()
-
-		if err := tmpl.Execute(w, servers); err != nil {
-			rvs.logger.Error(err)
-			return
-		}
+		io.WriteString(w, servers)
 	})
 	for _, view := range rvs.views {
 		handler := view.Handler()
@@ -134,6 +143,9 @@ func (rvs *viewServer) Start() error {
 
 	for _, view := range rvs.views {
 		view.SetOnSizeHandler(func(ctx context.Context, factor float32, responder ClientResponder) {
+			if factor > 5 {
+				factor = 1
+			}
 			Logger.Debugw("scaled", "factor", factor)
 			handle.UpdateScale(factor)
 		})

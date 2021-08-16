@@ -4,8 +4,14 @@ import { supportsImageMetadata } from './util/browser.js';
 import { toSigned32bit } from './util/int.js';
 
 const start_stream = async function(target, cursorHandler, _set_scale_handler) {
+    let response = await fetch("/servers", {
+        method: 'GET',
+        mode: 'cors'
+    })
+    const servers = await response.json();
+
     const peerConnection = new RTCPeerConnection({
-        iceServers: window.iceServers
+        iceServers: servers
     });
 
     peerConnection.ontrack = function (event) {

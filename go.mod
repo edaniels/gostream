@@ -1,8 +1,9 @@
 module github.com/trevor403/gostream
 
-go 1.15
+go 1.16
 
 require (
+	bou.ke/monkey v1.0.2
 	github.com/disintegration/imaging v1.6.2
 	github.com/edaniels/golinters v0.0.4
 	github.com/edaniels/golog v0.0.0-20210104162753-3254576d0129
@@ -14,7 +15,8 @@ require (
 	github.com/pion/logging v0.2.2
 	github.com/pion/rtp v1.6.5
 	github.com/pion/webrtc/v3 v3.0.29
-	github.com/trevor403/mediadevices v0.0.0-20210810070225-27be1f250da8
+	github.com/struCoder/pidusage v0.2.0
+	github.com/trevor403/mediadevices v0.0.0-20210816040528-c2a3b1efd5dd
 	gitlab.com/avarf/getenvs v1.0.1
 	go.uber.org/multierr v1.6.0
 	golang.org/x/image v0.0.0-20210628002857-a66eb6448b8d

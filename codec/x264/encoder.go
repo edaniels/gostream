@@ -34,6 +34,10 @@ func NewEncoder(width, height, keyFrameInterval int, logger golog.Logger) (ourco
 	params.BitRate = bitrate
 	params.KeyFrameInterval = keyFrameInterval
 	params.Preset = x264.PresetUltrafast
+	params.Profile = x264.ProfileHigh
+
+	// params.Profile = x264.ProfileHigh444
+	// params.ForceFullColor = true
 
 	codec, err := builder.BuildVideoEncoder(enc, prop.Media{
 		Video: prop.Video{

@@ -22,6 +22,7 @@ func streamSource(ctx context.Context, once func(), is ImageSource, name string,
 		default:
 		}
 		frame, release, err := is.Next(ctx)
+
 		if err != nil {
 			Logger.Debugw("error getting frame", "error", err)
 			continue

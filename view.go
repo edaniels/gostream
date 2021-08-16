@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
@@ -425,35 +426,37 @@ func getPeerConnectionStats(peerConnection *webrtc.PeerConnection) peerConnectio
 
 func (bv *basicView) iceServers() string {
 	var strBuf bytes.Buffer
-	strBuf.WriteString("[")
-	for _, server := range bv.config.WebRTCConfig.ICEServers {
-		strBuf.WriteString("{")
-		strBuf.WriteString("urls: [")
-		for _, u := range server.URLs {
-			strBuf.WriteString("'")
-			strBuf.WriteString(u)
-			strBuf.WriteString("',")
-		}
-		if len(server.URLs) > 0 {
-			strBuf.Truncate(strBuf.Len() - 1)
-		}
-		strBuf.WriteString("]")
-		if server.Username != "" {
-			strBuf.WriteString(",username:'")
-			strBuf.WriteString(server.Username)
-			strBuf.WriteString("'")
-		}
-		if cred, ok := server.Credential.(string); ok {
-			strBuf.WriteString(",credential:'")
-			strBuf.WriteString(cred)
-			strBuf.WriteString("'")
-		}
-		strBuf.WriteString("},")
-	}
-	if len(bv.config.WebRTCConfig.ICEServers) > 0 {
-		strBuf.Truncate(strBuf.Len() - 1)
-	}
-	strBuf.WriteString("]")
+	enc := json.NewEncoder(&strBuf)
+	_ = enc.Encode(bv.config.WebRTCConfig.ICEServers)
+	// strBuf.WriteString("[")
+	// for _, server := range bv.config.WebRTCConfig.ICEServers {
+	// 	strBuf.WriteString("{")
+	// 	strBuf.WriteString("urls: [")
+	// 	for _, u := range server.URLs {
+	// 		strBuf.WriteString("'")
+	// 		strBuf.WriteString(u)
+	// 		strBuf.WriteString("',")
+	// 	}
+	// 	if len(server.URLs) > 0 {
+	// 		strBuf.Truncate(strBuf.Len() - 1)
+	// 	}
+	// 	strBuf.WriteString("]")
+	// 	if server.Username != "" {
+	// 		strBuf.WriteString(",username:'")
+	// 		strBuf.WriteString(server.Username)
+	// 		strBuf.WriteString("'")
+	// 	}
+	// 	if cred, ok := server.Credential.(string); ok {
+	// 		strBuf.WriteString(",credential:'")
+	// 		strBuf.WriteString(cred)
+	// 		strBuf.WriteString("'")
+	// 	}
+	// 	strBuf.WriteString("},")
+	// }
+	// if len(bv.config.WebRTCConfig.ICEServers) > 0 {
+	// 	strBuf.Truncate(strBuf.Len() - 1)
+	// }
+	// strBuf.WriteString("]")
 	return strBuf.String()
 }
 
