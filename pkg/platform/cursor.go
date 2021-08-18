@@ -3,7 +3,7 @@ package platform
 import (
 	"image"
 
-	"github.com/trevor403/gostream/pkg/worker"
+	"github.com/trevor403/gostream/pkg/common"
 )
 
 type UpdateCallback func(img image.Image, width int, height int, hotx int, hoty int)
@@ -11,7 +11,7 @@ type UpdateCallback func(img image.Image, width int, height int, hotx int, hoty 
 type CursorHandle struct {
 	callback UpdateCallback
 	factor   float32
-	prev     worker.CursorImage
+	prev     common.CursorImage
 }
 
 func NewCursorHandle() *CursorHandle {
@@ -36,15 +36,7 @@ func (h *CursorHandle) UpdateScale(factor float32) {
 }
 
 func (h *CursorHandle) Start() chan struct{} {
+	go start(h)
 	quit := make(chan struct{})
-	go func() {
-		worker.Start(func(cursor worker.CursorImage) {
-			if h.callback != nil {
-				scaled := cursor.Scale(h.factor)
-				h.callback(scaled.Img, scaled.Width, scaled.Height, scaled.Hotx, scaled.Hoty)
-			}
-			h.prev = cursor
-		})
-	}()
 	return quit
 }

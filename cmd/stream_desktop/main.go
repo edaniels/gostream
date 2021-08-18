@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"flag"
+	"log"
 	"os"
 	"os/signal"
+	"runtime/pprof"
 	"syscall"
 
 	"github.com/trevor403/gostream"
@@ -13,9 +15,23 @@ import (
 )
 
 func main() {
+	cpuprofile := flag.String("cpuprofile", "cpu.pprof", "write cpu profile to `file`")
+
 	port := flag.Int("port", 5555, "port to run server on")
 	camera := flag.Bool("camera", false, "use camera")
 	flag.Parse()
+
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal("could not create CPU profile: ", err)
+		}
+		defer f.Close() // error handling omitted for example
+		if err := pprof.StartCPUProfile(f); err != nil {
+			log.Fatal("could not start CPU profile: ", err)
+		}
+		defer pprof.StopCPUProfile()
+	}
 
 	var videoReader media.VideoReadCloser
 	var err error

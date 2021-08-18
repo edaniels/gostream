@@ -13,13 +13,12 @@ import (
 	"fmt"
 	"image"
 	"io"
-	"math"
 	"os"
 	"sync"
 	"time"
 	"unsafe"
 
-	"github.com/nfnt/resize"
+	"github.com/trevor403/gostream/pkg/common"
 	"github.com/trevor403/gostream/pkg/ipcmsg"
 	"golang.org/x/image/tiff"
 )
@@ -27,7 +26,7 @@ import (
 const ipcmsgFd = 3
 const maxMemBytes = 75 * 1024 * 1024
 
-type Callback func(cursor CursorImage)
+type Callback func(cursor common.CursorImage)
 
 // Start the worker loop
 func Start(callback Callback) {
@@ -43,7 +42,7 @@ func Start(callback Callback) {
 
 		img := image.NewRGBA(image.Rect(0, 0, cb.Width, cb.Height))
 		img.Pix = cb.Pix
-		cursor := CursorImage{img, cb.Width, cb.Height, cb.Hotx, cb.Hoty}
+		cursor := common.CursorImage{img, cb.Width, cb.Height, cb.Hotx, cb.Hoty}
 		callback(cursor)
 	}
 	go run(runner)
@@ -107,14 +106,6 @@ func NewHandle() *Handle {
 	return h
 }
 
-type CursorImage struct {
-	Img    image.Image
-	Width  int
-	Height int
-	Hotx   int
-	Hoty   int
-}
-
 type CursorBuffer struct {
 	Pix    []byte
 	Width  int
@@ -123,17 +114,7 @@ type CursorBuffer struct {
 	Hoty   int
 }
 
-func (c CursorImage) Scale(factor float32) CursorImage {
-	out := CursorImage{}
-	out.Height = int(math.Round(float64(factor) * float64(c.Height)))
-	out.Width = int(math.Round(float64(factor) * float64(c.Width)))
-	out.Hotx = int(math.Round(float64(factor) * float64(c.Hotx)))
-	out.Hoty = int(math.Round(float64(factor) * float64(c.Hoty)))
-	out.Img = resize.Resize(uint(out.Width), uint(out.Height), c.Img, resize.Lanczos3)
-	return out
-}
-
-func (h *Handle) getCursor() CursorImage {
+func (h *Handle) getCursor() common.CursorImage {
 	h.mux.Lock()
 	cbuf := (*C.char)(unsafe.Pointer(&h.buf[0]))
 
