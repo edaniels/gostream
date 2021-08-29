@@ -94,7 +94,7 @@ type Handle struct {
 	mux sync.Mutex
 
 	buf  []byte
-	prev CursorImage
+	prev common.CursorImage
 }
 
 func NewHandle() *Handle {
@@ -132,7 +132,7 @@ func (h *Handle) getCursor() common.CursorImage {
 
 	h.mux.Unlock()
 
-	out := CursorImage{}
+	out := common.CursorImage{}
 	out.Img = img
 	out.Height = int(metadata.height)
 	out.Width = int(metadata.width)

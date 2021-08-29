@@ -31,6 +31,9 @@ func (h *CursorHandle) UpdateScale(factor float32) {
 	if h.callback == nil {
 		return
 	}
+	if h.prev.Img == nil {
+		return
+	}
 	cursor := h.prev.Scale(factor)
 	h.callback(cursor.Img, cursor.Width, cursor.Height, cursor.Hotx, cursor.Hoty)
 }

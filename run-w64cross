@@ -1,0 +1,3 @@
+#!/bin/bash
+
+docker exec -it dockcross_w64 env CC=x86_64-w64-mingw32-gcc-8.3-win32 CXX=x86_64-w64-mingw32-g++-8.3-win32 CGO_ENABLED=1 GOOS=windows GOARCH=amd64 $@

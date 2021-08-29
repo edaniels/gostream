@@ -2,23 +2,20 @@ package gostream
 
 import (
 	"context"
-	"embed"
 	"errors"
 	"fmt"
 	"image"
 	"io"
-	"io/fs"
+	"io/ioutil"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/edaniels/golog"
-	"github.com/evangwt/go-vncproxy"
 	"github.com/gorilla/mux"
 	"github.com/trevor403/gostream/pkg/platform"
-	"gitlab.com/avarf/getenvs"
-	"golang.org/x/net/websocket"
 )
 
 // A ViewServer is a convenience helper for solely streaming a series
@@ -67,39 +64,24 @@ func (rvs *viewServer) Start() error {
 	}
 	rvs.httpServer = httpServer
 
+	mux := mux.NewRouter() //http.NewServeMux()
+	httpServer.Handler = mux
+
 	// thisDirPath, err := os.Getwd()
 	// if err != nil {
 	// 	return fmt.Errorf("error locating current file: %w", err)
 	// }
 
-	mux := mux.NewRouter() //http.NewServeMux()
-	httpServer.Handler = mux
-
-	// staticDirectory := "./assets/static"
-	// staticPaths := map[string]string{
-	// 	"app":    filepath.Join(staticDirectory, "app"),
-	// 	"core":   filepath.Join(staticDirectory, "core"),
-	// 	"vendor": filepath.Join(staticDirectory, "vendor"),
-	// }
-	// for pathName, pathValue := range staticPaths {
-	// 	pathPrefix := "/" + pathName + "/"
-	// 	srv := http.FileServer(http.Dir(pathValue))
-	// 	mux.PathPrefix(pathPrefix).Handler(http.StripPrefix(pathPrefix, srv))
-	// }
-
-	staticDirectory := "assets/static"
-	staticPaths := map[string]embed.FS{
-		"app":    appFS,
-		"core":   coreFS,
-		"vendor": vendorFS,
+	staticDirectory := "./assets/static"
+	staticPaths := map[string]string{
+		"app":    filepath.Join(staticDirectory, "app"),
+		"core":   filepath.Join(staticDirectory, "core"),
+		"vendor": filepath.Join(staticDirectory, "vendor"),
 	}
-	for pathName, pathFS := range staticPaths {
+	for pathName, pathValue := range staticPaths {
 		pathPrefix := "/" + pathName + "/"
-
-		fs, err := fs.Sub(pathFS, staticDirectory)
-		fmt.Println(err)
-		srv := http.FileServer(http.FS(fs))
-		mux.PathPrefix(pathPrefix).Handler(srv)
+		srv := http.FileServer(http.Dir(pathValue))
+		mux.PathPrefix(pathPrefix).Handler(http.StripPrefix(pathPrefix, srv))
 	}
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -107,9 +89,34 @@ func (rvs *viewServer) Start() error {
 		if path == "" {
 			path = "index.html"
 		}
-		s := strings.NewReader(mainHTML)
+		b, _ := ioutil.ReadFile("assets/webrtc.html")
+		s := strings.NewReader(string(b))
 		http.ServeContent(w, r, "index.html", time.Now(), s)
 	})
+
+	// staticDirectory := "assets/static"
+	// staticPaths := map[string]embed.FS{
+	// 	"app":    appFS,
+	// 	"core":   coreFS,
+	// 	"vendor": vendorFS,
+	// }
+	// for pathName, pathFS := range staticPaths {
+	// 	pathPrefix := "/" + pathName + "/"
+
+	// 	fs, err := fs.Sub(pathFS, staticDirectory)
+	// 	fmt.Println(err)
+	// 	srv := http.FileServer(http.FS(fs))
+	// 	mux.PathPrefix(pathPrefix).Handler(srv)
+	// }
+
+	// mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	// 	path := r.URL.Path[1:]
+	// 	if path == "" {
+	// 		path = "index.html"
+	// 	}
+	// 	s := strings.NewReader(mainHTML)
+	// 	http.ServeContent(w, r, "index.html", time.Now(), s)
+	// })
 
 	mux.HandleFunc("/servers", func(w http.ResponseWriter, r *http.Request) {
 		bv := rvs.views[0]
@@ -121,16 +128,6 @@ func (rvs *viewServer) Start() error {
 		fmt.Println("handler.Name", handler.Name)
 		mux.Handle("/"+handler.Name, handler.Func)
 	}
-
-	vncProxy := vncproxy.New(&vncproxy.Config{
-		LogLevel: vncproxy.DebugLevel,
-		TokenHandler: func(r *http.Request) (addr string, err error) {
-			addr = getenvs.GetEnvString("VNC_SERVER", "192.168.55.1:5900")
-			return
-		},
-	})
-	proxy := websocket.Handler(vncProxy.ServeWS)
-	mux.Handle("/vnc_ws", proxy)
 
 	handle := platform.NewCursorHandle()
 	handle.SetCallback(func(img image.Image, width int, height int, hotx int, hoty int) {
@@ -149,12 +146,21 @@ func (rvs *viewServer) Start() error {
 			Logger.Debugw("scaled", "factor", factor)
 			handle.UpdateScale(factor)
 		})
+
+		view.SetOnDataHandler(func(ctx context.Context, data []byte, responder ClientResponder) {
+			Logger.Debugw("data", "raw", string(data))
+		})
 	}
 
 	rvs.backgroundProcessing.Add(1)
 	go func() {
 		defer rvs.backgroundProcessing.Done()
-		rvs.logger.Infow("listening", "url", fmt.Sprintf("http://0.0.0.0:%d", rvs.port), "port", rvs.port)
+		addr, err := LocalIP()
+		if err != nil {
+			rvs.logger.Errorw("error getting local ip", "error", err)
+			return
+		}
+		rvs.logger.Infow("listening", "url", fmt.Sprintf("http://%v:%d", addr, rvs.port), "port", rvs.port)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			rvs.logger.Errorw("error listening and serving", "error", err)
 		}

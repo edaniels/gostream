@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	cpuprofile := flag.String("cpuprofile", "cpu.pprof", "write cpu profile to `file`")
+	cpuprofile := flag.String("cpuprofile", "", "write cpu profile to `file`")
 
 	port := flag.Int("port", 5555, "port to run server on")
 	camera := flag.Bool("camera", false, "use camera")
@@ -52,16 +52,11 @@ func main() {
 
 	config := x264.DefaultViewConfig
 	// config := vpx.DefaultViewConfig
-	config.TargetFrameRate = 24
+	config.TargetFrameRate = 30
 	view, err := gostream.NewView(config)
 	if err != nil {
 		gostream.Logger.Fatal(err)
 	}
-
-	view.SetOnDataHandler(func(ctx context.Context, data []byte, responder gostream.ClientResponder) {
-		gostream.Logger.Debugw("data", "raw", string(data))
-		responder.SendText(string(data))
-	})
 
 	server := gostream.NewViewServer(*port, view, gostream.Logger)
 	if err := server.Start(); err != nil {

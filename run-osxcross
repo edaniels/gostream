@@ -1,0 +1,3 @@
+#!/bin/bash
+
+docker exec -it dockcross_osx env CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 $@

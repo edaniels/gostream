@@ -34,7 +34,7 @@ type View interface {
 	// Ready signals that there is at least one client connected and that
 	// streams are ready for input.
 	StreamingReady() <-chan struct{}
-	// SetOnClickHandler sets a handler for clicks on the view. This is typically
+	// SetOnSizeHandler sets a handler for clicks on the view. This is typically
 	// used to alter the view or send information back with SendDataToAll or SendTextToAll.
 	SetOnSizeHandler(func(ctx context.Context, factor float32, responder ClientResponder))
 	// SetOnDataHandler sets a handler for data sent to the view. This is typically
