@@ -174,7 +174,7 @@ func (bv *basicView) handleOffer(w io.Writer, r *http.Request) (err error) {
 	options := []func(a *webrtc.API){webrtc.WithMediaEngine(&m), webrtc.WithInterceptorRegistry(&i)}
 	if Debug {
 		options = append(options, webrtc.WithSettingEngine(webrtc.SettingEngine{
-			LoggerFactory: ourwebrtc.LoggerFactory{bv.logger},
+			LoggerFactory: ourwebrtc.LoggerFactory{Logger: bv.logger},
 		}))
 	}
 	webAPI := webrtc.NewAPI(options...)

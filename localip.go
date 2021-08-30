@@ -5,6 +5,8 @@ import (
 	"net"
 )
 
+// from https://gist.github.com/miguelmota/8544989558d8723b42068aec5bc72ebf
+
 // LocalIP get the host machine local IP address
 func LocalIP() (net.IP, error) {
 	ifaces, err := net.Interfaces()

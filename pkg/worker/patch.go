@@ -12,7 +12,7 @@ import (
 func main_main()
 
 func init() {
-	if _, isChild := os.LookupEnv(childEnvName); isChild {
+	if _, isChild := os.LookupEnv(ChildEnvName); isChild {
 		monkey.Patch(main_main, fork_main)
 		go watch_parent()
 	}

@@ -789,29 +789,23 @@ class TSD extends TSDBase {
             return;
         }
 
-        const scancode = XtScancode[code];
-
-        if (scancode) {
-            // 0 is NoSymbol
-            keysym = keysym || 0;
-
-            console.log("Sending key (" + (down ? "down" : "up") + "): keysym " + keysym + ", scancode " + scancode);
-
-            // RFB.messages.QEMUExtendedKeyEvent(this._sock, keysym, down, scancode);
-        } else {
-            if (!keysym) {
-                return;
-            }
-            console.log("Sending keysym (" + (down ? "down" : "up") + "): " + keysym);
-            // RFB.messages.keyEvent(this._sock, keysym, down ? 1 : 0);
+        if (!keysym) {
+            return;
         }
+
+        // console.log("Sending keysym (" + (down ? "down" : "up") + "): " + keysym);
+
+        let obj = {type: "keypress", key: keysym, state: down ? 1 : 0}
+        this._dataChannel.send(JSON.stringify(obj));
     }
 
     _sendMouse(x, y, mask) {
         if (this._webrtcConnectionState !== 'connected') { return; }
 
-        console.log("pointerEvent", this._display.absX(x), this._display.absY(y), mask)
-        // RFB.messages.pointerEvent(this._sock, this._display.absX(x), this._display.absY(y), mask);
+        // console.log("pointerEvent", this._display.absX(x), this._display.absY(y), mask)
+
+        let obj = {type: "mouse", x: this._display.absX(x), y: this._display.absY(y), mask: mask}
+        this._dataChannel.send(JSON.stringify(obj));
     }
 
     _handleConnected() {
@@ -844,6 +838,7 @@ class TSD extends TSDBase {
         // this._canvas.addEventListener("gestureend", this._eventHandlers.handleGesture);
 
         this._keyboard.grab();
+        this._focusCanvas();
 
         this._webrtcConnectionState = 'connected';
         this.dispatchEvent(new CustomEvent("connect", { detail: {} }));

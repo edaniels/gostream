@@ -7,10 +7,18 @@ import (
 	"github.com/polyisobutylene/go-vnc"
 )
 
+const qemuHostIP = "192.168.55.1"
+
+// VNCInfo ...
+type VNCInfo struct {
+	Port     int
+	Password string
+}
+
 func connectVNC() {
 	port := 5900
 	password := ""
-	address := fmt.Sprintf("192.168.55.1:%d", port)
+	address := fmt.Sprintf("%s:%d", qemuHostIP, port)
 
 	nc, err := net.Dial("tcp", address)
 	if err != nil {

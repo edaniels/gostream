@@ -103,7 +103,7 @@ func fork() (pid int, r chan ipcmsg.IPCMessage, w chan ipcmsg.IPCMessage) {
 	forkNum := 0
 	args := os.Args
 	childENV := []string{
-		fmt.Sprintf("%s=%d", childEnvName, forkNum),
+		fmt.Sprintf("%s=%d", ChildEnvName, forkNum),
 	}
 	pwd, err := os.Getwd()
 	if err != nil {

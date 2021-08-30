@@ -15,14 +15,13 @@ import (
 
 	"github.com/edaniels/golog"
 	"github.com/gorilla/mux"
+	"github.com/trevor403/gostream/pkg/input/direct"
 	"github.com/trevor403/gostream/pkg/platform"
 )
 
 // A ViewServer is a convenience helper for solely streaming a series
 // Views. Views can be added over time for future new connections.
 type ViewServer interface {
-	// AddView adds the given view for new connections to see.
-	AddView(view View)
 	// Start starts the server and waits for new connections.
 	Start() error
 	// Stop stops the server and stops the underlying views.
@@ -42,10 +41,6 @@ type viewServer struct {
 // with the given view.
 func NewViewServer(port int, view View, logger golog.Logger) ViewServer {
 	return &viewServer{port: port, views: []View{view}, logger: logger}
-}
-
-func (rvs *viewServer) AddView(view View) {
-	rvs.views = append(rvs.views, view)
 }
 
 // ErrServerAlreadyStarted happens when the server has already been started.
@@ -148,7 +143,7 @@ func (rvs *viewServer) Start() error {
 		})
 
 		view.SetOnDataHandler(func(ctx context.Context, data []byte, responder ClientResponder) {
-			Logger.Debugw("data", "raw", string(data))
+			direct.Handle(data)
 		})
 	}
 
