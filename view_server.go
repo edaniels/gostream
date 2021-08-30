@@ -2,18 +2,20 @@ package gostream
 
 import (
 	"context"
+	"embed"
 	"errors"
 	"fmt"
 	"image"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"net/http"
-	"path/filepath"
+	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/edaniels/golog"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/trevor403/gostream/pkg/input/direct"
 	"github.com/trevor403/gostream/pkg/platform"
@@ -59,24 +61,21 @@ func (rvs *viewServer) Start() error {
 	}
 	rvs.httpServer = httpServer
 
-	mux := mux.NewRouter() //http.NewServeMux()
+	mux := mux.NewRouter()
+	// http.NewServeMux()
 	httpServer.Handler = mux
 
-	// thisDirPath, err := os.Getwd()
-	// if err != nil {
-	// 	return fmt.Errorf("error locating current file: %w", err)
-	// }
-
-	staticDirectory := "./assets/static"
-	staticPaths := map[string]string{
-		"app":    filepath.Join(staticDirectory, "app"),
-		"core":   filepath.Join(staticDirectory, "core"),
-		"vendor": filepath.Join(staticDirectory, "vendor"),
+	staticDirectory := "assets/static"
+	staticPaths := map[string]embed.FS{
+		"core": coreFS,
 	}
-	for pathName, pathValue := range staticPaths {
+	for pathName, pathFS := range staticPaths {
 		pathPrefix := "/" + pathName + "/"
-		srv := http.FileServer(http.Dir(pathValue))
-		mux.PathPrefix(pathPrefix).Handler(http.StripPrefix(pathPrefix, srv))
+
+		fs, err := fs.Sub(pathFS, staticDirectory)
+		fmt.Println(err)
+		srv := http.FileServer(http.FS(fs))
+		mux.PathPrefix(pathPrefix).Handler(srv)
 	}
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -84,34 +83,9 @@ func (rvs *viewServer) Start() error {
 		if path == "" {
 			path = "index.html"
 		}
-		b, _ := ioutil.ReadFile("assets/webrtc.html")
-		s := strings.NewReader(string(b))
+		s := strings.NewReader(mainHTML)
 		http.ServeContent(w, r, "index.html", time.Now(), s)
 	})
-
-	// staticDirectory := "assets/static"
-	// staticPaths := map[string]embed.FS{
-	// 	"app":    appFS,
-	// 	"core":   coreFS,
-	// 	"vendor": vendorFS,
-	// }
-	// for pathName, pathFS := range staticPaths {
-	// 	pathPrefix := "/" + pathName + "/"
-
-	// 	fs, err := fs.Sub(pathFS, staticDirectory)
-	// 	fmt.Println(err)
-	// 	srv := http.FileServer(http.FS(fs))
-	// 	mux.PathPrefix(pathPrefix).Handler(srv)
-	// }
-
-	// mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-	// 	path := r.URL.Path[1:]
-	// 	if path == "" {
-	// 		path = "index.html"
-	// 	}
-	// 	s := strings.NewReader(mainHTML)
-	// 	http.ServeContent(w, r, "index.html", time.Now(), s)
-	// })
 
 	mux.HandleFunc("/servers", func(w http.ResponseWriter, r *http.Request) {
 		bv := rvs.views[0]
@@ -146,6 +120,8 @@ func (rvs *viewServer) Start() error {
 			direct.Handle(data)
 		})
 	}
+
+	mux.Use(func(next http.Handler) http.Handler { return handlers.LoggingHandler(os.Stdout, next) })
 
 	rvs.backgroundProcessing.Add(1)
 	go func() {

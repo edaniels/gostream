@@ -8,6 +8,7 @@ require (
 	github.com/edaniels/golinters v0.0.4
 	github.com/edaniels/golog v0.0.0-20210104162753-3254576d0129
 	github.com/golangci/golangci-lint v1.34.1
+	github.com/gorilla/handlers v1.5.1 // indirect
 	github.com/gorilla/mux v1.8.0
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/pion/interceptor v0.0.12
