@@ -893,7 +893,7 @@ class TSD extends TSDBase {
         this._sendKey(KeyTable.XK_Escape, "Escape", true);
         this._sendKey(KeyTable.XK_Escape, "Escape", false);
         this._sendKey(KeyTable.XK_Alt_L, "AltLeft", false);
-        this._sendKey(KeyTable.XK_Control_L, "MetaLeft", false);
+        this._sendKey(KeyTable.XK_Meta_L, "MetaLeft", false);
     }
 
     async start() {
@@ -932,10 +932,12 @@ class TSD extends TSDBase {
                 console.log(e);
             }
         }
-        peerConnection.onsignalingstatechange = () => console.log("AA", peerConnection.signalingState);
-        peerConnection.onconnectionstatechange = () => console.log("BB", peerConnection.connectionState);
-        peerConnection.onicegatheringstatechange = () => console.log("CC", peerConnection.iceGatheringState);
-        peerConnection.oniceconnectionstatechange = () => console.log("DD", peerConnection.iceConnectionState);
+        peerConnection.onconnectionstatechange = () => {
+            if (peerConnection.connectionState == "disconnected") {
+                alert("Disconnected");
+                window.location.reload();
+            }
+        };
 
         // set up offer
         this._cursorChannel = peerConnection.createDataChannel("cursor", { negotiated: true, id: 2 });
