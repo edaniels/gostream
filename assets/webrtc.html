@@ -6,7 +6,6 @@
     <meta charset="utf-8">
 
     <style>
-
         body {
             margin: 0;
             background-color: dimgrey;
@@ -58,6 +57,10 @@
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+
+        .hidden {
+            display: none;
         }
 
         #button:focus {
@@ -120,7 +123,7 @@
 // // tsd holds the API to connect and communicate with a VNC server
 // import TSD from './core/rfb.js';
 
-// clipboard + fullscreen needed from ui.js
+// clipboard + fullscreen needed from js
 
 // TODO: convert to import
 let doubleToByteArray = function(number) {
@@ -1025,6 +1028,54 @@ function status(text) {
     document.getElementById('status').textContent = text;
 }
 
+function toggleFullscreen() {
+    if (document.fullscreenElement || // alternative standard method
+        document.mozFullScreenElement || // currently working methods
+        document.webkitFullscreenElement ||
+        document.msFullscreenElement) {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
+    } else {
+        if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen();
+        } else if (document.documentElement.mozRequestFullScreen) {
+            document.documentElement.mozRequestFullScreen();
+        } else if (document.documentElement.webkitRequestFullscreen) {
+            document.documentElement.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
+        } else if (document.body.msRequestFullscreen) {
+            document.body.msRequestFullscreen();
+        }
+    }
+    updateFullscreenButton();
+}
+
+function updateFullscreenButton() {
+    if (document.fullscreenElement || // alternative standard method
+        document.mozFullScreenElement || // currently working methods
+        document.webkitFullscreenElement ||
+        document.msFullscreenElement ) {
+        document.getElementById('top_bar').classList.add("hidden");
+    } else {
+        document.getElementById('top_bar').classList.remove("hidden");
+    }
+}
+
+function addFullscreenHandlers() {
+    document.getElementById("fullscreenButton").addEventListener('click', toggleFullscreen);
+
+    window.addEventListener('fullscreenchange', updateFullscreenButton);
+    window.addEventListener('mozfullscreenchange', updateFullscreenButton);
+    window.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+    window.addEventListener('msfullscreenchange', updateFullscreenButton);
+}
+
 function main() {
     // Creating a new tsd object will start a new connection
     tsd = new TSD(document.getElementById('screen'), {});
@@ -1047,6 +1098,8 @@ function main() {
 
 document.getElementById("button").onclick = main;
 document.getElementById('sendCmdOptEscButton').onclick = sendCmdOptEsc;
+
+addFullscreenHandlers();
 
     </script>
 </head>
