@@ -455,6 +455,8 @@ func (bv *basicView) htmlArgs() []interface{} {
 }
 
 func (bv *basicView) numReservedStreams() int {
+	bv.mu.Lock()
+	defer bv.mu.Unlock()
 	// thread-safe but racey if more chans are added before the first
 	// connection is negotiated.
 	return len(bv.reservedStreams)
