@@ -11,11 +11,15 @@ gostream is a library to simplify the streaming of images as video to a series o
 
 ## TODO
 
-- Support multiple codes (e.g. Firefox macos-arm does not support h264 by default yet)
+- Support multiple codecs (e.g. Firefox macos-arm does not support h264 by default yet)
+- Verify Windows Logitech StreamCam working
+- Reconnect on server restart
+- Check closes and frees
+- Upgrade Pion and see if Firefox stutter still present
 - Address code TODOs (including context.TODO)
 - Documentation (inner func docs, package docs, example docs)
 - Version 0.1.0
-- Tests
+- Tests (and integrate to GitHub Actions)
 
 ## Future Work
 
