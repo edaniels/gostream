@@ -3,6 +3,7 @@ package webrtc
 import (
 	"github.com/edaniels/golog"
 	"github.com/pion/logging"
+	"go.uber.org/zap"
 )
 
 // LoggerFactory wraps a golog.Logger for use with pion's webrtc logging system.
@@ -14,44 +15,48 @@ type logger struct {
 	logger golog.Logger
 }
 
+func (l logger) loggerWithSkip() golog.Logger {
+	return l.logger.Desugar().WithOptions(zap.AddCallerSkip(1)).Sugar()
+}
+
 func (l logger) Trace(msg string) {
-	l.logger.Debug(msg)
+	l.loggerWithSkip().Debug(msg)
 }
 
 func (l logger) Tracef(format string, args ...interface{}) {
-	l.logger.Debugf(format, args...)
+	l.loggerWithSkip().Debugf(format, args...)
 }
 
 func (l logger) Debug(msg string) {
-	l.logger.Debug(msg)
+	l.loggerWithSkip().Debug(msg)
 }
 
 func (l logger) Debugf(format string, args ...interface{}) {
-	l.logger.Debugf(format, args...)
+	l.loggerWithSkip().Debugf(format, args...)
 }
 
 func (l logger) Info(msg string) {
-	l.logger.Info(msg)
+	l.loggerWithSkip().Info(msg)
 }
 
 func (l logger) Infof(format string, args ...interface{}) {
-	l.logger.Infof(format, args...)
+	l.loggerWithSkip().Infof(format, args...)
 }
 
 func (l logger) Warn(msg string) {
-	l.logger.Warn(msg)
+	l.loggerWithSkip().Warn(msg)
 }
 
 func (l logger) Warnf(format string, args ...interface{}) {
-	l.logger.Warnf(format, args...)
+	l.loggerWithSkip().Warnf(format, args...)
 }
 
 func (l logger) Error(msg string) {
-	l.logger.Error(msg)
+	l.loggerWithSkip().Error(msg)
 }
 
 func (l logger) Errorf(format string, args ...interface{}) {
-	l.logger.Errorf(format, args...)
+	l.loggerWithSkip().Errorf(format, args...)
 }
 
 // NewLogger returns a new webrtc logger under the given scope.
