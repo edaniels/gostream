@@ -13,7 +13,7 @@ var (
 	DefaultICEServers = []webrtc.ICEServer{
 		// feel free to use your own ICE servers
 		{
-			URLs: []string{"stun:stun.viam.cloud"},
+			URLs: []string{"stun:global.stun.twilio.com:3478?transport=udp"},
 		},
 	}
 )
