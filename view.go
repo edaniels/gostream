@@ -16,6 +16,7 @@ import (
 	"github.com/edaniels/gostream/codec"
 	ourwebrtc "github.com/edaniels/gostream/webrtc"
 	"go.uber.org/multierr"
+	"go.viam.com/utils"
 
 	"github.com/edaniels/golog"
 	"github.com/pion/interceptor"
@@ -200,22 +201,26 @@ func (bv *basicView) handleOffer(w io.Writer, r *http.Request) (err error) {
 	// Set the handler for ICE connection state
 	// This will notify you when the peer has connected/disconnected
 	peerConnection.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
-		connInfo := getPeerConnectionStats(peerConnection)
-		bv.logger.Debugw("connection state changed",
-			"conn_id", connInfo.ID,
-			"conn_state", connectionState.String(),
-			"conn_remote_candidates", connInfo.RemoteCandidates,
-		)
-		if connectionState == webrtc.ICEConnectionStateConnected {
-			iceConnectedCtxCancel()
-			return
-		}
-		switch connectionState {
-		case webrtc.ICEConnectionStateDisconnected,
-			webrtc.ICEConnectionStateFailed,
-			webrtc.ICEConnectionStateClosed:
-			bv.removeRemoteClient(peerConnection)
-		}
+		bv.backgroundProcessing.Add(1)
+		utils.PanicCapturingGo(func() {
+			defer bv.backgroundProcessing.Done()
+			connInfo := getPeerConnectionStats(peerConnection)
+			bv.logger.Debugw("connection state changed",
+				"conn_id", connInfo.ID,
+				"conn_state", connectionState.String(),
+				"conn_remote_candidates", connInfo.RemoteCandidates,
+			)
+			if connectionState == webrtc.ICEConnectionStateConnected {
+				iceConnectedCtxCancel()
+				return
+			}
+			switch connectionState {
+			case webrtc.ICEConnectionStateDisconnected,
+				webrtc.ICEConnectionStateFailed,
+				webrtc.ICEConnectionStateClosed:
+				bv.removeRemoteClient(peerConnection)
+			}
+		})
 	})
 
 	videoTracks := make([]*ourwebrtc.TrackLocalStaticSample, 0, bv.NumReservedStreams())
@@ -306,6 +311,8 @@ func (bv *basicView) handleOffer(w io.Writer, r *http.Request) (err error) {
 	// we do this because we only can exchange one signaling message
 	// in a production application you should exchange ICE Candidates via OnICECandidate
 	select {
+	case <-r.Context().Done():
+		return r.Context().Err()
 	case <-bv.shutdownCtx.Done():
 		return bv.shutdownCtx.Err()
 	case <-gatherComplete:
