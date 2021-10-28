@@ -218,7 +218,7 @@ func (bv *basicView) handleOffer(w io.Writer, r *http.Request) (err error) {
 		}
 	})
 
-	videoTracks := make([]*ourwebrtc.TrackLocalStaticSample, 0, bv.numReservedStreams())
+	videoTracks := make([]*ourwebrtc.TrackLocalStaticSample, 0, bv.NumReservedStreams())
 	for i, stream := range bv.getReservedStreams() {
 		var trackName string // shows up as stream id
 		if stream.name == "" {
@@ -451,14 +451,18 @@ func (bv *basicView) htmlArgs() []interface{} {
 	if name != "" {
 		name = " " + name
 	}
-	return []interface{}{name, bv.streamNum(), bv.numReservedStreams(), bv.iceServers()}
+	return []interface{}{name, bv.streamNum(), bv.NumReservedStreams(), bv.iceServers()}
 }
 
-func (bv *basicView) numReservedStreams() int {
+func (bv *basicView) NumReservedStreams() int {
 	bv.mu.Lock()
 	defer bv.mu.Unlock()
 	// thread-safe but racey if more chans are added before the first
 	// connection is negotiated.
+	return bv.numReservedStreams()
+}
+
+func (bv *basicView) numReservedStreams() int {
 	return len(bv.reservedStreams)
 }
 
@@ -534,7 +538,7 @@ func (rs *remoteStream) InputFrames() chan<- FrameReleasePair {
 // negotiated is streamed.
 func (bv *basicView) processInputFrames() {
 	defer bv.backgroundProcessing.Done()
-	bv.backgroundProcessing.Add(bv.numReservedStreams())
+	bv.backgroundProcessing.Add(bv.NumReservedStreams())
 	frameLimiterDur := time.Second / time.Duration(bv.config.TargetFrameRate)
 	for i, inout := range bv.inoutFrameChans {
 		iCopy := i
@@ -605,7 +609,7 @@ func (bv *basicView) processInputFrames() {
 func (bv *basicView) processOutputFrames() {
 	defer bv.backgroundProcessing.Done()
 
-	bv.backgroundProcessing.Add(bv.numReservedStreams())
+	bv.backgroundProcessing.Add(bv.NumReservedStreams())
 	for i, inout := range bv.inoutFrameChans {
 		iCopy := i
 		inoutCopy := inout
