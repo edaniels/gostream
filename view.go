@@ -17,6 +17,7 @@ import (
 	ourwebrtc "github.com/edaniels/gostream/webrtc"
 	"go.uber.org/multierr"
 	"go.viam.com/utils"
+	uwebrtc "go.viam.com/utils/rpc/webrtc"
 
 	"github.com/edaniels/golog"
 	"github.com/pion/interceptor"
@@ -154,7 +155,7 @@ func (bv *basicView) handleOffer(w io.Writer, r *http.Request) (err error) {
 	}
 
 	offer := webrtc.SessionDescription{}
-	if err := ourwebrtc.DecodeSDP(in, &offer); err != nil {
+	if err := uwebrtc.DecodeSDP(in, &offer); err != nil {
 		return err
 	}
 
@@ -170,7 +171,7 @@ func (bv *basicView) handleOffer(w io.Writer, r *http.Request) (err error) {
 	options := []func(a *webrtc.API){webrtc.WithMediaEngine(&m), webrtc.WithInterceptorRegistry(&i)}
 	if Debug {
 		options = append(options, webrtc.WithSettingEngine(webrtc.SettingEngine{
-			LoggerFactory: ourwebrtc.LoggerFactory{bv.logger},
+			LoggerFactory: uwebrtc.LoggerFactory{bv.logger},
 		}))
 	}
 	webAPI := webrtc.NewAPI(options...)
@@ -318,7 +319,7 @@ func (bv *basicView) handleOffer(w io.Writer, r *http.Request) (err error) {
 	case <-gatherComplete:
 	}
 
-	encodedSDP, err := ourwebrtc.EncodeSDP(peerConnection.LocalDescription())
+	encodedSDP, err := uwebrtc.EncodeSDP(peerConnection.LocalDescription())
 	if err != nil {
 		return err
 	}

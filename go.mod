@@ -1,6 +1,6 @@
 module github.com/edaniels/gostream
 
-go 1.15
+go 1.16
 
 require (
 	github.com/disintegration/imaging v1.6.2
@@ -8,11 +8,10 @@ require (
 	github.com/edaniels/golog v0.0.0-20210326173913-16d408aa7a5e
 	github.com/golangci/golangci-lint v1.39.0
 	github.com/pion/interceptor v0.1.0
-	github.com/pion/logging v0.2.2
 	github.com/pion/mediadevices v0.3.0
 	github.com/pion/rtp v1.7.4
 	github.com/pion/webrtc/v3 v3.1.7
 	go.uber.org/multierr v1.7.0
-	go.uber.org/zap v1.19.1
-	go.viam.com/utils v0.0.2-0.20211101162841-457a0dc0c1ec
+	go.viam.com/utils v0.0.2-0.20211101170705-d87d2b9099f7
+	golang.org/x/image v0.0.0-20211028202545-6944b10bf410 // indirect
 )
