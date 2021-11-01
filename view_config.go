@@ -5,17 +5,7 @@ import (
 
 	"github.com/edaniels/golog"
 	"github.com/pion/webrtc/v3"
-)
-
-var (
-	// DefaultICEServers is the default set of ICE servers to use for WebRTC session negotiation.
-	// There is no guarantee that the defaults here will remain usable.
-	DefaultICEServers = []webrtc.ICEServer{
-		// feel free to use your own ICE servers
-		{
-			URLs: []string{"stun:global.stun.twilio.com:3478?transport=udp"},
-		},
-	}
+	uwebrtc "go.viam.com/utils/rpc/webrtc"
 )
 
 // PartialDefaultViewConfig is invalid by default;
@@ -23,7 +13,7 @@ var (
 var PartialDefaultViewConfig = ViewConfig{
 	StreamNumber: 0,
 	WebRTCConfig: webrtc.Configuration{
-		ICEServers: DefaultICEServers,
+		ICEServers: uwebrtc.DefaultICEServers,
 	},
 }
 
