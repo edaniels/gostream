@@ -12,7 +12,7 @@ require (
 	github.com/pion/logging v0.2.2
 	github.com/pion/mediadevices v0.3.0
 	github.com/pion/rtp v1.7.4
-	github.com/pion/webrtc/v3 v3.1.7-0.20211028155951-0180ee38051d
+	github.com/pion/webrtc/v3 v3.1.7
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/goleak v1.1.12 // indirect
 	go.uber.org/multierr v1.7.0
