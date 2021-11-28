@@ -12,6 +12,9 @@ import (
 	"github.com/edaniels/gostream/codec/vpx"
 	"github.com/edaniels/gostream/codec/x264"
 	"github.com/edaniels/gostream/media"
+
+	// register screen drivers
+	_ "github.com/pion/mediadevices/pkg/driver/screen"
 )
 
 func main() {

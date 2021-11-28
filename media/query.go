@@ -13,9 +13,6 @@ import (
 	"github.com/pion/mediadevices/pkg/driver/camera"
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/prop"
-
-	// register
-	_ "github.com/pion/mediadevices/pkg/driver/screen"
 )
 
 // below adapted from github.com/pion/mediadevices
