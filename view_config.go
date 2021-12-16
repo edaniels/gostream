@@ -5,7 +5,7 @@ import (
 
 	"github.com/edaniels/golog"
 	"github.com/pion/webrtc/v3"
-	uwebrtc "go.viam.com/utils/rpc/webrtc"
+	"go.viam.com/utils/rpc"
 )
 
 // PartialDefaultViewConfig is invalid by default;
@@ -13,7 +13,7 @@ import (
 var PartialDefaultViewConfig = ViewConfig{
 	StreamNumber: 0,
 	WebRTCConfig: webrtc.Configuration{
-		ICEServers: uwebrtc.DefaultICEServers,
+		ICEServers: rpc.DefaultICEServers,
 	},
 }
 
