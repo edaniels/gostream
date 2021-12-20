@@ -1,0 +1,34 @@
+syntax = "proto3";
+option go_package = "github.com/edaniels/gostream/proto/stream/v1";
+
+package proto.stream.v1;
+
+import "google/api/annotations.proto";
+
+// A StreamService is used to coordinate with a WebRTC the listing,
+// addition, and removal of registered video streams.
+// TODO(erd): support removal
+service StreamService {
+	// ListStreams returns all streams registered.
+	rpc ListStreams(ListStreamsRequest) returns (ListStreamsResponse);
+
+	// AddStream requests a particular stream be added.
+	rpc AddStream(AddStreamRequest) returns (AddStreamResponse);
+}
+
+// ListStreamsRequest requests all streams registered.
+message ListStreamsRequest {}
+
+// A ListStreamsResponse details streams registered.
+message ListStreamsResponse {
+	repeated string names = 1;
+}
+
+// A AddStreamRequest requests the given stream be added to the connection.
+message AddStreamRequest {
+	string name = 1;
+}
+
+// AddStreamResponse is returned after a successful AddStreamRequest.
+message AddStreamResponse {}
+

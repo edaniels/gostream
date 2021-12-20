@@ -2,11 +2,10 @@ package main
 
 import (
 	"context"
-	"flag"
-	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
+
+	"github.com/edaniels/golog"
+	"go.uber.org/multierr"
+	"go.viam.com/utils"
 
 	"github.com/edaniels/gostream"
 	"github.com/edaniels/gostream/codec/vpx"
@@ -18,96 +17,93 @@ import (
 )
 
 func main() {
-	port := flag.Int("port", 5555, "port to run server on")
-	camera := flag.Bool("camera", false, "use camera")
-	dupeView := flag.Bool("dupe_view", false, "duplicate view")
-	dupeStream := flag.Bool("dupe_stream", false, "duplicate stream")
-	extraTiles := flag.Int("extra_tiles", 0, "number of times to duplicate screen in tiles")
-	flag.Parse()
+	utils.ContextualMain(mainWithArgs, logger)
+}
 
+var (
+	defaultPort = 5555
+	logger      = golog.Global.Named("server")
+)
+
+// Arguments for the command.
+type Arguments struct {
+	Port       utils.NetPortFlag `flag:"0"`
+	Camera     bool              `flag:"camera,usage=use camera"`
+	DupeStream bool              `flag:"dupe_stream,usage=duplicate stream"`
+}
+
+func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error {
+	var argsParsed Arguments
+	if err := utils.ParseFlags(args, &argsParsed); err != nil {
+		return err
+	}
+	if argsParsed.Port == 0 {
+		argsParsed.Port = utils.NetPortFlag(defaultPort)
+	}
+
+	return runServer(
+		ctx,
+		int(argsParsed.Port),
+		argsParsed.Camera,
+		argsParsed.DupeStream,
+		logger,
+	)
+}
+
+func runServer(
+	ctx context.Context,
+	port int,
+	camera bool,
+	dupeStream bool,
+	logger golog.Logger,
+) (err error) {
 	var videoReader media.VideoReadCloser
-	var err error
-	if *camera {
+	if camera {
 		videoReader, err = media.GetAnyVideoReader(media.DefaultConstraints)
 	} else {
 		videoReader, err = media.GetAnyScreenReader(media.DefaultConstraints)
 	}
 	if err != nil {
-		gostream.Logger.Fatal(err)
+		return err
 	}
-
 	defer func() {
-		if err := videoReader.Close(); err != nil {
-			gostream.Logger.Error(err)
-		}
+		err = multierr.Combine(err, videoReader.Close())
 	}()
 
-	_ = x264.DefaultViewConfig
-	_ = vpx.DefaultViewConfig
-	config := vpx.DefaultViewConfig
-	view, err := gostream.NewView(config)
+	_ = x264.DefaultStreamConfig
+	_ = vpx.DefaultStreamConfig
+	config := vpx.DefaultStreamConfig
+	stream, err := gostream.NewStream(config)
 	if err != nil {
-		gostream.Logger.Fatal(err)
+		return err
 	}
-
-	view.SetOnDataHandler(func(ctx context.Context, data []byte, responder gostream.ClientResponder) {
-		gostream.Logger.Debugw("data", "raw", string(data))
-		responder.SendText(string(data))
-	})
-	view.SetOnClickHandler(func(ctx context.Context, x, y int, responder gostream.ClientResponder) {
-		gostream.Logger.Debugw("click", "x", x, "y", y)
-		responder.SendText(fmt.Sprintf("got click (%d, %d)", x, y))
-	})
-
-	server := gostream.NewViewServer(*port, view, gostream.Logger)
-	var secondView gostream.View
-	if *dupeView {
-		config.StreamName = "dupe"
-		config.StreamNumber = 1
-		view, err := gostream.NewView(config)
+	server, err := gostream.NewStandaloneStreamServer(port, logger, stream)
+	if err != nil {
+		return err
+	}
+	var secondStream gostream.Stream
+	if dupeStream {
+		config.Name = "dupe"
+		stream, err := gostream.NewStream(config)
 		if err != nil {
-			gostream.Logger.Fatal(err)
+			logger.Fatal(err)
 		}
 
-		view.SetOnDataHandler(func(ctx context.Context, data []byte, responder gostream.ClientResponder) {
-			gostream.Logger.Debugw("data", "raw", string(data))
-			responder.SendText(string(data))
-		})
-		view.SetOnClickHandler(func(ctx context.Context, x, y int, responder gostream.ClientResponder) {
-			gostream.Logger.Debugw("click", "x", x, "y", y)
-			responder.SendText(fmt.Sprintf("got click (%d, %d)", x, y))
-		})
-		secondView = view
-		server.AddView(secondView)
-	}
-	if err := server.Start(); err != nil {
-		gostream.Logger.Fatal(err)
-	}
-
-	cancelCtx, cancelFunc := context.WithCancel(context.Background())
-	c := make(chan os.Signal, 2)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-c
-		cancelFunc()
-	}()
-
-	if secondView != nil {
-		go gostream.StreamSource(cancelCtx, videoReader, secondView)
-	}
-	if *dupeStream {
-		go gostream.StreamNamedSource(cancelCtx, videoReader, "dupe", view)
-	}
-	if *extraTiles == 0 {
-		gostream.StreamNamedSource(cancelCtx, videoReader, "screen", view)
-	} else {
-		autoTiler := gostream.NewAutoTiler(800, 600, videoReader)
-		for i := 0; i < *extraTiles; i++ {
-			autoTiler.AddSource(videoReader)
+		secondStream = stream
+		if err := server.AddStream(secondStream); err != nil {
+			return err
 		}
-		gostream.StreamNamedSource(cancelCtx, autoTiler, "tiled screens", view)
 	}
+	if err := server.Start(ctx); err != nil {
+		return err
+	}
+
+	if secondStream != nil {
+		go gostream.StreamSource(ctx, videoReader, secondStream)
+	}
+	gostream.StreamSource(ctx, videoReader, stream)
 	if err := server.Stop(context.Background()); err != nil {
-		gostream.Logger.Error(err)
+		return err
 	}
+	return nil
 }

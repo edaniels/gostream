@@ -7,11 +7,11 @@ import (
 	"github.com/edaniels/golog"
 )
 
-// DefaultViewConfig configures x264 as the encoder for a view.
-var DefaultViewConfig = gostream.PartialDefaultViewConfig
+// DefaultStreamConfig configures x264 as the encoder for a stream.
+var DefaultStreamConfig gostream.StreamConfig
 
 func init() {
-	DefaultViewConfig.EncoderFactory = NewEncoderFactory()
+	DefaultStreamConfig.EncoderFactory = NewEncoderFactory()
 }
 
 // NewEncoderFactory returns an x264 encoder factory.

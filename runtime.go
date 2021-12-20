@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 
 	"go.uber.org/multierr"
+	"go.viam.com/utils"
 )
 
 // runParallel runs the given functions in parallel to completion or error.
@@ -16,14 +17,14 @@ func runParallel(fs []func() error) error {
 	for i, f := range fs {
 		iCopy := i
 		fCopy := f
-		go func() {
+		utils.PanicCapturingGo(func() {
 			defer wg.Done()
 			err := fCopy()
 			if err != nil {
 				errs[iCopy] = err
 				atomic.AddInt32(&numErrs, 1)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 

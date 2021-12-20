@@ -9,11 +9,11 @@ import (
 	"github.com/edaniels/golog"
 )
 
-// DefaultViewConfig configures vpx as the encoder for a view.
-var DefaultViewConfig = gostream.PartialDefaultViewConfig
+// DefaultStreamConfig configures vpx as the encoder for a stream.
+var DefaultStreamConfig gostream.StreamConfig
 
 func init() {
-	DefaultViewConfig.EncoderFactory = NewEncoderFactory(Version8)
+	DefaultStreamConfig.EncoderFactory = NewEncoderFactory(Version8)
 }
 
 // NewEncoderFactory returns a vpx factory for the given vpx codec.
