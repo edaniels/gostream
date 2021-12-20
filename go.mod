@@ -16,7 +16,7 @@ require (
 	github.com/polyfloyd/go-errorlint v0.0.0-20201127212506-19bd8db6546f
 	github.com/pseudomuto/protoc-gen-doc v1.3.2
 	go.uber.org/multierr v1.7.0
-	go.viam.com/utils v0.0.3-0.20211220184046-7794ea22acbb
+	go.viam.com/utils v0.0.3-0.20211220233025-ba0182c9d9e5
 	goji.io v2.0.2+incompatible
 	golang.org/x/tools v0.1.7
 	google.golang.org/genproto v0.0.0-20210617175327-b9e0b3197ced
