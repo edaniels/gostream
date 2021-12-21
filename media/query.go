@@ -166,7 +166,10 @@ func getScreenDriver(constraints mediadevices.MediaStreamConstraints, label *str
 	return selectScreen(videoConstraints, label)
 }
 
-func getScreenDriverPattern(constraints mediadevices.MediaStreamConstraints, labelPattern *regexp.Regexp) (driver.Driver, prop.Media, error) {
+func getScreenDriverPattern(
+	constraints mediadevices.MediaStreamConstraints,
+	labelPattern *regexp.Regexp,
+) (driver.Driver, prop.Media, error) {
 	var videoConstraints mediadevices.MediaTrackConstraints
 	if constraints.Video != nil {
 		constraints.Video(&videoConstraints)
