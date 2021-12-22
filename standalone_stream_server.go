@@ -69,7 +69,8 @@ func (ss *standaloneStreamServer) Start(ctx context.Context) error {
 	}
 	ss.started = true
 
-	listener, secure, err := utils.NewPossiblySecureTCPListenerFromFile(ss.port, "", "")
+	humanAddress := fmt.Sprintf("localhost:%d", ss.port)
+	listener, secure, err := utils.NewPossiblySecureTCPListenerFromFile(humanAddress, "", "")
 	if err != nil {
 		return err
 	}
@@ -78,7 +79,6 @@ func (ss *standaloneStreamServer) Start(ctx context.Context) error {
 		Enable: true,
 	}))
 	serverOpts = append(serverOpts, rpc.WithUnauthenticated())
-	humanAddress := fmt.Sprintf("localhost:%d", ss.port)
 
 	rpcServer, err := rpc.NewServer(ss.logger, serverOpts...)
 	if err != nil {
