@@ -1,14 +1,15 @@
+// Package x264 contains the x264 video codec.
 package x264
 
 import (
 	"image"
 
-	ourcodec "github.com/edaniels/gostream/codec"
-
 	"github.com/edaniels/golog"
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/codec/x264"
 	"github.com/pion/mediadevices/pkg/prop"
+
+	ourcodec "github.com/edaniels/gostream/codec"
 )
 
 type encoder struct {

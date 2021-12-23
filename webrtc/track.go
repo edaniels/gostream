@@ -1,3 +1,6 @@
+// Package webrtc contains helper utilities for working with WebRTC.
+// Mostly it just contains a local track that can be written to with
+// frames that have their sample times figured out automatically.
 package webrtc
 
 import (
@@ -18,7 +21,7 @@ import (
 
 // trackBinding is a single bind for a Track
 // Bind can be called multiple times, this stores the
-// result for a single bind call so that it can be used when writing
+// result for a single bind call so that it can be used when writing.
 type trackBinding struct {
 	id          string
 	ssrc        webrtc.SSRC
@@ -27,7 +30,7 @@ type trackBinding struct {
 }
 
 // trackLocalStaticRTP  is a TrackLocal that has a pre-set codec and accepts RTP Packets.
-// If you wish to send a media.Sample use TrackLocalStaticSample
+// If you wish to send a media.Sample use TrackLocalStaticSample.
 type trackLocalStaticRTP struct {
 	mu           sync.RWMutex
 	bindings     []trackBinding
@@ -36,18 +39,18 @@ type trackLocalStaticRTP struct {
 }
 
 // newtrackLocalStaticRTP returns a trackLocalStaticRTP.
-func newtrackLocalStaticRTP(c webrtc.RTPCodecCapability, id, streamID string) (*trackLocalStaticRTP, error) {
+func newtrackLocalStaticRTP(c webrtc.RTPCodecCapability, id, streamID string) *trackLocalStaticRTP {
 	return &trackLocalStaticRTP{
 		codec:    c,
 		bindings: []trackBinding{},
 		id:       id,
 		streamID: streamID,
-	}, nil
+	}
 }
 
 // Bind is called by the PeerConnection after negotiation is complete
 // This asserts that the code requested is supported by the remote peer.
-// If so it setups all the state (SSRC and PayloadType) to have a call
+// If so it setups all the state (SSRC and PayloadType) to have a call.
 func (s *trackLocalStaticRTP) Bind(t webrtc.TrackLocalContext) (webrtc.RTPCodecParameters, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -85,13 +88,13 @@ func (s *trackLocalStaticRTP) Unbind(t webrtc.TrackLocalContext) error {
 
 // ID is the unique identifier for this Track. This should be unique for the
 // stream, but doesn't have to globally unique. A common example would be 'audio' or 'video'
-// and StreamID would be 'desktop' or 'webcam'
+// and StreamID would be 'desktop' or 'webcam'.
 func (s *trackLocalStaticRTP) ID() string { return s.id }
 
-// StreamID is the group this track belongs too. This must be unique
+// StreamID is the group this track belongs too. This must be unique.
 func (s *trackLocalStaticRTP) StreamID() string { return s.streamID }
 
-// Kind controls if this TrackLocal is audio or video
+// Kind controls if this TrackLocal is audio or video.
 func (s *trackLocalStaticRTP) Kind() webrtc.RTPCodecType {
 	switch {
 	case strings.HasPrefix(s.codec.MimeType, "audio/"):
@@ -103,7 +106,7 @@ func (s *trackLocalStaticRTP) Kind() webrtc.RTPCodecType {
 	}
 }
 
-// Codec gets the Codec of the track
+// Codec gets the Codec of the track.
 func (s *trackLocalStaticRTP) Codec() webrtc.RTPCodecCapability {
 	return s.codec
 }
@@ -111,7 +114,7 @@ func (s *trackLocalStaticRTP) Codec() webrtc.RTPCodecCapability {
 // WriteRTP writes a RTP Packet to the trackLocalStaticRTP
 // If one PeerConnection fails the packets will still be sent to
 // all PeerConnections. The error message will contain the ID of the failed
-// PeerConnections so you can remove them
+// PeerConnections so you can remove them.
 func (s *trackLocalStaticRTP) WriteRTP(p *rtp.Packet) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -133,7 +136,7 @@ func (s *trackLocalStaticRTP) WriteRTP(p *rtp.Packet) error {
 // Write writes a RTP Packet as a buffer to the trackLocalStaticRTP
 // If one PeerConnection fails the packets will still be sent to
 // all PeerConnections. The error message will contain the ID of the failed
-// PeerConnections so you can remove them
+// PeerConnections so you can remove them.
 func (s *trackLocalStaticRTP) Write(b []byte) (n int, err error) {
 	packet := &rtp.Packet{}
 	if err = packet.Unmarshal(b); err != nil {
@@ -144,37 +147,32 @@ func (s *trackLocalStaticRTP) Write(b []byte) (n int, err error) {
 }
 
 // TrackLocalStaticSample is a TrackLocal that has a pre-set codec and accepts Samples.
-// If you wish to send a RTP Packet use trackLocalStaticRTP
+// If you wish to send a RTP Packet use trackLocalStaticRTP.
 type TrackLocalStaticSample struct {
 	packetizer rtp.Packetizer
 	rtpTrack   *trackLocalStaticRTP
 	sampler    samplerFunc
 }
 
-// NewTrackLocalStaticSample returns a TrackLocalStaticSample
-func NewTrackLocalStaticSample(c webrtc.RTPCodecCapability, id, streamID string) (*TrackLocalStaticSample, error) {
-	rtpTrack, err := newtrackLocalStaticRTP(c, id, streamID)
-	if err != nil {
-		return nil, err
-	}
-
+// NewTrackLocalStaticSample returns a TrackLocalStaticSample.
+func NewTrackLocalStaticSample(c webrtc.RTPCodecCapability, id, streamID string) *TrackLocalStaticSample {
 	return &TrackLocalStaticSample{
-		rtpTrack: rtpTrack,
-	}, nil
+		rtpTrack: newtrackLocalStaticRTP(c, id, streamID),
+	}
 }
 
 // ID is the unique identifier for this Track. This should be unique for the
 // stream, but doesn't have to globally unique. A common example would be 'audio' or 'video'
-// and StreamID would be 'desktop' or 'webcam'
+// and StreamID would be 'desktop' or 'webcam'.
 func (s *TrackLocalStaticSample) ID() string { return s.rtpTrack.ID() }
 
-// StreamID is the group this track belongs too. This must be unique
+// StreamID is the group this track belongs too. This must be unique.
 func (s *TrackLocalStaticSample) StreamID() string { return s.rtpTrack.StreamID() }
 
-// Kind controls if this TrackLocal is audio or video
+// Kind controls if this TrackLocal is audio or video.
 func (s *TrackLocalStaticSample) Kind() webrtc.RTPCodecType { return s.rtpTrack.Kind() }
 
-// Codec gets the Codec of the track
+// Codec gets the Codec of the track.
 func (s *TrackLocalStaticSample) Codec() webrtc.RTPCodecCapability {
 	return s.rtpTrack.Codec()
 }
@@ -183,7 +181,7 @@ const rtpOutboundMTU = 1200
 
 // Bind is called by the PeerConnection after negotiation is complete
 // This asserts that the code requested is supported by the remote peer.
-// If so it setups all the state (SSRC and PayloadType) to have a call
+// If so it setups all the state (SSRC and PayloadType) to have a call.
 func (s *TrackLocalStaticSample) Bind(t webrtc.TrackLocalContext) (webrtc.RTPCodecParameters, error) {
 	codec, err := s.rtpTrack.Bind(t)
 	if err != nil {
@@ -221,10 +219,10 @@ func (s *TrackLocalStaticSample) Unbind(t webrtc.TrackLocalContext) error {
 	return s.rtpTrack.Unbind(t)
 }
 
-// WriteFrame writes a frane to the TrackLocalStaticSample
+// WriteFrame writes a frame to the TrackLocalStaticSample
 // If one PeerConnection fails the packets will still be sent to
 // all PeerConnections. The error message will contain the ID of the failed
-// PeerConnections so you can remove them
+// PeerConnections so you can remove them.
 func (s *TrackLocalStaticSample) WriteFrame(frame []byte) error {
 	s.rtpTrack.mu.RLock()
 	p := s.packetizer
@@ -235,7 +233,7 @@ func (s *TrackLocalStaticSample) WriteFrame(frame []byte) error {
 	}
 
 	samples := s.sampler()
-	packets := p.(rtp.Packetizer).Packetize(frame, samples)
+	packets := p.Packetize(frame, samples)
 
 	writeErrs := []error{}
 	for _, p := range packets {
@@ -248,7 +246,7 @@ func (s *TrackLocalStaticSample) WriteFrame(frame []byte) error {
 }
 
 // Do a fuzzy find for a codec in the list of codecs
-// Used for lookup up a codec in an existing list to find a match
+// Used for lookup up a codec in an existing list to find a match.
 func codecParametersFuzzySearch(needle webrtc.RTPCodecParameters, haystack []webrtc.RTPCodecParameters) (webrtc.RTPCodecParameters, error) {
 	// First attempt to match on MimeType + SDPFmtpLine
 	for _, c := range haystack {

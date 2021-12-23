@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"sync"
 
-	streampb "github.com/edaniels/gostream/proto/stream/v1"
-
 	"go.viam.com/utils/rpc"
+
+	streampb "github.com/edaniels/gostream/proto/stream/v1"
 )
 
 // A StreamServer manages a collection of streams. Streams can be

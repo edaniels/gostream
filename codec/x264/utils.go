@@ -1,10 +1,10 @@
 package x264
 
 import (
+	"github.com/edaniels/golog"
+
 	"github.com/edaniels/gostream"
 	"github.com/edaniels/gostream/codec"
-
-	"github.com/edaniels/golog"
 )
 
 // DefaultStreamConfig configures x264 as the encoder for a stream.

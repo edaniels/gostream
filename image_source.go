@@ -17,7 +17,7 @@ type ImageSource interface {
 	Close() error
 }
 
-// An ImageSourceFunc is a helper to turn a function into an ImageSource
+// An ImageSourceFunc is a helper to turn a function into an ImageSource.
 type ImageSourceFunc func(ctx context.Context) (image.Image, func(), error)
 
 // Next calls the underlying function to get an image.

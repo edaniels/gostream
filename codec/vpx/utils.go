@@ -3,10 +3,10 @@ package vpx
 import (
 	"fmt"
 
+	"github.com/edaniels/golog"
+
 	"github.com/edaniels/gostream"
 	"github.com/edaniels/gostream/codec"
-
-	"github.com/edaniels/golog"
 )
 
 // DefaultStreamConfig configures vpx as the encoder for a stream.

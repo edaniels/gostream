@@ -1,3 +1,4 @@
+// Package gostream implements a simple server for serving video streams over WebRTC.
 package gostream
 
 import (
@@ -7,14 +8,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/edaniels/golog"
 	"github.com/google/uuid"
+	"github.com/pion/webrtc/v3"
 	"go.viam.com/utils"
 
 	"github.com/edaniels/gostream/codec"
 	ourwebrtc "github.com/edaniels/gostream/webrtc"
-
-	"github.com/edaniels/golog"
-	"github.com/pion/webrtc/v3"
 )
 
 // A Stream is sink that accepts any image frames for the purpose
@@ -69,15 +69,11 @@ func NewStream(config StreamConfig) (Stream, error) {
 		name = uuid.NewString()
 	}
 
-	trackLocal, err := ourwebrtc.NewTrackLocalStaticSample(
+	trackLocal := ourwebrtc.NewTrackLocalStaticSample(
 		webrtc.RTPCodecCapability{MimeType: config.EncoderFactory.MIMEType()},
 		name,
 		name,
 	)
-	if err != nil {
-		cancelFunc()
-		return nil, err
-	}
 
 	bs := &basicStream{
 		name:              name,

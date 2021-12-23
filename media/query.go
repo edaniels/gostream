@@ -1,3 +1,4 @@
+// Package media contains media device API helpers.
 package media
 
 import (
@@ -6,13 +7,13 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/edaniels/gostream"
-
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/driver/camera"
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/prop"
+
+	"github.com/edaniels/gostream"
 )
 
 // below adapted from github.com/pion/mediadevices

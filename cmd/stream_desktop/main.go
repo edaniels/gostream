@@ -4,6 +4,9 @@ import (
 	"context"
 
 	"github.com/edaniels/golog"
+
+	// register screen drivers.
+	_ "github.com/pion/mediadevices/pkg/driver/screen"
 	"go.uber.org/multierr"
 	"go.viam.com/utils"
 
@@ -11,9 +14,6 @@ import (
 	"github.com/edaniels/gostream/codec/vpx"
 	"github.com/edaniels/gostream/codec/x264"
 	"github.com/edaniels/gostream/media"
-
-	// register screen drivers
-	_ "github.com/pion/mediadevices/pkg/driver/screen"
 )
 
 func main() {
@@ -102,7 +102,7 @@ func runServer(
 		go gostream.StreamSource(ctx, videoReader, secondStream)
 	}
 	gostream.StreamSource(ctx, videoReader, stream)
-	if err := server.Stop(context.Background()); err != nil {
+	if err := server.Stop(ctx); err != nil {
 		return err
 	}
 	return nil

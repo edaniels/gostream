@@ -10,15 +10,14 @@ import (
 	"runtime"
 	"sync"
 
-	"go.uber.org/multierr"
-
-	streampb "github.com/edaniels/gostream/proto/stream/v1"
-
 	"github.com/edaniels/golog"
+	"go.uber.org/multierr"
 	"go.viam.com/utils"
 	"go.viam.com/utils/rpc"
 	"goji.io"
 	"goji.io/pat"
+
+	streampb "github.com/edaniels/gostream/proto/stream/v1"
 )
 
 // A StandaloneStreamServer is a convenience helper for solely streaming a series
@@ -95,15 +94,18 @@ func (ss *standaloneStreamServer) Start(ctx context.Context) error {
 		return err
 	}
 
+	//nolint:dogsled
 	_, thisFilePath, _, _ := runtime.Caller(0)
 	thisDirPath, err := filepath.Abs(filepath.Dir(thisFilePath))
 	if err != nil {
 		return fmt.Errorf("error locating current file: %w", err)
 	}
 	t, err := template.New("foo").Funcs(template.FuncMap{
+		//nolint:gosec
 		"jsSafe": func(js string) template.JS {
 			return template.JS(js)
 		},
+		//nolint:gosec
 		"htmlSafe": func(html string) template.HTML {
 			return template.HTML(html)
 		},

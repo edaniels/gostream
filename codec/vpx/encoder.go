@@ -1,15 +1,16 @@
+// Package vpx contains the vpx video codec.
 package vpx
 
 import (
 	"fmt"
 	"image"
 
-	ourcodec "github.com/edaniels/gostream/codec"
-
 	"github.com/edaniels/golog"
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/codec/vpx"
 	"github.com/pion/mediadevices/pkg/prop"
+
+	ourcodec "github.com/edaniels/gostream/codec"
 )
 
 type encoder struct {

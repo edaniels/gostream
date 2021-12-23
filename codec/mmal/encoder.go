@@ -1,3 +1,4 @@
+// Package mmal contains the mmal video codec.
 package mmal
 
 import (

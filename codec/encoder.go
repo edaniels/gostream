@@ -1,3 +1,4 @@
+// Package codec defines the encoder and factory interfaces for encoding video frames.
 package codec
 
 import (
