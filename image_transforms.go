@@ -10,6 +10,7 @@ import (
 	"github.com/disintegration/imaging"
 	"github.com/edaniels/golog"
 	"go.uber.org/multierr"
+	"go.viam.com/utils"
 )
 
 // RotateImageSource rotates images by a set amount of degrees.
@@ -32,8 +33,8 @@ func (rms *RotateImageSource) Next(ctx context.Context) (image.Image, func(), er
 }
 
 // Close closes the underlying source.
-func (rms *RotateImageSource) Close() error {
-	return rms.Src.Close()
+func (rms *RotateImageSource) Close(ctx context.Context) error {
+	return utils.TryClose(ctx, rms.Src)
 }
 
 // ResizeImageSource resizes images to the set dimensions.
@@ -56,8 +57,8 @@ func (ris ResizeImageSource) Next(ctx context.Context) (image.Image, func(), err
 }
 
 // Close closes the underlying source.
-func (ris ResizeImageSource) Close() error {
-	return ris.Src.Close()
+func (ris ResizeImageSource) Close(ctx context.Context) error {
+	return utils.TryClose(ctx, ris.Src)
 }
 
 // An AutoTiler automatically tiles a series of images from sources. It rudimentarily
@@ -181,10 +182,10 @@ func (at *AutoTiler) Next(ctx context.Context) (image.Image, func(), error) {
 }
 
 // Close closes all underlying image sources.
-func (at *AutoTiler) Close() error {
+func (at *AutoTiler) Close(ctx context.Context) error {
 	var err error
 	for _, src := range at.sources {
-		err = multierr.Append(err, src.Close())
+		err = multierr.Append(err, utils.TryClose(ctx, src))
 	}
 	return err
 }

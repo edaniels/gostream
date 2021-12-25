@@ -14,7 +14,6 @@ type ImageSource interface {
 	// will not leak memory but may cause the implementer to be
 	// as efficient with memory.
 	Next(ctx context.Context) (image.Image, func(), error)
-	Close() error
 }
 
 // An ImageSourceFunc is a helper to turn a function into an ImageSource.
@@ -23,9 +22,4 @@ type ImageSourceFunc func(ctx context.Context) (image.Image, func(), error)
 // Next calls the underlying function to get an image.
 func (isf ImageSourceFunc) Next(ctx context.Context) (image.Image, func(), error) {
 	return isf(ctx)
-}
-
-// Close does nothing.
-func (isf ImageSourceFunc) Close() error {
-	return nil
 }
