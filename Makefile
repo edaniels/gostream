@@ -1,21 +1,30 @@
-build: buf build-web build-go
+PATH_WITH_GO_BIN=`pwd`/bin:${PATH}
 
-build-go:
+build: build-web build-go
+
+build-go: buf-go
 	go list -f '{{.Dir}}' ./... | grep -v mmal | xargs go build
 
-build-web:
+build-web: buf-web
 	cd frontend && npm install && npx webpack
 
-buf:
+buf: buf-go buf-web
+
+buf-go:
+	GOBIN=`pwd`/bin go install github.com/golang/protobuf/protoc-gen-go \
+		github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc \
+		google.golang.org/grpc/cmd/protoc-gen-go-grpc \
+		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway \
+		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2
 	buf lint
-	buf generate
-	buf generate --template ./etc/buf.web.gen.yaml buf.build/googleapis/googleapis
+	PATH=$(PATH_WITH_GO_BIN) buf generate
+
+buf-web:
+	buf lint
+	PATH=$(PATH_WITH_GO_BIN) buf generate --template ./etc/buf.web.gen.yaml
+	PATH=$(PATH_WITH_GO_BIN) buf generate --template ./etc/buf.web.gen.yaml buf.build/googleapis/googleapis
 
 lint:
-	go install google.golang.org/protobuf/cmd/protoc-gen-go \
-      google.golang.org/grpc/cmd/protoc-gen-go-grpc \
-      github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway \
-      github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
 	buf lint
 	go install github.com/edaniels/golinters/cmd/combined
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint

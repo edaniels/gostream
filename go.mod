@@ -7,6 +7,7 @@ require (
 	github.com/edaniels/golinters v0.0.5-0.20210512224240-495d3b8eed19
 	github.com/edaniels/golog v0.0.0-20210326173913-16d408aa7a5e
 	github.com/fullstorydev/grpcurl v1.8.0
+	github.com/golang/protobuf v1.5.2
 	github.com/golangci/golangci-lint v1.43.0
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.5.0
@@ -82,7 +83,6 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.2.0 // indirect
 	github.com/golang/glog v0.0.0-20210429001901-424d2337a529 // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/golangci/check v0.0.0-20180506172741-cfe4005ccda2 // indirect
 	github.com/golangci/dupl v0.0.0-20180902072040-3e9179ac440a // indirect
