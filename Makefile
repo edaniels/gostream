@@ -37,8 +37,8 @@ cover:
 test:
 	go test -tags=no_skip -race ./...
 
-stream-desktop: build-web
+stream-desktop: buf-go build-web
 	go run cmd/stream_desktop/main.go
 
-stream-camera: build-web
+stream-camera: buf-go build-web
 	go run cmd/stream_desktop/main.go -camera

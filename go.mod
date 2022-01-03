@@ -11,9 +11,9 @@ require (
 	github.com/golangci/golangci-lint v1.43.0
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.5.0
-	github.com/pion/mediadevices v0.3.0
+	github.com/pion/mediadevices v0.3.1
 	github.com/pion/rtp v1.7.4
-	github.com/pion/webrtc/v3 v3.1.8
+	github.com/pion/webrtc/v3 v3.1.10
 	github.com/pseudomuto/protoc-gen-doc v1.3.2
 	go.uber.org/multierr v1.7.0
 	go.viam.com/utils v0.0.3-0.20211225194534-a079867a052e
@@ -147,14 +147,14 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/pelletier/go-toml v1.9.4 // indirect
 	github.com/phayes/checkstyle v0.0.0-20170904204023-bfd46e6a821d // indirect
-	github.com/pion/datachannel v1.5.1 // indirect
+	github.com/pion/datachannel v1.5.2 // indirect
 	github.com/pion/dtls/v2 v2.0.10 // indirect
-	github.com/pion/ice/v2 v2.1.13 // indirect
+	github.com/pion/ice/v2 v2.1.14 // indirect
 	github.com/pion/interceptor v0.1.0 // indirect
 	github.com/pion/logging v0.2.2 // indirect
 	github.com/pion/mdns v0.0.5 // indirect
 	github.com/pion/randutil v0.1.0 // indirect
-	github.com/pion/rtcp v1.2.8 // indirect
+	github.com/pion/rtcp v1.2.9 // indirect
 	github.com/pion/sctp v1.8.0 // indirect
 	github.com/pion/sdp/v3 v3.0.4 // indirect
 	github.com/pion/srtp/v2 v2.0.5 // indirect
@@ -232,3 +232,5 @@ require (
 	mvdan.cc/unparam v0.0.0-20210104141923-aac4ce9116a7 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
 )
+
+replace github.com/pion/mediadevices => github.com/edaniels/mediadevices v0.0.0-20220103173444-439acfc1173e
