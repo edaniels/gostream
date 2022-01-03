@@ -31,8 +31,6 @@ vendor/
 bin
 dist/*
 frontend/dist
-proto/stream/*
-!proto/stream/*/*.proto
 
 # Test data
 coverage.txt
