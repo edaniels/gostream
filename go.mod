@@ -17,7 +17,7 @@ require (
 	github.com/pion/webrtc/v3 v3.1.10
 	github.com/pseudomuto/protoc-gen-doc v1.3.2
 	go.uber.org/multierr v1.7.0
-	go.viam.com/utils v0.0.3-0.20220103175926-79510d5e0dff
+	go.viam.com/utils v0.0.3-0.20220103181439-9b170e9703c5
 	goji.io v2.0.2+incompatible
 	google.golang.org/genproto v0.0.0-20210921142501-181ce0d877f6
 	google.golang.org/grpc v1.41.0-dev.0.20210907181116-2f3355d2244e
