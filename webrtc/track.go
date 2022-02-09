@@ -16,8 +16,9 @@ import (
 )
 
 // Adapted from https://github.com/pion/webrtc/blob/master/track_local_static.go
-// TODO(erd): go through these comments and write them in your own words so that
-// it's consistent and you understand what's going on here.
+// TODO(https://github.com/edaniels/gostream/issues/4): go through these comments
+// and write them in your own words so that it's consistent and you understand
+// what's going on here.
 
 // trackBinding is a single bind for a Track
 // Bind can be called multiple times, this stores the
