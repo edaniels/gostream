@@ -140,7 +140,7 @@ func (bs *basicStream) Stop() {
 func (bs *basicStream) processInputFrames() {
 	frameLimiterDur := time.Second / time.Duration(bs.config.TargetFrameRate)
 	defer close(bs.outputChan)
-	firstFrame := true
+	var dx, dy int
 	ticker := time.NewTicker(frameLimiterDur)
 	defer ticker.Stop()
 	for {
@@ -168,14 +168,18 @@ func (bs *basicStream) processInputFrames() {
 			if framePair.Release != nil {
 				defer framePair.Release()
 			}
-			if firstFrame {
-				bounds := framePair.Frame.Bounds()
-				if err := bs.initCodec(bounds.Dx(), bounds.Dy()); err != nil {
+
+			bounds := framePair.Frame.Bounds()
+			newDx, newDy := bounds.Dx(), bounds.Dy()
+			if dx != newDx || dy != newDy {
+				dx, dy = newDx, newDy
+				bs.logger.Infow("detected new image bounds", "width", dx, "height", dy)
+
+				if err := bs.initCodec(dx, dy); err != nil {
 					bs.logger.Error(err)
 					initErr = true
 					return
 				}
-				firstFrame = false
 			}
 
 			// thread-safe because the size is static

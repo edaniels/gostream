@@ -199,6 +199,13 @@ func newVideoReaderFromDriver(videoDriver driver.Driver, mediaProp prop.Media) (
 	if !ok {
 		return nil, errors.New("driver not a driver.VideoRecorder")
 	}
+
+	if driverStatus := videoDriver.Status(); driverStatus != driver.StateClosed {
+		gostream.Logger.Warnw("video driver is not closed, attempting to close and reopen", "status", driverStatus)
+		if err := videoDriver.Close(); err != nil {
+			gostream.Logger.Errorw("error closing driver", "error", err)
+		}
+	}
 	if err := videoDriver.Open(); err != nil {
 		return nil, err
 	}
