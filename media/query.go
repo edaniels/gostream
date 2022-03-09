@@ -213,7 +213,7 @@ func newVideoReaderFromDriver(videoDriver driver.Driver, mediaProp prop.Media) (
 	if err != nil {
 		return nil, err
 	}
-	return &videoReadCloser{videoDriver, reader}, nil
+	return NewVideoReadCloser(videoDriver, reader), nil
 }
 
 func labelFilter(target string, useSep bool) driver.FilterFn {
