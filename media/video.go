@@ -17,7 +17,7 @@ type ErrDriverInUse struct {
 }
 
 func (err *ErrDriverInUse) Error() string {
-	return fmt.Sprintf("driver is still in use: %v", err.label)
+	return fmt.Sprintf("driver is still in use: %s", err.label)
 }
 
 // driverRefManager is a lockable map of drivers and reference counts of video readers
