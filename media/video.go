@@ -54,11 +54,9 @@ func NewVideoReadCloser(d driver.Driver, r video.Reader) *videoReadCloser {
 
 	label := d.Info().Label
 	if rcv, ok := driverRefs.refs[label]; ok {
-		// TODO: get the existing driver?
 		rcv.Ref()
 	} else {
 		driverRefs.refs[label] = utils.NewRefCountedValue(d)
-		// TODO: get the existing driver?
 		driverRefs.refs[label].Ref()
 	}
 
@@ -81,12 +79,9 @@ func (vrc videoReadCloser) Close() error {
 	if rcv, ok := driverRefs.refs[label]; ok {
 		if rcv.Deref() {
 			delete(driverRefs.refs, label)
-			// TODO: get the driver from the refs map?
-			// TODO: what if there is an error closing the library?
 			return vrc.videoDriver.Close()
 		}
 	} else {
-		// No known references, close the driver
 		return vrc.videoDriver.Close()
 	}
 
