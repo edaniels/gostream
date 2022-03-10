@@ -70,7 +70,9 @@ func (vrc videoReadCloser) Close() error {
 	label := vrc.videoDriver.Info().Label
 	if rcv, ok := driverRefs.refs[label]; ok {
 		if rcv.Deref() {
+			delete(driverRefs.refs, label)
 			// TODO: get the driver from the refs map?
+			// TODO: what if there is an error closing the library?
 			return vrc.videoDriver.Close()
 		}
 	} else {
