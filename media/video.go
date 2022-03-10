@@ -11,13 +11,14 @@ import (
 	"go.viam.com/utils"
 )
 
-// driverRefManager is a global map of drivers and how often they are referenced by video
-// readers
+// driverRefManager is a lockable map of drivers and reference counts of video readers
+// that use them.
 type driverRefManager struct {
 	refs map[string]utils.RefCountedValue
 	mu   sync.Mutex
 }
 
+// initialize a global driverRefManager
 var driverRefs = driverRefManager{refs: map[string]utils.RefCountedValue{}}
 
 // A VideoReadCloser is a video.Reader that requires it be closed.
