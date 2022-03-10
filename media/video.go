@@ -2,14 +2,23 @@ package media
 
 import (
 	"context"
+	"fmt"
 	"image"
 	"sync"
 
-	"github.com/edaniels/gostream"
 	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/io/video"
 	"go.viam.com/utils"
 )
+
+// ErrDriverInUse
+type ErrDriverInUse struct {
+	label string
+}
+
+func (err *ErrDriverInUse) Error() string {
+	return fmt.Sprintf("driver is still in use: %v", err.label)
+}
 
 // driverRefManager is a lockable map of drivers and reference counts of video readers
 // that use them.
@@ -81,9 +90,7 @@ func (vrc videoReadCloser) Close() error {
 		return vrc.videoDriver.Close()
 	}
 
-	// Do not close if a driver is being referenced.
-	// TODO: should we throw an error here and let clients decide whether to proceed
-	// silently or not?
-	gostream.Logger.Warnw("driver is still in use, will not close", "driver", label)
-	return nil
+	// Do not close if a driver is being referenced. Client will decide what to do if
+	// they encounter this error.
+	return &ErrDriverInUse{label}
 }
