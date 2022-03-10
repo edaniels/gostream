@@ -1,14 +1,17 @@
-package media
+package media_test
 
 import (
 	"image"
 	"testing"
 
+	"github.com/edaniels/gostream/media"
 	"github.com/pion/mediadevices/pkg/prop"
 
 	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/io/video"
 )
+
+// MOCKS
 
 // fakeDriver is a driver has a label and keeps track of how many times it is closed.
 type fakeDriver struct {
@@ -42,6 +45,8 @@ func newFakeReader() video.Reader {
 	return &fakeReader{}
 }
 
+// TESTS
+
 func TestReaderClose(t *testing.T) {
 	d := newFakeDriver("/dev/fake")
 
@@ -49,8 +54,8 @@ func TestReaderClose(t *testing.T) {
 	r2 := newFakeReader()
 
 	// TODO: make package test_media and import this function from media
-	vrc1 := NewVideoReadCloser(d, r1)
-	vrc2 := NewVideoReadCloser(d, r2)
+	vrc1 := media.NewVideoReadCloser(d, r1)
+	vrc2 := media.NewVideoReadCloser(d, r2)
 
 	if closedCount := d.(*fakeDriver).closedCount; closedCount != 0 {
 		t.Fatalf("expected driver to be open, but was closed %d times", closedCount)
@@ -58,7 +63,7 @@ func TestReaderClose(t *testing.T) {
 
 	// Close first reader.
 	err := vrc1.Close()
-	_, ok := err.(*ErrDriverInUse)
+	_, ok := err.(*media.ErrDriverInUse)
 	if err == nil || !ok {
 		t.Fatalf("expected driver-in-use error, got %v", err)
 	}
