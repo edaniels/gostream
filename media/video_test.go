@@ -50,12 +50,8 @@ func newFakeReader() video.Reader {
 func TestReaderClose(t *testing.T) {
 	d := newFakeDriver("/dev/fake")
 
-	r1 := newFakeReader()
-	r2 := newFakeReader()
-
-	// TODO: make package test_media and import this function from media
-	vrc1 := media.NewVideoReadCloser(d, r1)
-	vrc2 := media.NewVideoReadCloser(d, r2)
+	vrc1 := media.NewVideoReadCloser(d, newFakeReader())
+	vrc2 := media.NewVideoReadCloser(d, newFakeReader())
 
 	if closedCount := d.(*fakeDriver).closedCount; closedCount != 0 {
 		t.Fatalf("expected driver to be open, but was closed %d times", closedCount)
