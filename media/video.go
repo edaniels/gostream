@@ -11,7 +11,7 @@ import (
 	"go.viam.com/utils"
 )
 
-// ErrDriverInUse
+// ErrDriverInUse is returned when closing drivers that still being read from.
 type ErrDriverInUse struct {
 	label string
 }
