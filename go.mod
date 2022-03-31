@@ -17,6 +17,7 @@ require (
 	github.com/pion/webrtc/v3 v3.1.10
 	github.com/pseudomuto/protoc-gen-doc v1.3.2
 	go.uber.org/multierr v1.7.0
+	go.viam.com/test v1.1.0
 	go.viam.com/utils v0.0.3-0.20220103181439-9b170e9703c5
 	goji.io v2.0.2+incompatible
 	google.golang.org/genproto v0.0.0-20210921142501-181ce0d877f6
@@ -185,6 +186,7 @@ require (
 	github.com/shazow/go-diff v0.0.0-20160112020656-b6b7b6733b8c // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/sivchari/tenv v1.4.7 // indirect
+	github.com/smartystreets/assertions v1.2.0 // indirect
 	github.com/sonatard/noctx v0.0.1 // indirect
 	github.com/sourcegraph/go-diff v0.6.1 // indirect
 	github.com/spf13/afero v1.6.0 // indirect

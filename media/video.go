@@ -11,12 +11,12 @@ import (
 	"go.viam.com/utils"
 )
 
-// ErrDriverInUse is returned when closing drivers that still being read from.
-type ErrDriverInUse struct {
+// DriverInUseError is returned when closing drivers that still being read from.
+type DriverInUseError struct {
 	label string
 }
 
-func (err *ErrDriverInUse) Error() string {
+func (err *DriverInUseError) Error() string {
 	return fmt.Sprintf("driver is still in use: %s", err.label)
 }
 
@@ -27,7 +27,7 @@ type driverRefManager struct {
 	mu   sync.Mutex
 }
 
-// initialize a global driverRefManager
+// initialize a global driverRefManager.
 var driverRefs = driverRefManager{refs: map[string]utils.RefCountedValue{}}
 
 // A VideoReadCloser is a video.Reader that requires it be closed.
@@ -48,7 +48,7 @@ type videoReadCloser struct {
 
 // NewVideoReadCloser instantiates a new video read closer and references the given
 // driver.
-func NewVideoReadCloser(d driver.Driver, r video.Reader) *videoReadCloser {
+func NewVideoReadCloser(d driver.Driver, r video.Reader) VideoReadCloser {
 	driverRefs.mu.Lock()
 	defer driverRefs.mu.Unlock()
 
@@ -87,5 +87,5 @@ func (vrc videoReadCloser) Close() error {
 
 	// Do not close if a driver is being referenced. Client will decide what to do if
 	// they encounter this error.
-	return &ErrDriverInUse{label}
+	return &DriverInUseError{label}
 }

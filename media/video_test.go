@@ -4,14 +4,30 @@ import (
 	"image"
 	"testing"
 
-	"github.com/edaniels/gostream/media"
-	"github.com/pion/mediadevices/pkg/prop"
-
 	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/io/video"
+	"github.com/pion/mediadevices/pkg/prop"
+	"go.viam.com/test"
+
+	"github.com/edaniels/gostream/media"
 )
 
-// MOCKS
+func TestReaderClose(t *testing.T) {
+	d := newFakeDriver("/dev/fake")
+
+	vrc1 := media.NewVideoReadCloser(d, newFakeReader())
+	vrc2 := media.NewVideoReadCloser(d, newFakeReader())
+
+	if closedCount := d.(*fakeDriver).closedCount; closedCount != 0 {
+		t.Fatalf("expected driver to be open, but was closed %d times", closedCount)
+	}
+
+	test.That(t, vrc1.Close(), test.ShouldHaveSameTypeAs, &media.DriverInUseError{})
+	test.That(t, d.(*fakeDriver).closedCount, test.ShouldEqual, 0)
+
+	test.That(t, vrc2.Close(), test.ShouldBeNil)
+	test.That(t, d.(*fakeDriver).closedCount, test.ShouldEqual, 1)
+}
 
 // fakeDriver is a driver has a label and keeps track of how many times it is closed.
 type fakeDriver struct {
@@ -43,38 +59,4 @@ func (r *fakeReader) Read() (img image.Image, release func(), err error) {
 
 func newFakeReader() video.Reader {
 	return &fakeReader{}
-}
-
-// TESTS
-
-func TestReaderClose(t *testing.T) {
-	d := newFakeDriver("/dev/fake")
-
-	vrc1 := media.NewVideoReadCloser(d, newFakeReader())
-	vrc2 := media.NewVideoReadCloser(d, newFakeReader())
-
-	if closedCount := d.(*fakeDriver).closedCount; closedCount != 0 {
-		t.Fatalf("expected driver to be open, but was closed %d times", closedCount)
-	}
-
-	// Close first reader.
-	err := vrc1.Close()
-	_, ok := err.(*media.ErrDriverInUse)
-	if err == nil || !ok {
-		t.Fatalf("expected driver-in-use error, got %v", err)
-	}
-
-	if closedCount := d.(*fakeDriver).closedCount; closedCount != 0 {
-		t.Fatalf("expected driver to be open, but was closed %d times", closedCount)
-	}
-
-	// Close second reader.
-	err = vrc2.Close()
-	if err != nil {
-		t.Fatalf("expected no errors, got %v", err)
-	}
-
-	if closedCount := d.(*fakeDriver).closedCount; closedCount != 1 {
-		t.Fatalf("expected driver to be closed once, but was closed %d times", closedCount)
-	}
 }
