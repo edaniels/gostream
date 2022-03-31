@@ -12,7 +12,7 @@ require (
 	github.com/golangci/golangci-lint v1.43.0
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.5.0
-	github.com/pion/mediadevices v0.3.1
+	github.com/pion/mediadevices v0.3.4-0.20220328105715-70261260cb6f
 	github.com/pion/rtp v1.7.4
 	github.com/pion/webrtc/v3 v3.1.10
 	github.com/pseudomuto/protoc-gen-doc v1.3.2
@@ -218,7 +218,7 @@ require (
 	go.uber.org/goleak v1.1.12 // indirect
 	go.uber.org/zap v1.19.1 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
-	golang.org/x/image v0.0.0-20211028202545-6944b10bf410 // indirect
+	golang.org/x/image v0.0.0-20220302094943-723b81ca9867 // indirect
 	golang.org/x/mod v0.5.0 // indirect
 	golang.org/x/net v0.0.0-20211029224645-99673261e6eb // indirect
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f // indirect
@@ -240,5 +240,3 @@ require (
 	mvdan.cc/unparam v0.0.0-20210104141923-aac4ce9116a7 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
 )
-
-replace github.com/pion/mediadevices => github.com/edaniels/mediadevices v0.0.0-20220103173444-439acfc1173e
