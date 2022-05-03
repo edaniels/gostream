@@ -11,13 +11,13 @@ import (
 	streampb "github.com/edaniels/gostream/proto/stream/v1"
 )
 
-// ErrAlreadyRegistered indicates that a stream has a name that is already registered on
+// ErrStreamAlreadyRegistered indicates that a stream has a name that is already registered on
 // the stream server.
-type ErrAlreadyRegistered struct {
+type ErrStreamAlreadyRegistered struct {
 	name string
 }
 
-func (e *ErrAlreadyRegistered) Error() string {
+func (e *ErrStreamAlreadyRegistered) Error() string {
 	return fmt.Sprintf("stream %q already registered", e.name)
 }
 
@@ -67,7 +67,7 @@ func (ss *streamServer) AddStream(stream Stream) error {
 func (ss *streamServer) addStream(stream Stream) error {
 	streamName := stream.Name()
 	if _, ok := ss.nameToStream[streamName]; ok {
-		return &ErrAlreadyRegistered{streamName}
+		return &ErrStreamAlreadyRegistered{streamName}
 	}
 	ss.nameToStream[streamName] = stream
 	ss.streams = append(ss.streams, stream)
