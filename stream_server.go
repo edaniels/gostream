@@ -27,6 +27,9 @@ type StreamServer interface {
 	// ServiceServer returns a service server for gRPC.
 	ServiceServer() streampb.StreamServiceServer
 
+	// NewStream creates a new stream from config and adds it for new connections to see.
+	NewStream(config StreamConfig) error
+
 	// AddStream adds the given stream for new connections to see.
 	AddStream(stream Stream) error
 
@@ -56,6 +59,23 @@ type streamServer struct {
 
 func (ss *streamServer) ServiceServer() streampb.StreamServiceServer {
 	return &streamRPCServer{ss: ss}
+}
+
+func (ss *streamServer) NewStream(config StreamConfig) error {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+
+	if _, ok := ss.nameToStream[config.Name]; ok {
+		return &ErrStreamAlreadyRegistered{config.Name}
+	}
+	stream, err := NewStream(config)
+	if err != nil {
+		return err
+	}
+	if err := ss.addStream(stream); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (ss *streamServer) AddStream(stream Stream) error {
