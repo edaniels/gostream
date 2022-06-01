@@ -9,7 +9,7 @@ import (
 
 // maxErrorSleepSec sets a maximum sleep time to the exponential backoff
 // determined by sleepTimeFromErrorCount
-var maxErrorSleepSec = math.Pow10(9) * 2 // two seconds
+var maxErrorSleepSec = math.Pow10(9) * 2 // two seconds in nanoseconds
 const maxSleepAttempts = 20
 
 func sleepTimeFromErrorCount(errCount int) int {
