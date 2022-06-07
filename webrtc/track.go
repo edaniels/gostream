@@ -33,10 +33,10 @@ type trackBinding struct {
 // trackLocalStaticRTP  is a TrackLocal that has a pre-set codec and accepts RTP Packets.
 // If you wish to send a media.Sample use TrackLocalStaticSample.
 type trackLocalStaticRTP struct {
-	mu           sync.RWMutex
-	bindings     []trackBinding
-	codec        webrtc.RTPCodecCapability
-	id, streamID string
+	mu                sync.RWMutex
+	bindings          []trackBinding
+	codec             webrtc.RTPCodecCapability
+	id, rid, streamID string
 }
 
 // newtrackLocalStaticRTP returns a trackLocalStaticRTP.
@@ -91,6 +91,9 @@ func (s *trackLocalStaticRTP) Unbind(t webrtc.TrackLocalContext) error {
 // stream, but doesn't have to globally unique. A common example would be 'audio' or 'video'
 // and StreamID would be 'desktop' or 'webcam'.
 func (s *trackLocalStaticRTP) ID() string { return s.id }
+
+// RID is the RTP stream identifier.
+func (s *trackLocalStaticRTP) RID() string { return s.rid }
 
 // StreamID is the group this track belongs too. This must be unique.
 func (s *trackLocalStaticRTP) StreamID() string { return s.streamID }
@@ -169,6 +172,9 @@ func (s *TrackLocalStaticSample) ID() string { return s.rtpTrack.ID() }
 
 // StreamID is the group this track belongs too. This must be unique.
 func (s *TrackLocalStaticSample) StreamID() string { return s.rtpTrack.StreamID() }
+
+// RID is the RTP stream identifier.
+func (s *TrackLocalStaticSample) RID() string { return s.rtpTrack.RID() }
 
 // Kind controls if this TrackLocal is audio or video.
 func (s *TrackLocalStaticSample) Kind() webrtc.RTPCodecType { return s.rtpTrack.Kind() }

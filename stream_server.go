@@ -11,13 +11,13 @@ import (
 	streampb "github.com/edaniels/gostream/proto/stream/v1"
 )
 
-// ErrStreamAlreadyRegistered indicates that a stream has a name that is already registered on
+// StreamAlreadyRegisteredError indicates that a stream has a name that is already registered on
 // the stream server.
-type ErrStreamAlreadyRegistered struct {
+type StreamAlreadyRegisteredError struct {
 	name string
 }
 
-func (e *ErrStreamAlreadyRegistered) Error() string {
+func (e *StreamAlreadyRegisteredError) Error() string {
 	return fmt.Sprintf("stream %q already registered", e.name)
 }
 
@@ -27,8 +27,8 @@ type StreamServer interface {
 	// ServiceServer returns a service server for gRPC.
 	ServiceServer() streampb.StreamServiceServer
 
-    // NewStream creates a new stream from config and adds it for new connections to see.
-    // Returns the added stream if it is successfully added to the server.
+	// NewStream creates a new stream from config and adds it for new connections to see.
+	// Returns the added stream if it is successfully added to the server.
 	NewStream(config StreamConfig) (Stream, error)
 
 	// AddStream adds the given stream for new connections to see.
@@ -67,7 +67,7 @@ func (ss *streamServer) NewStream(config StreamConfig) (Stream, error) {
 	defer ss.mu.Unlock()
 
 	if _, ok := ss.nameToStream[config.Name]; ok {
-		return nil, &ErrStreamAlreadyRegistered{config.Name}
+		return nil, &StreamAlreadyRegisteredError{config.Name}
 	}
 	stream, err := NewStream(config)
 	if err != nil {
@@ -88,7 +88,7 @@ func (ss *streamServer) AddStream(stream Stream) error {
 func (ss *streamServer) addStream(stream Stream) error {
 	streamName := stream.Name()
 	if _, ok := ss.nameToStream[streamName]; ok {
-		return &ErrStreamAlreadyRegistered{streamName}
+		return &StreamAlreadyRegisteredError{streamName}
 	}
 	ss.nameToStream[streamName] = stream
 	ss.streams = append(ss.streams, stream)
