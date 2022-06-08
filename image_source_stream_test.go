@@ -62,7 +62,7 @@ func (mS *mockStream) TrackLocal() webrtc.TrackLocal {
 
 func TestStreamSourceErrorBackoff(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	imgSrc := &mockErrorImageSource{maxCalls: 25}
+	imgSrc := &mockErrorImageSource{maxCalls: 5}
 	totalExpectedSleep := 0
 	for i := 1; i < imgSrc.MaxCalls(); i++ {
 		totalExpectedSleep += sleepTimeFromErrorCount(i)
