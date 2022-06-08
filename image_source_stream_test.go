@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"image"
+	"math"
 	"testing"
 	"time"
 
@@ -62,10 +63,16 @@ func (mS *mockStream) TrackLocal() webrtc.TrackLocal {
 
 func TestStreamSourceErrorBackoff(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
+	backoffOpts := &BackoffTuningOptions{
+		ExpBase:          6.0,
+		Offset:           0,
+		MaxSleepMilliSec: math.Pow10(6) * 2, // two seconds
+		MaxSleepAttempts: 3,
+	}
 	imgSrc := &mockErrorImageSource{maxCalls: 5}
 	totalExpectedSleep := 0
 	for i := 1; i < imgSrc.MaxCalls(); i++ {
-		totalExpectedSleep += sleepTimeFromErrorCount(i)
+		totalExpectedSleep += sleepTimeFromErrorCount(i, backoffOpts.ExpBase, backoffOpts.Offset, backoffOpts.MaxSleepMilliSec)
 	}
 	str := &mockStream{}
 	readyChan := make(chan struct{})
@@ -76,7 +83,7 @@ func TestStreamSourceErrorBackoff(t *testing.T) {
 	str.inputFramesFunc = func() chan<- FrameReleasePair {
 		return inputChan
 	}
-	go StreamSource(ctx, imgSrc, str)
+	go StreamSource(ctx, imgSrc, str, backoffOpts)
 	readyChan <- struct{}{}
 	time.Sleep(time.Duration(totalExpectedSleep) + 1000)
 	cancel()

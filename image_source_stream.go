@@ -7,19 +7,30 @@ import (
 	"time"
 )
 
-// maxErrorSleepSec sets a maximum sleep time to the exponential backoff
-// determined by sleepTimeFromErrorCount
-var maxErrorSleepSec = math.Pow10(9) * 2 // two seconds in nanoseconds
-const maxSleepAttempts = 20
+type BackoffTuningOptions struct {
+	ExpBase          float64
+	Offset           float64
+	MaxSleepMilliSec float64
+	MaxSleepAttempts int
+}
 
-func sleepTimeFromErrorCount(errCount int) int {
-	expBackoffMillisec := math.Pow(6.0, float64(errCount))
+func sleepTimeFromErrorCount(
+	errCount int, expBase float64, offset float64, maxSleepMilliSec float64,
+) int {
+	expBackoffMillisec := math.Pow(expBase, float64(errCount)) + offset
 	expBackoffNanosec := expBackoffMillisec * math.Pow10(6)
-	return int(math.Min(expBackoffNanosec, maxErrorSleepSec))
+	maxSleepNanosec := maxSleepMilliSec * math.Pow10(6)
+	return int(math.Min(expBackoffNanosec, maxSleepNanosec))
 }
 
 // streamSource will stream a source of images forever to the stream until the given context tells it to cancel.
-func streamSource(ctx context.Context, once func(), is ImageSource, stream Stream) {
+func streamSource(
+	ctx context.Context,
+	once func(),
+	is ImageSource,
+	stream Stream,
+	backoffOpts *BackoffTuningOptions,
+) {
 	if once != nil {
 		once()
 	}
@@ -38,7 +49,6 @@ func streamSource(ctx context.Context, once func(), is ImageSource, stream Strea
 		}
 		frame, release, err := is.Next(ctx)
 		if err != nil {
-			Logger.Debugw("error getting frame", "error", err)
 			if prevErr == nil {
 				prevErr = err
 			} else if errors.Is(prevErr, err) {
@@ -46,9 +56,13 @@ func streamSource(ctx context.Context, once func(), is ImageSource, stream Strea
 			} else {
 				errorCount = 0
 			}
-			if errorCount > 0 {
-				errorCount = int(math.Min(float64(errorCount), float64(maxSleepAttempts)))
-				dur := sleepTimeFromErrorCount(errorCount)
+			canSleep := (errorCount > 0) && (errorCount < backoffOpts.MaxSleepAttempts)
+			if canSleep && (backoffOpts != nil) {
+				Logger.Debugw("error getting frame", "error", err)
+				expBase := backoffOpts.ExpBase
+				offset := backoffOpts.Offset
+				maxSleep := backoffOpts.MaxSleepMilliSec
+				dur := sleepTimeFromErrorCount(errorCount, expBase, offset, maxSleep)
 				time.Sleep(time.Duration(dur))
 			}
 			continue
@@ -64,6 +78,9 @@ func streamSource(ctx context.Context, once func(), is ImageSource, stream Strea
 }
 
 // StreamSource streams the given image source to the stream forever until context signals cancellation.
-func StreamSource(ctx context.Context, is ImageSource, stream Stream) {
-	streamSource(ctx, nil, is, stream)
+func StreamSource(
+	ctx context.Context, is ImageSource, stream Stream,
+	backoffOpts *BackoffTuningOptions,
+) {
+	streamSource(ctx, nil, is, stream, backoffOpts)
 }
