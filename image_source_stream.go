@@ -14,12 +14,10 @@ type BackoffTuningOptions struct {
 	MaxSleepAttempts int
 }
 
-func sleepTimeFromErrorCount(
-	errCount int, expBase float64, offset float64, maxSleepMilliSec float64,
-) int {
-	expBackoffMillisec := math.Pow(expBase, float64(errCount)) + offset
+func (opts *BackoffTuningOptions) GetSleepTimeFromErrorCount(errCount int) int {
+	expBackoffMillisec := math.Pow(opts.ExpBase, float64(errCount)) + opts.Offset
 	expBackoffNanosec := expBackoffMillisec * math.Pow10(6)
-	maxSleepNanosec := maxSleepMilliSec * math.Pow10(6)
+	maxSleepNanosec := opts.MaxSleepMilliSec * math.Pow10(6)
 	return int(math.Min(expBackoffNanosec, maxSleepNanosec))
 }
 
@@ -59,10 +57,7 @@ func streamSource(
 			canSleep := (errorCount > 0) && (errorCount < backoffOpts.MaxSleepAttempts)
 			if canSleep && (backoffOpts != nil) {
 				Logger.Debugw("error getting frame", "error", err)
-				expBase := backoffOpts.ExpBase
-				offset := backoffOpts.Offset
-				maxSleep := backoffOpts.MaxSleepMilliSec
-				dur := sleepTimeFromErrorCount(errorCount, expBase, offset, maxSleep)
+				dur := backoffOpts.GetSleepTimeFromErrorCount(errorCount)
 				time.Sleep(time.Duration(dur))
 			}
 			continue

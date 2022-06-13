@@ -72,7 +72,7 @@ func TestStreamSourceErrorBackoff(t *testing.T) {
 	imgSrc := &mockErrorImageSource{maxCalls: 5}
 	totalExpectedSleep := 0
 	for i := 1; i < imgSrc.MaxCalls(); i++ {
-		totalExpectedSleep += sleepTimeFromErrorCount(i, backoffOpts.ExpBase, backoffOpts.Offset, backoffOpts.MaxSleepMilliSec)
+		totalExpectedSleep += backoffOpts.GetSleepTimeFromErrorCount(i)
 	}
 	str := &mockStream{}
 	readyChan := make(chan struct{})
