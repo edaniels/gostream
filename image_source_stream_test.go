@@ -83,7 +83,7 @@ func TestStreamSourceErrorBackoff(t *testing.T) {
 	str.inputFramesFunc = func() chan<- FrameReleasePair {
 		return inputChan
 	}
-	go StreamSource(ctx, imgSrc, str, backoffOpts)
+	go StreamSourceWithOptions(ctx, imgSrc, str, backoffOpts)
 	readyChan <- struct{}{}
 	time.Sleep(time.Duration(totalExpectedSleep) + 1000)
 	cancel()

@@ -5,12 +5,26 @@ import (
 	"errors"
 	"math"
 	"time"
+
+	"go.viam.com/utils"
 )
 
+// BackoffTuningOptions represents a set of parameters for determining
+// exponential backoff when receiving multiple simultaneous errors. This is
+// to reduce the number of errors logged in the case of minor dicontinuity
+// in the camera stream.
+// The number of milliseconds slept at a particular attempt i is determined by
+// min(ExpBase^(i) + Offset, MaxSleepMilliSec)
 type BackoffTuningOptions struct {
-	ExpBase          float64
-	Offset           float64
+	// ExpBase is a tuning parameter for backoff used as described above
+	ExpBase float64
+	// Offset is a tuning parameter for backoff used as described above
+	Offset float64
+	// MaxSleepMilliSec determines the maximum amount of time that streamSource is
+	// permitted to a sleep after receiving a single error
 	MaxSleepMilliSec float64
+	// MaxSleepAttempts determines the number of consecutive errors for which
+	// streamSource will sleep
 	MaxSleepAttempts int
 }
 
@@ -58,7 +72,10 @@ func streamSource(
 			if canSleep && (backoffOpts != nil) {
 				Logger.Debugw("error getting frame", "error", err)
 				dur := backoffOpts.GetSleepTimeFromErrorCount(errorCount)
-				time.Sleep(time.Duration(dur))
+				// time.Sleep(time.Duration(dur))
+				utils.SelectContextOrWait(ctx, time.Duration(dur))
+			} else {
+				panic(err)
 			}
 			continue
 		} else {
@@ -72,10 +89,21 @@ func streamSource(
 	}
 }
 
-// StreamSource streams the given image source to the stream forever until context signals cancellation.
-func StreamSource(
+// StreamSourceWithOptions streams the given image source to the stream forever until context signals cancellation.
+func StreamSourceWithOptions(
 	ctx context.Context, is ImageSource, stream Stream,
 	backoffOpts *BackoffTuningOptions,
 ) {
+	streamSource(ctx, nil, is, stream, backoffOpts)
+}
+
+// StreamSource is deprecated in favor of StreamSourceWithOptions
+func StreamSource(ctx context.Context, is ImageSource, stream Stream) {
+	backoffOpts := &BackoffTuningOptions{
+		ExpBase:          6.0,
+		Offset:           0,
+		MaxSleepMilliSec: math.Pow10(6) * 2, // two seconds
+		MaxSleepAttempts: 20,
+	}
 	streamSource(ctx, nil, is, stream, backoffOpts)
 }
