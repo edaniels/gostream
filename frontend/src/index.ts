@@ -1,10 +1,15 @@
-import { grpc } from "@improbable-eng/grpc-web";
-import { AddStreamRequest, AddStreamResponse, ListStreamsRequest, ListStreamsResponse } from "./gen/proto/stream/v1/stream_pb";
-import { StreamServiceClient, ServiceError } from "./gen/proto/stream/v1/stream_pb_service";
 import { dialWebRTC } from "@viamrobotics/rpc";
+import { AddStreamRequest, AddStreamResponse, ListStreamsRequest, ListStreamsResponse } from "./gen/proto/stream/v1/stream_pb";
+import { ServiceError, StreamServiceClient } from "./gen/proto/stream/v1/stream_pb_service";
 
 const signalingAddress = `${window.location.protocol}//${window.location.host}`;
 const host = "local";
+
+declare global {
+	interface Window {
+		allowSendAudio: boolean;
+	}
+}
 
 async function startup() {
 	const webRTCConn = await dialWebRTC(signalingAddress, host);
@@ -27,15 +32,54 @@ async function startup() {
 	const names = await namesPromise;
 
 	webRTCConn.peerConnection.ontrack = async event => {
-		const video = document.createElement('video');
-		video.srcObject = event.streams[0];
-		video.autoplay = true;
-		video.controls = false;
-		video.playsInline = true;
+		const mediaElement = document.createElement(event.track.kind);
+		if (mediaElement instanceof HTMLVideoElement || mediaElement instanceof HTMLAudioElement) {
+			mediaElement.srcObject = event.streams[0];
+			mediaElement.autoplay = true;
+			if (mediaElement instanceof HTMLVideoElement) {
+				mediaElement.playsInline = true;				
+				mediaElement.controls = false;
+			} else {
+				mediaElement.controls = true;
+			}
+		}
 		const streamName = event.streams[0].id;
 		const streamContainer = document.getElementById(`stream-${streamName}`)!;
-		streamContainer.getElementsByTagName("button")[0].remove();
-		streamContainer.appendChild(video);
+		let btns = streamContainer.getElementsByTagName("button");
+		if (btns.length) {
+			btns[0].remove();
+
+			if (window.allowSendAudio) {
+				const button = document.createElement("button");
+				button.innerText = `Send audio`
+				button.onclick = async (e) => {
+					e.preventDefault();
+
+					button.remove();
+
+					navigator.mediaDevices.getUserMedia({
+						audio: {
+							autoGainControl: false,
+							channelCount: 2,
+							echoCancellation: false,
+							latency: 0,
+							noiseSuppression: false,
+							sampleRate: 48000,
+							sampleSize: 16,
+							volume: 1.0
+						},
+						video: false
+					}).then((stream) => {
+						webRTCConn.peerConnection.addTrack(stream.getAudioTracks()[0])
+					}).catch((err) => {
+						console.error(err)
+					});
+				}
+				streamContainer.appendChild(button);
+				streamContainer.appendChild(document.createElement("br"));
+			}
+		}
+		streamContainer.appendChild(mediaElement);
 	}
 
 	for (const name of names) {

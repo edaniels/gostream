@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
+	"image"
 
 	"github.com/edaniels/golog"
-
-	// register screen drivers.
+	// register video drivers.
+	_ "github.com/pion/mediadevices/pkg/driver/camera"
 	_ "github.com/pion/mediadevices/pkg/driver/screen"
 	"go.uber.org/multierr"
 	"go.viam.com/utils"
@@ -30,12 +31,30 @@ type Arguments struct {
 	Port       utils.NetPortFlag `flag:"0"`
 	Camera     bool              `flag:"camera,usage=use camera"`
 	DupeStream bool              `flag:"dupe_stream,usage=duplicate stream"`
+	Dump       bool              `flag:"dump"`
 }
 
 func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error {
 	var argsParsed Arguments
 	if err := utils.ParseFlags(args, &argsParsed); err != nil {
 		return err
+	}
+	if argsParsed.Dump {
+		var all []media.DeviceInfo
+		if argsParsed.Camera {
+			all = media.QueryVideoDevices()
+		} else {
+			all = media.QueryScreenDevices()
+		}
+		for _, info := range all {
+			logger.Debugf("%s", info.ID)
+			logger.Debugf("\t labels: %v", info.Labels)
+			logger.Debugf("\t priority: %v", info.Priority)
+			for _, p := range info.Properties {
+				logger.Debugf("\t %+v", p.Video)
+			}
+		}
+		return nil
 	}
 	if argsParsed.Port == 0 {
 		argsParsed.Port = utils.NetPortFlag(defaultPort)
@@ -57,7 +76,7 @@ func runServer(
 	dupeStream bool,
 	logger golog.Logger,
 ) (err error) {
-	var videoReader media.VideoReadCloser
+	var videoReader media.ReadCloser[image.Image]
 	if camera {
 		videoReader, err = media.GetAnyVideoReader(media.DefaultConstraints)
 	} else {
@@ -77,7 +96,7 @@ func runServer(
 	if err != nil {
 		return err
 	}
-	server, err := gostream.NewStandaloneStreamServer(port, logger, stream)
+	server, err := gostream.NewStandaloneStreamServer(port, logger, nil, stream)
 	if err != nil {
 		return err
 	}
@@ -98,12 +117,17 @@ func runServer(
 		return err
 	}
 
+	secondErr := make(chan error)
+	defer func() {
+		err = multierr.Combine(err, <-secondErr, server.Stop(ctx))
+	}()
+
 	if secondStream != nil {
-		go gostream.StreamSource(ctx, videoReader, secondStream)
+		go func() {
+			secondErr <- gostream.StreamImageSource(ctx, videoReader, secondStream)
+		}()
+	} else {
+		close(secondErr)
 	}
-	gostream.StreamSource(ctx, videoReader, stream)
-	if err := server.Stop(ctx); err != nil {
-		return err
-	}
-	return nil
+	return gostream.StreamImageSource(ctx, videoReader, stream)
 }

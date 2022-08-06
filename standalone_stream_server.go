@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/edaniels/golog"
+	"github.com/pion/webrtc/v3"
 	"go.uber.org/multierr"
 	"go.viam.com/utils"
 	"go.viam.com/utils/rpc"
@@ -37,13 +38,24 @@ type standaloneStreamServer struct {
 	rpcServer               rpc.Server
 	httpServer              *http.Server
 	started                 bool
+	opts                    StandaloneStreamServerOptions
 	logger                  golog.Logger
 	activeBackgroundWorkers sync.WaitGroup
 }
 
 // NewStandaloneStreamServer returns a server that will run on the given port and initially starts
 // with the given streams.
-func NewStandaloneStreamServer(port int, logger golog.Logger, streams ...Stream) (StandaloneStreamServer, error) {
+func NewStandaloneStreamServer(
+	port int,
+	logger golog.Logger,
+	opts []StandaloneStreamServerOption,
+	streams ...Stream,
+) (StandaloneStreamServer, error) {
+	var sOpts StandaloneStreamServerOptions
+	for _, opt := range opts {
+		opt.apply(&sOpts)
+	}
+
 	streamServer, err := NewStreamServer(streams...)
 	if err != nil {
 		return nil, err
@@ -51,6 +63,7 @@ func NewStandaloneStreamServer(port int, logger golog.Logger, streams ...Stream)
 	return &standaloneStreamServer{
 		port:         port,
 		streamServer: streamServer,
+		opts:         sOpts,
 		logger:       logger,
 	}, nil
 }
@@ -74,10 +87,17 @@ func (ss *standaloneStreamServer) Start(ctx context.Context) error {
 		return err
 	}
 	var serverOpts []rpc.ServerOption
-	serverOpts = append(serverOpts, rpc.WithWebRTCServerOptions(rpc.WebRTCServerOptions{
+	webrtcOpts := rpc.WebRTCServerOptions{
 		Enable: true,
-	}))
-	serverOpts = append(serverOpts, rpc.WithUnauthenticated())
+	}
+	if ss.opts.onPeerAdded != nil {
+		webrtcOpts.OnPeerAdded = ss.opts.onPeerAdded
+	}
+	if ss.opts.onPeerRemoved != nil {
+		webrtcOpts.OnPeerRemoved = ss.opts.onPeerRemoved
+	}
+	serverOpts = append(serverOpts, rpc.WithWebRTCServerOptions(webrtcOpts))
+	serverOpts = append(serverOpts, rpc.WithUnauthenticated(), rpc.WithInstanceNames("local"))
 
 	rpcServer, err := rpc.NewServer(ss.logger, serverOpts...)
 	if err != nil {
@@ -117,7 +137,11 @@ func (ss *standaloneStreamServer) Start(ctx context.Context) error {
 
 	mux := goji.NewMux()
 	mux.HandleFunc(pat.Get("/"), func(w http.ResponseWriter, r *http.Request) {
-		if err := indexT.Execute(w, nil); err != nil {
+		if err := indexT.Execute(w, struct {
+			AllowSendAudio bool
+		}{
+			ss.opts.allowReceive,
+		}); err != nil {
 			panic(err)
 		}
 	})
@@ -164,4 +188,61 @@ func (ss *standaloneStreamServer) Stop(ctx context.Context) (err error) {
 		err = multierr.Combine(err, ss.httpServer.Shutdown(ctx))
 	}()
 	return ss.streamServer.Close()
+}
+
+// StandaloneStreamServerOptions configures a StandaloneStreamServer.
+type StandaloneStreamServerOptions struct {
+	// onPeerAdded is called when a new peer connection is added.
+	onPeerAdded func(pc *webrtc.PeerConnection)
+	// onPeerRemoved is called when an existing peer connection is removed.
+	onPeerRemoved func(pc *webrtc.PeerConnection)
+	// allowReceive sets whether or not this stream server wants to receive
+	// media.
+	allowReceive bool
+}
+
+// StandaloneStreamServerOption configures how we set up the server.
+// Cribbed from https://github.com/grpc/grpc-go/blob/aff571cc86e6e7e740130dbbb32a9741558db805/dialoptions.go#L41
+type StandaloneStreamServerOption interface {
+	apply(*StandaloneStreamServerOptions)
+}
+
+// funcOption wraps a function that modifies StandaloneStreamServerOptions into an
+// implementation of the Option interface.
+type funcOption struct {
+	f func(*StandaloneStreamServerOptions)
+}
+
+func (fdo *funcOption) apply(do *StandaloneStreamServerOptions) {
+	fdo.f(do)
+}
+
+func newFuncOption(f func(*StandaloneStreamServerOptions)) *funcOption {
+	return &funcOption{
+		f: f,
+	}
+}
+
+// WithStandaloneOnPeerAdded returns an Option which sets a function to call
+// when a new peer connection is added.
+func WithStandaloneOnPeerAdded(f func(pc *webrtc.PeerConnection)) StandaloneStreamServerOption {
+	return newFuncOption(func(o *StandaloneStreamServerOptions) {
+		o.onPeerAdded = f
+	})
+}
+
+// WithStandaloneOnPeerRemoved returns an Option which sets a function to call
+// when an existing peer connection is remvoed.
+func WithStandaloneOnPeerRemoved(f func(pc *webrtc.PeerConnection)) StandaloneStreamServerOption {
+	return newFuncOption(func(o *StandaloneStreamServerOptions) {
+		o.onPeerRemoved = f
+	})
+}
+
+// WithStandaloneAllowReceive returns an Option which sets whether or not this
+// stream server wants to receive media.
+func WithStandaloneAllowReceive(allowReceive bool) StandaloneStreamServerOption {
+	return newFuncOption(func(o *StandaloneStreamServerOptions) {
+		o.allowReceive = allowReceive
+	})
 }

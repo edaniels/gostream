@@ -153,15 +153,30 @@ func (s *trackLocalStaticRTP) Write(b []byte) (n int, err error) {
 // TrackLocalStaticSample is a TrackLocal that has a pre-set codec and accepts Samples.
 // If you wish to send a RTP Packet use trackLocalStaticRTP.
 type TrackLocalStaticSample struct {
-	packetizer rtp.Packetizer
-	rtpTrack   *trackLocalStaticRTP
-	sampler    samplerFunc
+	packetizer   rtp.Packetizer
+	rtpTrack     *trackLocalStaticRTP
+	sampler      samplerFunc
+	isAudio      bool
+	audioLatency time.Duration
 }
 
-// NewTrackLocalStaticSample returns a TrackLocalStaticSample.
+// NewTrackLocalStaticSample returns a TrackLocalStaticSample for video.
 func NewTrackLocalStaticSample(c webrtc.RTPCodecCapability, id, streamID string) *TrackLocalStaticSample {
 	return &TrackLocalStaticSample{
 		rtpTrack: newtrackLocalStaticRTP(c, id, streamID),
+	}
+}
+
+// NewAudioTrackLocalStaticSample returns a TrackLocalStaticSample fo raudio.
+func NewAudioTrackLocalStaticSample(
+	c webrtc.RTPCodecCapability,
+	latency time.Duration,
+	id, streamID string,
+) *TrackLocalStaticSample {
+	return &TrackLocalStaticSample{
+		rtpTrack:     newtrackLocalStaticRTP(c, id, streamID),
+		isAudio:      true,
+		audioLatency: latency,
 	}
 }
 
@@ -216,7 +231,12 @@ func (s *TrackLocalStaticSample) Bind(t webrtc.TrackLocalContext) (webrtc.RTPCod
 		rtp.NewRandomSequencer(),
 		codec.ClockRate,
 	)
-	s.sampler = newVideoSampler(codec.RTPCodecCapability.ClockRate)
+
+	if s.isAudio {
+		s.sampler = newAudioSampler(codec.RTPCodecCapability.ClockRate, s.audioLatency)
+	} else {
+		s.sampler = newVideoSampler(codec.RTPCodecCapability.ClockRate)
+	}
 	return codec, nil
 }
 
@@ -226,11 +246,11 @@ func (s *TrackLocalStaticSample) Unbind(t webrtc.TrackLocalContext) error {
 	return s.rtpTrack.Unbind(t)
 }
 
-// WriteFrame writes a frame to the TrackLocalStaticSample
+// WriteData writes already encoded data to the TrackLocalStaticSample
 // If one PeerConnection fails the packets will still be sent to
 // all PeerConnections. The error message will contain the ID of the failed
 // PeerConnections so you can remove them.
-func (s *TrackLocalStaticSample) WriteFrame(frame []byte) error {
+func (s *TrackLocalStaticSample) WriteData(frame []byte) error {
 	s.rtpTrack.mu.RLock()
 	p := s.packetizer
 	s.rtpTrack.mu.RUnlock()
@@ -305,6 +325,15 @@ func newVideoSampler(clockRate uint32) samplerFunc {
 		duration := now.Sub(lastTimestamp).Seconds()
 		samples := uint32(math.Round(clockRateFloat * duration))
 		lastTimestamp = now
+		return samples
+	})
+}
+
+// newAudioSampler creates a audio sampler that uses a fixed latency and
+// the codec's clock rate to come up with a duration for each sample.
+func newAudioSampler(clockRate uint32, latency time.Duration) samplerFunc {
+	samples := uint32(math.Round(float64(clockRate) * latency.Seconds()))
+	return samplerFunc(func() uint32 {
 		return samples
 	})
 }

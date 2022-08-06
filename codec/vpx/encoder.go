@@ -33,7 +33,7 @@ const bitrate = 3_200_000
 
 // NewEncoder returns a vpx encoder of the given type that can encode images of the given width and height. It will
 // also ensure that it produces key frames at the given interval.
-func NewEncoder(codecVersion Version, width, height, keyFrameInterval int, logger golog.Logger) (ourcodec.Encoder, error) {
+func NewEncoder(codecVersion Version, width, height, keyFrameInterval int, logger golog.Logger) (ourcodec.VideoEncoder, error) {
 	enc := &encoder{logger: logger}
 
 	var builder codec.VideoEncoderBuilder
