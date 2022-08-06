@@ -47,3 +47,7 @@ stream-desktop: buf-go build-web
 
 stream-camera: buf-go build-web
 	go run cmd/stream_desktop/main.go -camera
+
+stream-microphone: buf-go build-web
+	go run cmd/stream_microphone/main.go
+

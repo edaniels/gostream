@@ -10,6 +10,7 @@ import (
 
 	"github.com/edaniels/golog"
 	"github.com/google/uuid"
+	"github.com/pion/mediadevices/pkg/wave"
 	"github.com/pion/webrtc/v3"
 	"go.viam.com/utils"
 
@@ -33,6 +34,8 @@ type Stream interface {
 
 	InputFrames() chan<- FrameReleasePair
 
+	InputAudioChunks() chan<- AudioChunkReleasePair
+
 	// Stop stops further processing of frames.
 	Stop()
 }
@@ -49,6 +52,14 @@ type FrameReleasePair struct {
 	Release func()
 }
 
+// AudioChunkReleasePair associates an audio chunk with a corresponding
+// function to release its resources once the receiver of a
+// pair is finished with the chunk.
+type AudioChunkReleasePair struct {
+	Chunk   wave.Audio
+	Release func()
+}
+
 // NewStream returns a newly configured stream that can begin to handle
 // new connections.
 func NewStream(config StreamConfig) (Stream, error) {
@@ -56,8 +67,8 @@ func NewStream(config StreamConfig) (Stream, error) {
 	if logger == nil {
 		logger = Logger
 	}
-	if config.EncoderFactory == nil {
-		return nil, errors.New("no encoder factory set")
+	if config.EncoderFactory == nil && config.AudioEncoderFactory == nil {
+		return nil, errors.New("at least one audio or video encoder factory must be set")
 	}
 	if config.TargetFrameRate == 0 {
 		config.TargetFrameRate = codec.DefaultKeyFrameInterval
@@ -69,6 +80,7 @@ func NewStream(config StreamConfig) (Stream, error) {
 		name = uuid.NewString()
 	}
 
+	// TODO(erd): need an audio version??!!
 	trackLocal := ourwebrtc.NewTrackLocalStaticSample(
 		webrtc.RTPCodecCapability{MimeType: config.EncoderFactory.MIMEType()},
 		name,
@@ -83,6 +95,8 @@ func NewStream(config StreamConfig) (Stream, error) {
 		peerToTrack:       map[*webrtc.PeerConnection]*ourwebrtc.TrackLocalStaticSample{},
 		inputChan:         make(chan FrameReleasePair),
 		outputChan:        make(chan []byte),
+		inputAudioChan:    make(chan AudioChunkReleasePair),
+		outputAudioChan:   make(chan []byte),
 		logger:            logger,
 		shutdownCtx:       ctx,
 		shutdownCtxCancel: cancelFunc,
@@ -100,6 +114,8 @@ type basicStream struct {
 	peerToTrack             map[*webrtc.PeerConnection]*ourwebrtc.TrackLocalStaticSample
 	inputChan               chan FrameReleasePair
 	outputChan              chan []byte
+	inputAudioChan          chan AudioChunkReleasePair
+	outputAudioChan         chan []byte
 	encoder                 codec.Encoder
 	shutdownCtx             context.Context
 	shutdownCtxCancel       func()
@@ -117,6 +133,8 @@ func (bs *basicStream) Start() {
 		bs.activeBackgroundWorkers.Add(2)
 		utils.ManagedGo(bs.processInputFrames, bs.activeBackgroundWorkers.Done)
 		utils.ManagedGo(bs.processOutputFrames, bs.activeBackgroundWorkers.Done)
+		utils.ManagedGo(bs.processInputAudioChunks, bs.activeBackgroundWorkers.Done)
+		utils.ManagedGo(bs.processOutputAudioChnks, bs.activeBackgroundWorkers.Done)
 	})
 }
 
@@ -126,6 +144,10 @@ func (bs *basicStream) StreamingReady() <-chan struct{} {
 
 func (bs *basicStream) InputFrames() chan<- FrameReleasePair {
 	return bs.inputChan
+}
+
+func (bs *basicStream) InputAudioChunks() chan<- AudioChunkReleasePair {
+	return bs.inputAudioChan
 }
 
 func (bs *basicStream) TrackLocal() webrtc.TrackLocal {
@@ -198,6 +220,68 @@ func (bs *basicStream) processInputFrames() {
 	}
 }
 
+func (bs *basicStream) processInputAudioChunks() {
+	// TODO(erd): is this right? may be way too fast and have to use some kind of buffering or idk
+	// TODO(erd): yeah this will probably use a lot of CPU
+	sampleLimiterDur := time.Second / time.Duration(bs.config.TargetAudioSampleRate)
+	defer close(bs.outputAudioChan)
+	var dx, dy int
+	ticker := time.NewTicker(sampleLimiterDur)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-bs.shutdownCtx.Done():
+			return
+		default:
+		}
+		select {
+		case <-bs.shutdownCtx.Done():
+			return
+		case <-ticker.C:
+		}
+		var audioChunkPair AudioChunkReleasePair
+		select {
+		case audioChunkPair = <-bs.inputAudioChan:
+		case <-bs.shutdownCtx.Done():
+			return
+		}
+		if audioChunkPair.Chunk == nil {
+			continue
+		}
+		var initErr bool
+		func() {
+			if audioChunkPair.Release != nil {
+				defer audioChunkPair.Release()
+			}
+
+			bounds := framePair.Frame.Bounds()
+			newDx, newDy := bounds.Dx(), bounds.Dy()
+			if dx != newDx || dy != newDy {
+				dx, dy = newDx, newDy
+				bs.logger.Infow("detected new image bounds", "width", dx, "height", dy)
+
+				if err := bs.initCodec(dx, dy); err != nil {
+					bs.logger.Error(err)
+					initErr = true
+					return
+				}
+			}
+
+			encodedChunk, err := bs.encoder.Encode(audioChunkPair.Chunk)
+			if err != nil {
+				bs.logger.Error(err)
+				return
+			}
+			if encodedChunk != nil {
+				bs.outputChan <- encodedChunk
+			}
+		}()
+		if initErr {
+			return
+		}
+	}
+}
+
 func (bs *basicStream) processOutputFrames() {
 	framesSent := 0
 	for outputFrame := range bs.outputChan {
@@ -207,8 +291,27 @@ func (bs *basicStream) processOutputFrames() {
 		default:
 		}
 		now := time.Now()
-		if err := bs.trackLocal.WriteFrame(outputFrame); err != nil {
+		if err := bs.trackLocal.WriteData(outputFrame); err != nil {
 			bs.logger.Errorw("error writing frame", "error", err)
+		}
+		framesSent++
+		if Debug {
+			bs.logger.Debugw("wrote sample", "frames_sent", framesSent, "write_time", time.Since(now))
+		}
+	}
+}
+
+func (bs *basicStream) processOutputAudioChunks() {
+	framesSent := 0
+	for outputChunk := range bs.outputAudioChan {
+		select {
+		case <-bs.shutdownCtx.Done():
+			return
+		default:
+		}
+		now := time.Now()
+		if err := bs.trackLocal.WriteData(outputChunk); err != nil {
+			bs.logger.Errorw("error writing audio chunk", "error", err)
 		}
 		framesSent++
 		if Debug {
@@ -220,5 +323,12 @@ func (bs *basicStream) processOutputFrames() {
 func (bs *basicStream) initCodec(width, height int) error {
 	var err error
 	bs.encoder, err = bs.config.EncoderFactory.New(width, height, bs.config.TargetFrameRate, bs.logger)
+	return err
+}
+
+func (bs *basicStream) initAudioCodec(sampleRate, channelCount int) error {
+	var err error
+	// TODO(erd): need target frame rate similar thing??
+	bs.audioEncoder, err = bs.config.AudioEncoderFactory.New(sampleRate, channelCount, bs.logger)
 	return err
 }

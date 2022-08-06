@@ -27,6 +27,7 @@ async function startup() {
 	const names = await namesPromise;
 
 	webRTCConn.peerConnection.ontrack = async event => {
+		console.log(`TODO(erd): ${event.track.kind}`);
 		const video = document.createElement('video');
 		video.srcObject = event.streams[0];
 		video.autoplay = true;

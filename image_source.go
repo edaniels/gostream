@@ -11,7 +11,7 @@ import (
 type ImageSource interface {
 	// Next returns an image along with a function to release
 	// the image once it is no longer used. Not calling the function
-	// will not leak memory but may cause the implementer to be
+	// will not leak memory but may cause the implementer to not be
 	// as efficient with memory.
 	Next(ctx context.Context) (image.Image, func(), error)
 }

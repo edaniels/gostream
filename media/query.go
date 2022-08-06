@@ -95,6 +95,15 @@ func GetAnyVideoReader(constraints mediadevices.MediaStreamConstraints) (VideoRe
 	return newVideoReaderFromDriver(d, selectedMedia)
 }
 
+// GetAnyAudioReader attempts to find any suitable audio device.
+func GetAnyAudioReader(constraints mediadevices.MediaStreamConstraints) (AudioReadCloser, error) {
+	d, selectedMedia, err := getUserDriver(constraints, nil)
+	if err != nil {
+		return nil, err
+	}
+	return newAudioReaderFromDriver(d, selectedMedia)
+}
+
 // DeviceInfo describes a driver.
 type DeviceInfo struct {
 	ID         string
@@ -214,6 +223,28 @@ func newVideoReaderFromDriver(videoDriver driver.Driver, mediaProp prop.Media) (
 		return nil, err
 	}
 	return NewVideoReadCloser(videoDriver, reader), nil
+}
+
+func newAudioReaderFromDriver(audioDriver driver.Driver, mediaProp prop.Media) (AudioReadCloser, error) {
+	recorder, ok := audioDriver.(driver.AudioRecorder)
+	if !ok {
+		return nil, errors.New("driver not a driver.AudioRecorder")
+	}
+
+	if driverStatus := audioDriver.Status(); driverStatus != driver.StateClosed {
+		gostream.Logger.Warnw("audio driver is not closed, attempting to close and reopen", "status", driverStatus)
+		if err := audioDriver.Close(); err != nil {
+			gostream.Logger.Errorw("error closing driver", "error", err)
+		}
+	}
+	if err := audioDriver.Open(); err != nil {
+		return nil, err
+	}
+	reader, err := recorder.AudioRecord(mediaProp)
+	if err != nil {
+		return nil, err
+	}
+	return NewAudioReadCloser(audioDriver, reader), nil
 }
 
 func labelFilter(target string, useSep bool) driver.FilterFn {

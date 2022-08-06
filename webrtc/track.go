@@ -4,6 +4,7 @@
 package webrtc
 
 import (
+	"fmt"
 	"math"
 	"strings"
 	"sync"
@@ -153,9 +154,10 @@ func (s *trackLocalStaticRTP) Write(b []byte) (n int, err error) {
 // TrackLocalStaticSample is a TrackLocal that has a pre-set codec and accepts Samples.
 // If you wish to send a RTP Packet use trackLocalStaticRTP.
 type TrackLocalStaticSample struct {
-	packetizer rtp.Packetizer
-	rtpTrack   *trackLocalStaticRTP
-	sampler    samplerFunc
+	packetizer      rtp.Packetizer
+	audioPacketizer rtp.Packetizer
+	rtpTrack        *trackLocalStaticRTP
+	sampler         samplerFunc
 }
 
 // NewTrackLocalStaticSample returns a TrackLocalStaticSample.
@@ -189,8 +191,11 @@ const rtpOutboundMTU = 1200
 // Bind is called by the PeerConnection after negotiation is complete
 // This asserts that the code requested is supported by the remote peer.
 // If so it setups all the state (SSRC and PayloadType) to have a call.
+// TODO(erd): how does this work for multiple bindings?
+// TODO(erd): is it somehow smart per type of track kind?
 func (s *TrackLocalStaticSample) Bind(t webrtc.TrackLocalContext) (webrtc.RTPCodecParameters, error) {
 	codec, err := s.rtpTrack.Bind(t)
+	fmt.Println("BIND Req FOR", codec, err)
 	if err != nil {
 		return codec, err
 	}
@@ -216,7 +221,7 @@ func (s *TrackLocalStaticSample) Bind(t webrtc.TrackLocalContext) (webrtc.RTPCod
 		rtp.NewRandomSequencer(),
 		codec.ClockRate,
 	)
-	s.sampler = newVideoSampler(codec.RTPCodecCapability.ClockRate)
+	s.sampler = newSampler(codec.RTPCodecCapability.ClockRate)
 	return codec, nil
 }
 
@@ -226,11 +231,11 @@ func (s *TrackLocalStaticSample) Unbind(t webrtc.TrackLocalContext) error {
 	return s.rtpTrack.Unbind(t)
 }
 
-// WriteFrame writes a frame to the TrackLocalStaticSample
+// WriteData writes already encoded data to the TrackLocalStaticSample
 // If one PeerConnection fails the packets will still be sent to
 // all PeerConnections. The error message will contain the ID of the failed
 // PeerConnections so you can remove them.
-func (s *TrackLocalStaticSample) WriteFrame(frame []byte) error {
+func (s *TrackLocalStaticSample) WriteData(frame []byte) error {
 	s.rtpTrack.mu.RLock()
 	p := s.packetizer
 	s.rtpTrack.mu.RUnlock()
@@ -294,9 +299,9 @@ func payloaderForCodec(codec webrtc.RTPCodecCapability) (rtp.Payloader, error) {
 
 type samplerFunc func() uint32
 
-// newVideoSampler creates a video sampler that uses the actual video frame rate and
+// newSampler creates a media sampler that uses the actual media sample rate and
 // the codec's clock rate to come up with a duration for each sample.
-func newVideoSampler(clockRate uint32) samplerFunc {
+func newSampler(clockRate uint32) samplerFunc {
 	clockRateFloat := float64(clockRate)
 	lastTimestamp := time.Now()
 
