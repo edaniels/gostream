@@ -13,11 +13,11 @@ import (
 var DefaultStreamConfig gostream.StreamConfig
 
 func init() {
-	DefaultStreamConfig.EncoderFactory = NewEncoderFactory(Version8)
+	DefaultStreamConfig.VideoEncoderFactory = NewEncoderFactory(Version8)
 }
 
 // NewEncoderFactory returns a vpx factory for the given vpx codec.
-func NewEncoderFactory(codecVersion Version) codec.EncoderFactory {
+func NewEncoderFactory(codecVersion Version) codec.VideoEncoderFactory {
 	return &factory{codecVersion}
 }
 
@@ -25,7 +25,7 @@ type factory struct {
 	codecVersion Version
 }
 
-func (f *factory) New(width, height, keyFrameInterval int, logger golog.Logger) (codec.Encoder, error) {
+func (f *factory) New(width, height, keyFrameInterval int, logger golog.Logger) (codec.VideoEncoder, error) {
 	return NewEncoder(f.codecVersion, width, height, keyFrameInterval, logger)
 }
 

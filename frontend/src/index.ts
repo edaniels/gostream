@@ -27,16 +27,22 @@ async function startup() {
 	const names = await namesPromise;
 
 	webRTCConn.peerConnection.ontrack = async event => {
-		console.log(`TODO(erd): ${event.track.kind}`);
-		const video = document.createElement('video');
-		video.srcObject = event.streams[0];
-		video.autoplay = true;
-		video.controls = false;
-		video.playsInline = true;
+		const mediaElement = document.createElement(event.track.kind);
+		if (mediaElement instanceof HTMLVideoElement || mediaElement instanceof HTMLAudioElement) {
+			mediaElement.srcObject = event.streams[0];
+			mediaElement.autoplay = true;
+			mediaElement.controls = false;
+			if (mediaElement instanceof HTMLVideoElement) {
+				mediaElement.playsInline = true;				
+			}
+		}
 		const streamName = event.streams[0].id;
 		const streamContainer = document.getElementById(`stream-${streamName}`)!;
-		streamContainer.getElementsByTagName("button")[0].remove();
-		streamContainer.appendChild(video);
+		let btns = streamContainer.getElementsByTagName("button");
+		if (btns.length) {
+			btns[0].remove();
+		}
+		streamContainer.appendChild(mediaElement);
 	}
 
 	for (const name of names) {

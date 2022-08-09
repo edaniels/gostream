@@ -4,7 +4,6 @@
 package webrtc
 
 import (
-	"fmt"
 	"math"
 	"strings"
 	"sync"
@@ -154,16 +153,30 @@ func (s *trackLocalStaticRTP) Write(b []byte) (n int, err error) {
 // TrackLocalStaticSample is a TrackLocal that has a pre-set codec and accepts Samples.
 // If you wish to send a RTP Packet use trackLocalStaticRTP.
 type TrackLocalStaticSample struct {
-	packetizer      rtp.Packetizer
-	audioPacketizer rtp.Packetizer
-	rtpTrack        *trackLocalStaticRTP
-	sampler         samplerFunc
+	packetizer   rtp.Packetizer
+	rtpTrack     *trackLocalStaticRTP
+	sampler      samplerFunc
+	isAudio      bool
+	audioLatency time.Duration
 }
 
-// NewTrackLocalStaticSample returns a TrackLocalStaticSample.
+// NewTrackLocalStaticSample returns a TrackLocalStaticSample for video.
 func NewTrackLocalStaticSample(c webrtc.RTPCodecCapability, id, streamID string) *TrackLocalStaticSample {
 	return &TrackLocalStaticSample{
 		rtpTrack: newtrackLocalStaticRTP(c, id, streamID),
+	}
+}
+
+// NewAudioTrackLocalStaticSample returns a TrackLocalStaticSample fo raudio.
+func NewAudioTrackLocalStaticSample(
+	c webrtc.RTPCodecCapability,
+	latency time.Duration,
+	id, streamID string,
+) *TrackLocalStaticSample {
+	return &TrackLocalStaticSample{
+		rtpTrack:     newtrackLocalStaticRTP(c, id, streamID),
+		isAudio:      true,
+		audioLatency: latency,
 	}
 }
 
@@ -191,11 +204,8 @@ const rtpOutboundMTU = 1200
 // Bind is called by the PeerConnection after negotiation is complete
 // This asserts that the code requested is supported by the remote peer.
 // If so it setups all the state (SSRC and PayloadType) to have a call.
-// TODO(erd): how does this work for multiple bindings?
-// TODO(erd): is it somehow smart per type of track kind?
 func (s *TrackLocalStaticSample) Bind(t webrtc.TrackLocalContext) (webrtc.RTPCodecParameters, error) {
 	codec, err := s.rtpTrack.Bind(t)
-	fmt.Println("BIND Req FOR", codec, err)
 	if err != nil {
 		return codec, err
 	}
@@ -221,7 +231,12 @@ func (s *TrackLocalStaticSample) Bind(t webrtc.TrackLocalContext) (webrtc.RTPCod
 		rtp.NewRandomSequencer(),
 		codec.ClockRate,
 	)
-	s.sampler = newSampler(codec.RTPCodecCapability.ClockRate)
+
+	if s.isAudio {
+		s.sampler = newAudioSampler(codec.RTPCodecCapability.ClockRate, s.audioLatency)
+	} else {
+		s.sampler = newVideoSampler(codec.RTPCodecCapability.ClockRate)
+	}
 	return codec, nil
 }
 
@@ -299,9 +314,9 @@ func payloaderForCodec(codec webrtc.RTPCodecCapability) (rtp.Payloader, error) {
 
 type samplerFunc func() uint32
 
-// newSampler creates a media sampler that uses the actual media sample rate and
+// newVideoSampler creates a video sampler that uses the actual video frame rate and
 // the codec's clock rate to come up with a duration for each sample.
-func newSampler(clockRate uint32) samplerFunc {
+func newVideoSampler(clockRate uint32) samplerFunc {
 	clockRateFloat := float64(clockRate)
 	lastTimestamp := time.Now()
 
@@ -310,6 +325,15 @@ func newSampler(clockRate uint32) samplerFunc {
 		duration := now.Sub(lastTimestamp).Seconds()
 		samples := uint32(math.Round(clockRateFloat * duration))
 		lastTimestamp = now
+		return samples
+	})
+}
+
+// newAudioSampler creates a audio sampler that uses a fixed latency and
+// the codec's clock rate to come up with a duration for each sample.
+func newAudioSampler(clockRate uint32, latency time.Duration) samplerFunc {
+	samples := uint32(math.Round(float64(clockRate) * latency.Seconds()))
+	return samplerFunc(func() uint32 {
 		return samples
 	})
 }

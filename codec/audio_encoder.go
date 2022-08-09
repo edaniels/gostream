@@ -1,6 +1,8 @@
 package codec
 
 import (
+	"time"
+
 	"github.com/edaniels/golog"
 	"github.com/pion/mediadevices/pkg/wave"
 )
@@ -9,11 +11,12 @@ import (
 // the encoder must follow some type of format dictated by a type (see AudioEncoderFactory.MimeType).
 // An encoder that produces bytes of different encoding formats per call is invalid.
 type AudioEncoder interface {
-	Encode(chunk wave.Audio) ([]byte, error)
+	Encode(chunk wave.Audio) ([]byte, bool, error)
+	Close()
 }
 
-// An EncoderFactory produces Encoders and provides information about the underlying encoder itself.
+// An AudioEncoderFactory produces AudioEncoders and provides information about the underlying encoder itself.
 type AudioEncoderFactory interface {
-	New(sampleRate, channelCount int, logger golog.Logger) (AudioEncoder, error)
+	New(sampleRate, channelCount int, latency time.Duration, logger golog.Logger) (AudioEncoder, error)
 	MIMEType() string
 }

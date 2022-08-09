@@ -1,6 +1,8 @@
-package x264
+package opus
 
 import (
+	"time"
+
 	"github.com/edaniels/golog"
 
 	"github.com/edaniels/gostream"
@@ -11,18 +13,18 @@ import (
 var DefaultStreamConfig gostream.StreamConfig
 
 func init() {
-	DefaultStreamConfig.AudioEncoderFactory = NewAudioEncoderFactory()
+	DefaultStreamConfig.AudioEncoderFactory = NewEncoderFactory()
 }
 
-// NewAudioEncoderFactory returns an Opus audio encoder factory.
-func NewAudioEncoderFactory() codec.AudioEncoderFactory {
+// NewEncoderFactory returns an Opus audio encoder factory.
+func NewEncoderFactory() codec.AudioEncoderFactory {
 	return &factory{}
 }
 
 type factory struct{}
 
-func (f *factory) New(ogger golog.Logger) (codec.AudioEncoder, error) {
-	return NewAudioEncoder(logger)
+func (f *factory) New(sampleRate, channelCount int, latency time.Duration, logger golog.Logger) (codec.AudioEncoder, error) {
+	return NewEncoder(sampleRate, channelCount, latency, logger)
 }
 
 func (f *factory) MIMEType() string {

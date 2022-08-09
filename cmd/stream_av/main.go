@@ -5,15 +5,16 @@ import (
 	"image"
 
 	"github.com/edaniels/golog"
-	// register video drivers.
+	// register drivers.
 	_ "github.com/pion/mediadevices/pkg/driver/camera"
+	_ "github.com/pion/mediadevices/pkg/driver/microphone"
 	_ "github.com/pion/mediadevices/pkg/driver/screen"
 	"go.uber.org/multierr"
 	"go.viam.com/utils"
 
 	"github.com/edaniels/gostream"
+	"github.com/edaniels/gostream/codec/opus"
 	"github.com/edaniels/gostream/codec/vpx"
-	"github.com/edaniels/gostream/codec/x264"
 	"github.com/edaniels/gostream/media"
 )
 
@@ -28,9 +29,8 @@ var (
 
 // Arguments for the command.
 type Arguments struct {
-	Port       utils.NetPortFlag `flag:"0"`
-	Camera     bool              `flag:"camera,usage=use camera"`
-	DupeStream bool              `flag:"dupe_stream,usage=duplicate stream"`
+	Port   utils.NetPortFlag `flag:"0"`
+	Camera bool              `flag:"camera,usage=use camera"`
 }
 
 func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error {
@@ -46,7 +46,6 @@ func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error
 		ctx,
 		int(argsParsed.Port),
 		argsParsed.Camera,
-		argsParsed.DupeStream,
 		logger,
 	)
 }
@@ -55,9 +54,15 @@ func runServer(
 	ctx context.Context,
 	port int,
 	camera bool,
-	dupeStream bool,
 	logger golog.Logger,
 ) (err error) {
+	audioReader, err := media.GetAnyAudioReader(media.DefaultConstraints)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = multierr.Combine(err, audioReader.Close())
+	}()
 	var videoReader media.ReadCloser[image.Image]
 	if camera {
 		videoReader, err = media.GetAnyVideoReader(media.DefaultConstraints)
@@ -71,9 +76,9 @@ func runServer(
 		err = multierr.Combine(err, videoReader.Close())
 	}()
 
-	_ = x264.DefaultStreamConfig
-	_ = vpx.DefaultStreamConfig
-	config := vpx.DefaultStreamConfig
+	var config gostream.StreamConfig
+	config.AudioEncoderFactory = opus.NewEncoderFactory()
+	config.VideoEncoderFactory = vpx.NewEncoderFactory(vpx.Version8)
 	stream, err := gostream.NewStream(config)
 	if err != nil {
 		return err
@@ -82,34 +87,17 @@ func runServer(
 	if err != nil {
 		return err
 	}
-	var secondStream gostream.Stream
-	if dupeStream {
-		config.Name = "dupe"
-		stream, err := gostream.NewStream(config)
-		if err != nil {
-			logger.Fatal(err)
-		}
-
-		secondStream = stream
-		if err := server.AddStream(secondStream); err != nil {
-			return err
-		}
-	}
 	if err := server.Start(ctx); err != nil {
 		return err
 	}
 
-	secondErr := make(chan error)
+	audioErr := make(chan error)
 	defer func() {
-		err = multierr.Combine(err, <-secondErr, server.Stop(ctx))
+		err = multierr.Combine(err, <-audioErr, server.Stop(ctx))
 	}()
 
-	if secondStream != nil {
-		go func() {
-			secondErr <- gostream.StreamImageSource(ctx, videoReader, secondStream)
-		}()
-	} else {
-		close(secondErr)
-	}
+	go func() {
+		audioErr <- gostream.StreamAudioSource(ctx, audioReader, stream)
+	}()
 	return gostream.StreamImageSource(ctx, videoReader, stream)
 }

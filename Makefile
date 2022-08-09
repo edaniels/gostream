@@ -1,4 +1,8 @@
-PATH_WITH_TOOLS=`pwd`/bin:${PATH}
+BIN_OUTPUT_PATH = bin/$(shell uname -s)-$(shell uname -m)
+
+TOOL_BIN = bin/gotools/$(shell uname -s)-$(shell uname -m)
+
+PATH_WITH_TOOLS="`pwd`/$(TOOL_BIN):`pwd`/node_modules/.bin:${PATH}"
 
 build: build-web build-go
 
@@ -9,7 +13,7 @@ build-web: buf-web
 	cd frontend && npm install && npx webpack
 
 tool-install:
-	GOBIN=`pwd`/bin go install google.golang.org/protobuf/cmd/protoc-gen-go \
+	GOBIN=`pwd`/$(TOOL_BIN)  go install google.golang.org/protobuf/cmd/protoc-gen-go \
 		github.com/bufbuild/buf/cmd/buf \
 		github.com/bufbuild/buf/cmd/protoc-gen-buf-breaking \
 		github.com/bufbuild/buf/cmd/protoc-gen-buf-lint \

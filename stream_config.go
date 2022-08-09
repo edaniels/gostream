@@ -1,6 +1,8 @@
 package gostream
 
 import (
+	"time"
+
 	"github.com/edaniels/golog"
 
 	"github.com/edaniels/gostream/codec"
@@ -9,14 +11,14 @@ import (
 // A StreamConfig describes how a Stream should be managed.
 type StreamConfig struct {
 	Name                string
-	EncoderFactory      codec.EncoderFactory
+	VideoEncoderFactory codec.VideoEncoderFactory
 	AudioEncoderFactory codec.AudioEncoderFactory
 
 	// TargetFrameRate will hint to the stream to try to maintain this frame rate.
 	TargetFrameRate int
 
-	// TODO(erd): Is there some kind of target audio "rate" or... no?
-	// TOOD(erd): difference between sample rate and clock rate
+	// AudioLatency specifies how long in between audio samples.
+	AudioLatency time.Duration
 
 	Logger golog.Logger
 }

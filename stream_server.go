@@ -136,8 +136,15 @@ func (srs *streamRPCServer) AddStream(ctx context.Context, req *streampb.AddStre
 		return nil, fmt.Errorf("no stream for %q", req.Name)
 	}
 
-	if _, err := pc.AddTrack(streamToAdd.TrackLocal()); err != nil {
-		return nil, err
+	if trackLocal, haveTrackLocal := streamToAdd.VideoTrackLocal(); haveTrackLocal {
+		if _, err := pc.AddTrack(trackLocal); err != nil {
+			return nil, err
+		}
+	}
+	if trackLocal, haveTrackLocal := streamToAdd.AudioTrackLocal(); haveTrackLocal {
+		if _, err := pc.AddTrack(trackLocal); err != nil {
+			return nil, err
+		}
 	}
 	streamToAdd.Start()
 
