@@ -31,12 +31,45 @@ var (
 type Arguments struct {
 	Port   utils.NetPortFlag `flag:"0"`
 	Camera bool              `flag:"camera,usage=use camera"`
+	Dump   bool              `flag:"dump"`
 }
 
 func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error {
 	var argsParsed Arguments
 	if err := utils.ParseFlags(args, &argsParsed); err != nil {
 		return err
+	}
+	if argsParsed.Dump {
+		allAudio := media.QueryAudioDevices()
+		if len(allAudio) > 0 {
+			logger.Debug("Audio:")
+		}
+		for _, info := range allAudio {
+			logger.Debugf("%s", info.ID)
+			logger.Debugf("\t labels: %v", info.Labels)
+			logger.Debugf("\t priority: %v", info.Priority)
+			for _, p := range info.Properties {
+				logger.Debugf("\t %+v", p.Audio)
+			}
+		}
+		var allVideo []media.DeviceInfo
+		if argsParsed.Camera {
+			allVideo = media.QueryVideoDevices()
+		} else {
+			allVideo = media.QueryScreenDevices()
+		}
+		if len(allVideo) > 0 {
+			logger.Debug("Video:")
+		}
+		for _, info := range allVideo {
+			logger.Debugf("%s", info.ID)
+			logger.Debugf("\t labels: %v", info.Labels)
+			logger.Debugf("\t priority: %v", info.Priority)
+			for _, p := range info.Properties {
+				logger.Debugf("\t %+v", p.Video)
+			}
+		}
+		return nil
 	}
 	if argsParsed.Port == 0 {
 		argsParsed.Port = utils.NetPortFlag(defaultPort)

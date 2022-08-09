@@ -28,8 +28,8 @@ buf-web: tool-install
 
 lint: tool-install
 	PATH=$(PATH_WITH_TOOLS) buf lint
-	export pkgs=`go list -f '{{.Dir}}' ./... | grep -v gen | grep -v proto | grep -v mmal` && echo "$$pkgs" | xargs go vet -vettool=bin/combined
-	export pkgs=`go list -f '{{.Dir}}' ./... | grep -v gen | grep -v proto | grep -v mmal` && echo "$$pkgs" | xargs go run github.com/golangci/golangci-lint/cmd/golangci-lint run -v --fix --config=./etc/.golangci.yaml
+	export pkgs=`go list -f '{{.Dir}}' ./... | grep -v gen | grep -v proto | grep -v mmal` && echo "$$pkgs" | xargs go vet -vettool=$(TOOL_BIN)/combined
+	export pkgs=`go list -f '{{.Dir}}' ./... | grep -v gen | grep -v proto | grep -v mmal` && echo "$$pkgs" | xargs $(TOOL_BIN)/golangci-lint run -v --fix --config=./etc/.golangci.yaml
 
 cover:
 	go test -tags=no_skip -race -coverprofile=coverage.txt ./...
@@ -38,14 +38,13 @@ test:
 	go test -tags=no_skip -race ./...
 
 stream-desktop: buf-go build-web
-	go run cmd/stream_desktop/main.go
+	go run cmd/stream_video/main.go
 
 stream-camera: buf-go build-web
-	go run cmd/stream_desktop/main.go -camera
+	go run cmd/stream_video/main.go -camera
 
 stream-microphone: buf-go build-web
-	go run cmd/stream_microphone/main.go
+	go run cmd/stream_audio/main.go
 
 stream-av: buf-go build-web
 	go run cmd/stream_av/main.go -camera
-

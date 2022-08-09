@@ -26,12 +26,25 @@ var (
 // Arguments for the command.
 type Arguments struct {
 	Port utils.NetPortFlag `flag:"0"`
+	Dump bool              `flag:"dump"`
 }
 
 func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error {
 	var argsParsed Arguments
 	if err := utils.ParseFlags(args, &argsParsed); err != nil {
 		return err
+	}
+	if argsParsed.Dump {
+		all := media.QueryAudioDevices()
+		for _, info := range all {
+			logger.Debugf("%s", info.ID)
+			logger.Debugf("\t labels: %v", info.Labels)
+			logger.Debugf("\t priority: %v", info.Priority)
+			for _, p := range info.Properties {
+				logger.Debugf("\t %+v", p.Audio)
+			}
+		}
+		return nil
 	}
 	if argsParsed.Port == 0 {
 		argsParsed.Port = utils.NetPortFlag(defaultPort)

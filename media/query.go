@@ -69,7 +69,7 @@ func GetNamedVideoReader(
 	name string,
 	constraints mediadevices.MediaStreamConstraints,
 ) (ReadCloser[image.Image], error) {
-	d, selectedMedia, err := getUserDriver(constraints, &name)
+	d, selectedMedia, err := getUserVideoDriver(constraints, &name)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func GetPatternedVideoReader(
 	labelPattern *regexp.Regexp,
 	constraints mediadevices.MediaStreamConstraints,
 ) (ReadCloser[image.Image], error) {
-	d, selectedMedia, err := getUserDriverPattern(constraints, labelPattern)
+	d, selectedMedia, err := getUserVideoDriverPattern(constraints, labelPattern)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +99,7 @@ func GetAnyScreenReader(constraints mediadevices.MediaStreamConstraints) (ReadCl
 
 // GetAnyVideoReader attempts to find any suitable video device (not a screen).
 func GetAnyVideoReader(constraints mediadevices.MediaStreamConstraints) (ReadCloser[image.Image], error) {
-	d, selectedMedia, err := getUserDriver(constraints, nil)
+	d, selectedMedia, err := getUserVideoDriver(constraints, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -109,6 +109,30 @@ func GetAnyVideoReader(constraints mediadevices.MediaStreamConstraints) (ReadClo
 // GetAnyAudioReader attempts to find any suitable audio device.
 func GetAnyAudioReader(constraints mediadevices.MediaStreamConstraints) (ReadCloser[wave.Audio], error) {
 	d, selectedMedia, err := getUserAudioDriver(constraints, nil)
+	if err != nil {
+		return nil, err
+	}
+	return newAudioReaderFromDriver(d, selectedMedia)
+}
+
+// GetNamedAudioReader attempts to find an audio device by the given name.
+func GetNamedAudioReader(
+	name string,
+	constraints mediadevices.MediaStreamConstraints,
+) (ReadCloser[wave.Audio], error) {
+	d, selectedMedia, err := getUserAudioDriver(constraints, &name)
+	if err != nil {
+		return nil, err
+	}
+	return newAudioReaderFromDriver(d, selectedMedia)
+}
+
+// GetPatternedAudioReader attempts to find an audio device by the given label pattern.
+func GetPatternedAudioReader(
+	labelPattern *regexp.Regexp,
+	constraints mediadevices.MediaStreamConstraints,
+) (ReadCloser[wave.Audio], error) {
+	d, selectedMedia, err := getUserAudioDriverPattern(constraints, labelPattern)
 	if err != nil {
 		return nil, err
 	}
@@ -132,6 +156,11 @@ func QueryVideoDevices() []DeviceInfo {
 // QueryScreenDevices lists all known screen devices.
 func QueryScreenDevices() []DeviceInfo {
 	return getDriverInfo(driver.GetManager().Query(getScreenFilterBase()), true)
+}
+
+// QueryAudioDevices lists all known screen devices.
+func QueryAudioDevices() []DeviceInfo {
+	return getDriverInfo(driver.GetManager().Query(getAudioFilterBase()), true)
 }
 
 func getDriverInfo(drivers []driver.Driver, useSep bool) []DeviceInfo {
@@ -198,7 +227,7 @@ func getScreenDriverPattern(
 	return selectScreenPattern(videoConstraints, labelPattern)
 }
 
-func getUserDriver(constraints mediadevices.MediaStreamConstraints, label *string) (driver.Driver, prop.Media, error) {
+func getUserVideoDriver(constraints mediadevices.MediaStreamConstraints, label *string) (driver.Driver, prop.Media, error) {
 	var videoConstraints mediadevices.MediaTrackConstraints
 	if constraints.Video != nil {
 		constraints.Video(&videoConstraints)
@@ -206,7 +235,10 @@ func getUserDriver(constraints mediadevices.MediaStreamConstraints, label *strin
 	return selectVideo(videoConstraints, label)
 }
 
-func getUserDriverPattern(constraints mediadevices.MediaStreamConstraints, labelPattern *regexp.Regexp) (driver.Driver, prop.Media, error) {
+func getUserVideoDriverPattern(
+	constraints mediadevices.MediaStreamConstraints,
+	labelPattern *regexp.Regexp,
+) (driver.Driver, prop.Media, error) {
 	var videoConstraints mediadevices.MediaTrackConstraints
 	if constraints.Video != nil {
 		constraints.Video(&videoConstraints)
@@ -242,6 +274,17 @@ func getUserAudioDriver(constraints mediadevices.MediaStreamConstraints, label *
 		constraints.Audio(&audioConstraints)
 	}
 	return selectAudio(audioConstraints, label)
+}
+
+func getUserAudioDriverPattern(
+	constraints mediadevices.MediaStreamConstraints,
+	labelPattern *regexp.Regexp,
+) (driver.Driver, prop.Media, error) {
+	var audioConstraints mediadevices.MediaTrackConstraints
+	if constraints.Audio != nil {
+		constraints.Audio(&audioConstraints)
+	}
+	return selectVideoPattern(audioConstraints, labelPattern)
 }
 
 func newAudioReaderFromDriver(audioDriver driver.Driver, mediaProp prop.Media) (ReadCloser[wave.Audio], error) {

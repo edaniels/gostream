@@ -31,12 +31,30 @@ type Arguments struct {
 	Port       utils.NetPortFlag `flag:"0"`
 	Camera     bool              `flag:"camera,usage=use camera"`
 	DupeStream bool              `flag:"dupe_stream,usage=duplicate stream"`
+	Dump       bool              `flag:"dump"`
 }
 
 func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error {
 	var argsParsed Arguments
 	if err := utils.ParseFlags(args, &argsParsed); err != nil {
 		return err
+	}
+	if argsParsed.Dump {
+		var all []media.DeviceInfo
+		if argsParsed.Camera {
+			all = media.QueryVideoDevices()
+		} else {
+			all = media.QueryScreenDevices()
+		}
+		for _, info := range all {
+			logger.Debugf("%s", info.ID)
+			logger.Debugf("\t labels: %v", info.Labels)
+			logger.Debugf("\t priority: %v", info.Priority)
+			for _, p := range info.Properties {
+				logger.Debugf("\t %+v", p.Video)
+			}
+		}
+		return nil
 	}
 	if argsParsed.Port == 0 {
 		argsParsed.Port = utils.NetPortFlag(defaultPort)
