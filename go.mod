@@ -10,7 +10,7 @@ require (
 	github.com/golangci/golangci-lint v1.46.3-0.20220606112104-c531fc2ad559
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.2
-	github.com/pion/mediadevices v0.3.10-0.20220807130129-5215057409ca
+	github.com/pion/mediadevices v0.3.10-0.20220809131747-6f204fa3d1bf
 	github.com/pion/rtp v1.7.13
 	github.com/pion/webrtc/v3 v3.1.43
 	go.uber.org/multierr v1.8.0
@@ -246,5 +246,3 @@ require (
 	mvdan.cc/unparam v0.0.0-20211214103731-d0ef000c54e5 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
 )
-
-replace github.com/pion/mediadevices => /Users/eric/mediadevices
