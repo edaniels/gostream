@@ -1,8 +1,6 @@
-version: v1beta1
+version: v1
 name: buf.build/erdaniels/gostream
 build:
-  roots:
-    - .
   excludes:
     - vendor
     - frontend/node_modules
@@ -12,6 +10,4 @@ lint:
 breaking:
   use:
     - FILE
-deps:
-  - buf.build/googleapis/googleapis:c33c435046f2f4db5e8d6db52bd6c662f50f60d8
   

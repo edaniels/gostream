@@ -13,16 +13,8 @@ build-web: buf-web
 	cd frontend && npm install && npx webpack
 
 tool-install:
-	GOBIN=`pwd`/$(TOOL_BIN)  go install google.golang.org/protobuf/cmd/protoc-gen-go \
-		github.com/bufbuild/buf/cmd/buf \
-		github.com/bufbuild/buf/cmd/protoc-gen-buf-breaking \
-		github.com/bufbuild/buf/cmd/protoc-gen-buf-lint \
-		github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc \
-		google.golang.org/grpc/cmd/protoc-gen-go-grpc \
-		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway \
-		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 \
-		github.com/edaniels/golinters/cmd/combined \
-		github.com/golangci/golangci-lint/cmd/golangci-lint
+	GOBIN=`pwd`/$(TOOL_BIN)  go install \
+		`go list -f '{{ range $$import := .Imports }} {{ $$import }} {{ end }}' ./tools/tools.go`
 
 buf: buf-go buf-web
 
@@ -33,7 +25,6 @@ buf-go: tool-install
 buf-web: tool-install
 	PATH=$(PATH_WITH_TOOLS) buf lint
 	PATH=$(PATH_WITH_TOOLS) buf generate --template ./etc/buf.web.gen.yaml
-	PATH=$(PATH_WITH_TOOLS) buf generate --template ./etc/buf.web.gen.yaml buf.build/googleapis/googleapis
 
 lint: tool-install
 	PATH=$(PATH_WITH_TOOLS) buf lint

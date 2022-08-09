@@ -3,8 +3,6 @@ option go_package = "github.com/edaniels/gostream/proto/stream/v1";
 
 package proto.stream.v1;
 
-import "google/api/annotations.proto";
-
 // A StreamService is used to coordinate with a WebRTC the listing,
 // addition, and removal of registered video streams.
 // TODO(https://github.com/viamrobotics/rdk/issues/509): support removal
