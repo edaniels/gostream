@@ -27,6 +27,7 @@ gostream is a library to simplify the streaming of images as video and audio chu
 * Stream current desktop: `make stream-desktop`
 * Stream camera: `make stream-camera`
 * Stream microphone: `make stream-microphone`
+* Stream microphone and camera: `make stream-av`
 
 ## Notes
 
