@@ -7,6 +7,7 @@ require (
 	github.com/disintegration/imaging v1.6.2
 	github.com/edaniels/golinters v0.0.5-0.20210512224240-495d3b8eed19
 	github.com/edaniels/golog v0.0.0-20210326173913-16d408aa7a5e
+	github.com/gen2brain/malgo v0.10.35
 	github.com/golangci/golangci-lint v1.46.3-0.20220606112104-c531fc2ad559
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.2
@@ -19,6 +20,7 @@ require (
 	goji.io v2.0.2+incompatible
 	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.1
+	gopkg.in/hraban/opus.v2 v2.0.0-20220302220929-eeacdbcb92d0
 )
 
 require (
@@ -65,7 +67,6 @@ require (
 	github.com/firefart/nonamedreturns v1.0.1 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/fzipp/gocyclo v0.5.1 // indirect
-	github.com/gen2brain/malgo v0.10.35 // indirect
 	github.com/gen2brain/shm v0.0.0-20200228170931-49f9650110c5 // indirect
 	github.com/go-chi/chi/v5 v5.0.7 // indirect
 	github.com/go-critic/go-critic v0.6.3 // indirect
@@ -246,3 +247,5 @@ require (
 	mvdan.cc/unparam v0.0.0-20211214103731-d0ef000c54e5 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
 )
+
+replace go.viam.com/utils => /Users/eric/goutils

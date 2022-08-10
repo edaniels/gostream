@@ -25,8 +25,9 @@ var (
 
 // Arguments for the command.
 type Arguments struct {
-	Port utils.NetPortFlag `flag:"0"`
-	Dump bool              `flag:"dump"`
+	Port     utils.NetPortFlag `flag:"0"`
+	Dump     bool              `flag:"dump"`
+	Playback bool              `flag:"playback"`
 }
 
 func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error {
@@ -53,6 +54,7 @@ func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error
 	return runServer(
 		ctx,
 		int(argsParsed.Port),
+		argsParsed.Playback,
 		logger,
 	)
 }
@@ -60,6 +62,7 @@ func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error
 func runServer(
 	ctx context.Context,
 	port int,
+	playback bool,
 	logger golog.Logger,
 ) (err error) {
 	audioReader, err := media.GetAnyAudioReader(media.DefaultConstraints)
@@ -75,7 +78,12 @@ func runServer(
 	if err != nil {
 		return err
 	}
-	server, err := gostream.NewStandaloneStreamServer(port, logger, stream)
+	var server gostream.StandaloneStreamServer
+	if playback {
+		server, err = gostream.NewStandaloneStreamServerWithReceive(port, logger, stream)
+	} else {
+		server, err = gostream.NewStandaloneStreamServer(port, logger, stream)
+	}
 	if err != nil {
 		return err
 	}

@@ -46,5 +46,8 @@ stream-camera: buf-go build-web
 stream-microphone: buf-go build-web
 	go run cmd/stream_audio/main.go
 
+playback-microphone: buf-go build-web
+	go run cmd/stream_audio/main.go -playback
+
 stream-av: buf-go build-web
 	go run cmd/stream_av/main.go -camera

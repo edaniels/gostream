@@ -37,6 +37,7 @@ type standaloneStreamServer struct {
 	rpcServer               rpc.Server
 	httpServer              *http.Server
 	started                 bool
+	allowReceive            bool
 	logger                  golog.Logger
 	activeBackgroundWorkers sync.WaitGroup
 }
@@ -44,6 +45,25 @@ type standaloneStreamServer struct {
 // NewStandaloneStreamServer returns a server that will run on the given port and initially starts
 // with the given streams.
 func NewStandaloneStreamServer(port int, logger golog.Logger, streams ...Stream) (StandaloneStreamServer, error) {
+	return newStandaloneStreamServerWithReceive(port, false, logger, streams...)
+}
+
+// NewStandaloneStreamServerWithReceive returns a server that will run on the given port and initially starts
+// with the given streams. It also allows WebRTC media to be received.
+func NewStandaloneStreamServerWithReceive(
+	port int,
+	logger golog.Logger,
+	streams ...Stream,
+) (StandaloneStreamServer, error) {
+	return newStandaloneStreamServerWithReceive(port, true, logger, streams...)
+}
+
+func newStandaloneStreamServerWithReceive(
+	port int,
+	allowReceive bool,
+	logger golog.Logger,
+	streams ...Stream,
+) (StandaloneStreamServer, error) {
 	streamServer, err := NewStreamServer(streams...)
 	if err != nil {
 		return nil, err
@@ -51,6 +71,7 @@ func NewStandaloneStreamServer(port int, logger golog.Logger, streams ...Stream)
 	return &standaloneStreamServer{
 		port:         port,
 		streamServer: streamServer,
+		allowReceive: allowReceive,
 		logger:       logger,
 	}, nil
 }
@@ -117,7 +138,11 @@ func (ss *standaloneStreamServer) Start(ctx context.Context) error {
 
 	mux := goji.NewMux()
 	mux.HandleFunc(pat.Get("/"), func(w http.ResponseWriter, r *http.Request) {
-		if err := indexT.Execute(w, nil); err != nil {
+		if err := indexT.Execute(w, struct {
+			AllowSendAudio bool
+		}{
+			ss.allowReceive,
+		}); err != nil {
 			panic(err)
 		}
 	})

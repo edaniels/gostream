@@ -16,6 +16,9 @@
         "es2017.object",
         "dom"
     ],
-    "baseUrl": "./"
+    "baseUrl": "./",
+    "types": [
+      "webrtc"
+    ]
   }
 }
