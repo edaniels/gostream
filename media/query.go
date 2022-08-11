@@ -158,7 +158,7 @@ func QueryScreenDevices() []DeviceInfo {
 	return getDriverInfo(driver.GetManager().Query(getScreenFilterBase()), true)
 }
 
-// QueryAudioDevices lists all known screen devices.
+// QueryAudioDevices lists all known audio devices.
 func QueryAudioDevices() []DeviceInfo {
 	return getDriverInfo(driver.GetManager().Query(getAudioFilterBase()), true)
 }
@@ -191,6 +191,11 @@ func QueryScreenDevicesLabels() []string {
 // QueryVideoDeviceLabels lists all known video devices (not a screen).
 func QueryVideoDeviceLabels() []string {
 	return getDriversLabels(driver.GetManager().Query(getVideoFilterBase()), true)
+}
+
+// QueryAudioDeviceLabels lists all known audio devices.
+func QueryAudioDeviceLabels() []string {
+	return getDriversLabels(driver.GetManager().Query(getAudioFilterBase()), true)
 }
 
 func getDriversLabels(drivers []driver.Driver, useSep bool) []string {
