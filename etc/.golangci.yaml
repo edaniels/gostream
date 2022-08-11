@@ -59,6 +59,9 @@ linters-settings:
       - standard
       - default
       - prefix(github.com/edaniels/gostream)
+  gomoddirectives:
+    replace-allow-list:
+      - github.com/gen2brain/malgo
   govet:
     enable-all: true
     disable:

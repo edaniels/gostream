@@ -14,9 +14,10 @@ require (
 	github.com/pion/mediadevices v0.3.10-0.20220809131747-6f204fa3d1bf
 	github.com/pion/rtp v1.7.13
 	github.com/pion/webrtc/v3 v3.1.43
+	github.com/pkg/errors v0.9.1
 	go.uber.org/multierr v1.8.0
 	go.viam.com/test v1.1.0
-	go.viam.com/utils v0.0.4-0.20220803165238-45ac2fc99688
+	go.viam.com/utils v0.0.4-0.20220810222236-ea1283968aef
 	goji.io v2.0.2+incompatible
 	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.1
@@ -168,7 +169,6 @@ require (
 	github.com/pion/turn/v2 v2.0.8 // indirect
 	github.com/pion/udp v0.1.1 // indirect
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pkg/profile v1.6.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/polyfloyd/go-errorlint v1.0.0 // indirect
@@ -248,4 +248,5 @@ require (
 	nhooyr.io/websocket v1.8.7 // indirect
 )
 
-replace go.viam.com/utils => /Users/eric/goutils
+// https://github.com/gen2brain/malgo/pull/39; remember to remove from ./etc/.golangci.yaml
+replace github.com/gen2brain/malgo => github.com/edaniels/malgo v0.0.0-20220811034517-27da536c69ba

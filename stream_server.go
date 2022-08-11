@@ -1,21 +1,14 @@
 package gostream
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
-	"os"
 	"sync"
 
 	"go.viam.com/utils/rpc"
 
 	streampb "github.com/edaniels/gostream/proto/stream/v1"
-	"github.com/gen2brain/malgo"
-	"github.com/pion/webrtc/v3"
-	"gopkg.in/hraban/opus.v2"
 )
 
 // StreamAlreadyRegisteredError indicates that a stream has a name that is already registered on
@@ -117,124 +110,6 @@ type streamRPCServer struct {
 }
 
 func (srs *streamRPCServer) ListStreams(ctx context.Context, req *streampb.ListStreamsRequest) (*streampb.ListStreamsResponse, error) {
-	pc, ok := rpc.ContextPeerConnection(ctx)
-	if !ok {
-		return nil, errors.New("can only add a stream over a WebRTC based connection")
-	}
-
-	pc.OnTrack(func(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
-		switch track.Kind() {
-		case webrtc.RTPCodecTypeAudio:
-			{
-				ctx, err := malgo.InitContext(nil, malgo.ContextConfig{}, func(message string) {
-					fmt.Printf("LOG <%v>\n", message)
-				})
-				if err != nil {
-					fmt.Println(err)
-					os.Exit(1)
-				}
-				defer func() {
-					_ = ctx.Uninit()
-					ctx.Free()
-				}()
-
-				codec := track.Codec()
-				channels := codec.Channels
-				sampleRate := codec.ClockRate
-
-				dec, err := opus.NewDecoder(int(sampleRate), int(channels))
-				if err != nil {
-					panic(err)
-				}
-
-				const maxOpusFrameSizeMs = 60
-				maxFrameSize := float32(channels) * maxOpusFrameSizeMs * float32(sampleRate) / 1000
-				dataPool := sync.Pool{
-					New: func() interface{} {
-						return make([]float32, int(maxFrameSize))
-					},
-				}
-				decodeRPTData := func() ([]float32, int, error) {
-					data, _, err := track.ReadRTP()
-					if err != nil {
-						return nil, 0, err
-					}
-					if len(data.Payload) == 0 {
-						return nil, 0, nil
-					}
-
-					pcmData := dataPool.Get().([]float32)
-					n, err := dec.DecodeFloat32(data.Payload, pcmData)
-					return pcmData[:n*int(channels)], n, err
-				}
-
-				var periodSizeInFrames int
-				for {
-					// we assume all packets will contain this amount of samples going forward
-					// if it's anything larger than one RTP packet (or close to MTU?) then
-					// this could fail.
-					_, numSamples, err := decodeRPTData()
-					if err != nil {
-						panic(err)
-					}
-					if numSamples > 0 {
-						periodSizeInFrames = numSamples
-						break
-					}
-				}
-
-				deviceConfig := malgo.DefaultDeviceConfig(malgo.Playback)
-				deviceConfig.Playback.Format = malgo.FormatF32 // tied to what we opus decode to
-				deviceConfig.Playback.Channels = uint32(channels)
-				deviceConfig.SampleRate = sampleRate
-				deviceConfig.PeriodSizeInFrames = uint32(periodSizeInFrames)
-				sizeInBytes := malgo.SampleSizeInBytes(deviceConfig.Playback.Format)
-
-				pcmChan := make(chan []float32)
-
-				onSendFrames := func(pOutput, _ []byte, frameCount uint32) {
-					samplesRequested := frameCount * deviceConfig.Playback.Channels * uint32(sizeInBytes)
-					pcm := <-pcmChan
-					if len(pcm) > int(samplesRequested) {
-						// logger.Errorw("not enough samples requested; trimming our own data", "samples_requested", samplesRequested)
-						pcm = pcm[:samplesRequested]
-					}
-					pOutput = pOutput[:0]
-					buf := bytes.NewBuffer(pOutput)
-					binary.Write(buf, binary.LittleEndian, pcm)
-					dataPool.Put(pcm)
-				}
-
-				playbackCallbacks := malgo.DeviceCallbacks{
-					Data: onSendFrames,
-				}
-
-				device, err := malgo.InitDevice(ctx.Context, deviceConfig, playbackCallbacks)
-				if err != nil {
-					panic(err)
-				}
-
-				err = device.Start()
-				if err != nil {
-					panic(err)
-				}
-
-				for {
-					pcmData, numSamples, err := decodeRPTData()
-					if err == io.EOF {
-						break
-					}
-					if numSamples == 0 {
-						continue
-					}
-					pcmChan <- pcmData
-				}
-			}
-		default:
-			fmt.Println("Unsupported track.kind", track.Kind().String())
-		}
-	})
-
 	srs.ss.mu.RLock()
 	names := make([]string, 0, len(srs.ss.streams))
 	for _, stream := range srs.ss.streams {

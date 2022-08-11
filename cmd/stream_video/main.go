@@ -96,7 +96,7 @@ func runServer(
 	if err != nil {
 		return err
 	}
-	server, err := gostream.NewStandaloneStreamServer(port, logger, stream)
+	server, err := gostream.NewStandaloneStreamServer(port, logger, nil, stream)
 	if err != nil {
 		return err
 	}
