@@ -9,17 +9,19 @@ import (
 	_ "github.com/pion/mediadevices/pkg/driver/camera"
 	_ "github.com/pion/mediadevices/pkg/driver/microphone"
 	_ "github.com/pion/mediadevices/pkg/driver/screen"
+	"github.com/pion/mediadevices/pkg/prop"
 	"go.uber.org/multierr"
-	"go.viam.com/utils"
+	goutils "go.viam.com/utils"
 
 	"github.com/edaniels/gostream"
 	"github.com/edaniels/gostream/codec/opus"
 	"github.com/edaniels/gostream/codec/vpx"
 	"github.com/edaniels/gostream/media"
+	"github.com/edaniels/gostream/utils"
 )
 
 func main() {
-	utils.ContextualMain(mainWithArgs, logger)
+	goutils.ContextualMain(mainWithArgs, logger)
 }
 
 var (
@@ -29,14 +31,14 @@ var (
 
 // Arguments for the command.
 type Arguments struct {
-	Port   utils.NetPortFlag `flag:"0"`
-	Camera bool              `flag:"camera,usage=use camera"`
-	Dump   bool              `flag:"dump"`
+	Port   goutils.NetPortFlag `flag:"0"`
+	Camera bool                `flag:"camera,usage=use camera"`
+	Dump   bool                `flag:"dump"`
 }
 
 func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error {
 	var argsParsed Arguments
-	if err := utils.ParseFlags(args, &argsParsed); err != nil {
+	if err := goutils.ParseFlags(args, &argsParsed); err != nil {
 		return err
 	}
 	if argsParsed.Dump {
@@ -72,7 +74,7 @@ func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error
 		return nil
 	}
 	if argsParsed.Port == 0 {
-		argsParsed.Port = utils.NetPortFlag(defaultPort)
+		argsParsed.Port = goutils.NetPortFlag(defaultPort)
 	}
 
 	return runServer(
@@ -96,7 +98,7 @@ func runServer(
 	defer func() {
 		err = multierr.Combine(err, audioReader.Close())
 	}()
-	var videoReader media.ReadCloser[image.Image]
+	var videoReader media.ReadCloser[image.Image, prop.Video]
 	if camera {
 		videoReader, err = media.GetAnyVideoReader(media.DefaultConstraints)
 	} else {
@@ -130,7 +132,7 @@ func runServer(
 	}()
 
 	go func() {
-		audioErr <- gostream.StreamAudioSource(ctx, audioReader, stream)
+		audioErr <- utils.StreamAudioSource(ctx, audioReader, stream)
 	}()
-	return gostream.StreamImageSource(ctx, videoReader, stream)
+	return utils.StreamImageSource(ctx, videoReader, stream)
 }

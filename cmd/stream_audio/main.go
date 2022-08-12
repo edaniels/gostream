@@ -4,26 +4,30 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"sync"
+	"unsafe"
 
 	"github.com/edaniels/golog"
 	"github.com/gen2brain/malgo"
+
 	// register microphone drivers.
 	_ "github.com/pion/mediadevices/pkg/driver/microphone"
 	"github.com/pion/webrtc/v3"
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
-	"go.viam.com/utils"
+	goutils "go.viam.com/utils"
 	hopus "gopkg.in/hraban/opus.v2"
 
 	"github.com/edaniels/gostream"
 	"github.com/edaniels/gostream/codec/opus"
 	"github.com/edaniels/gostream/media"
+	"github.com/edaniels/gostream/utils"
 )
 
 func main() {
-	utils.ContextualMain(mainWithArgs, logger)
+	goutils.ContextualMain(mainWithArgs, logger)
 }
 
 var (
@@ -33,14 +37,14 @@ var (
 
 // Arguments for the command.
 type Arguments struct {
-	Port     utils.NetPortFlag `flag:"0"`
-	Dump     bool              `flag:"dump"`
-	Playback bool              `flag:"playback"`
+	Port     goutils.NetPortFlag `flag:"0"`
+	Dump     bool                `flag:"dump"`
+	Playback bool                `flag:"playback"`
 }
 
 func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error {
 	var argsParsed Arguments
-	if err := utils.ParseFlags(args, &argsParsed); err != nil {
+	if err := goutils.ParseFlags(args, &argsParsed); err != nil {
 		return err
 	}
 	if argsParsed.Dump {
@@ -56,7 +60,7 @@ func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error
 		return nil
 	}
 	if argsParsed.Port == 0 {
-		argsParsed.Port = utils.NetPortFlag(defaultPort)
+		argsParsed.Port = goutils.NetPortFlag(defaultPort)
 	}
 
 	return runServer(
@@ -126,10 +130,21 @@ func runServer(
 	}
 
 	defer func() { err = multierr.Combine(err, server.Stop(ctx)) }()
-	return gostream.StreamAudioSource(ctx, audioReader, stream)
+	return utils.StreamAudioSource(ctx, audioReader, stream)
 }
 
 func decodeAndPlayTrack(ctx context.Context, track *webrtc.TrackRemote) {
+	var hostEndian binary.ByteOrder
+
+	switch v := *(*uint16)(unsafe.Pointer(&([]byte{0x12, 0x34}[0]))); v {
+	case 0x1234:
+		hostEndian = binary.BigEndian
+	case 0x3412:
+		hostEndian = binary.LittleEndian
+	default:
+		panic(fmt.Sprintf("failed to determine host endianness: %x", v))
+	}
+
 	switch track.Kind() {
 	case webrtc.RTPCodecTypeAudio:
 		{
@@ -140,7 +155,7 @@ func decodeAndPlayTrack(ctx context.Context, track *webrtc.TrackRemote) {
 				panic(err)
 			}
 			defer func() {
-				utils.UncheckedErrorFunc(mCtx.Uninit)
+				goutils.UncheckedErrorFunc(mCtx.Uninit)
 				mCtx.Free()
 			}()
 
@@ -215,7 +230,7 @@ func decodeAndPlayTrack(ctx context.Context, track *webrtc.TrackRemote) {
 					}
 					pOutput = pOutput[:0]
 					buf := bytes.NewBuffer(pOutput)
-					if err := binary.Write(buf, binary.LittleEndian, pcm); err != nil {
+					if err := binary.Write(buf, hostEndian, pcm); err != nil {
 						logger.Errorw("error writing to pcm buf", "error", err)
 					}
 					dataPool.Put(pcm)

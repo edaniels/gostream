@@ -1,8 +1,6 @@
 package gostream
 
 import (
-	"time"
-
 	"github.com/edaniels/golog"
 
 	"github.com/edaniels/gostream/codec"
@@ -16,9 +14,6 @@ type StreamConfig struct {
 
 	// TargetFrameRate will hint to the stream to try to maintain this frame rate.
 	TargetFrameRate int
-
-	// AudioLatency specifies how long in between audio samples.
-	AudioLatency time.Duration
 
 	Logger golog.Logger
 }

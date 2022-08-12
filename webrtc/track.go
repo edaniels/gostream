@@ -157,6 +157,7 @@ type TrackLocalStaticSample struct {
 	rtpTrack     *trackLocalStaticRTP
 	sampler      samplerFunc
 	isAudio      bool
+	clockRate    uint32
 	audioLatency time.Duration
 }
 
@@ -170,13 +171,11 @@ func NewTrackLocalStaticSample(c webrtc.RTPCodecCapability, id, streamID string)
 // NewAudioTrackLocalStaticSample returns a TrackLocalStaticSample fo raudio.
 func NewAudioTrackLocalStaticSample(
 	c webrtc.RTPCodecCapability,
-	latency time.Duration,
 	id, streamID string,
 ) *TrackLocalStaticSample {
 	return &TrackLocalStaticSample{
-		rtpTrack:     newtrackLocalStaticRTP(c, id, streamID),
-		isAudio:      true,
-		audioLatency: latency,
+		rtpTrack: newtrackLocalStaticRTP(c, id, streamID),
+		isAudio:  true,
 	}
 }
 
@@ -213,7 +212,8 @@ func (s *TrackLocalStaticSample) Bind(t webrtc.TrackLocalContext) (webrtc.RTPCod
 	s.rtpTrack.mu.Lock()
 	defer s.rtpTrack.mu.Unlock()
 
-	// We only need one packetizer
+	// We only need one packetizer. But isn't that confusing with other clock rates
+	// from other codecs?
 	if s.packetizer != nil {
 		return codec, nil
 	}
@@ -223,6 +223,7 @@ func (s *TrackLocalStaticSample) Bind(t webrtc.TrackLocalContext) (webrtc.RTPCod
 		return codec, err
 	}
 
+	// TODO(erd): I think we need to do this for each bind
 	s.packetizer = rtp.NewPacketizer(
 		rtpOutboundMTU,
 		uint8(codec.PayloadType),
@@ -232,12 +233,14 @@ func (s *TrackLocalStaticSample) Bind(t webrtc.TrackLocalContext) (webrtc.RTPCod
 		codec.ClockRate,
 	)
 
-	if s.isAudio {
-		s.sampler = newAudioSampler(codec.RTPCodecCapability.ClockRate, s.audioLatency)
-	} else {
-		s.sampler = newVideoSampler(codec.RTPCodecCapability.ClockRate)
-	}
+	s.clockRate = codec.RTPCodecCapability.ClockRate
 	return codec, nil
+}
+
+func (s *TrackLocalStaticSample) SetAudioLatency(latency time.Duration) {
+	s.rtpTrack.mu.Lock()
+	defer s.rtpTrack.mu.Unlock()
+	s.audioLatency = latency
 }
 
 // Unbind implements the teardown logic when the track is no longer needed. This happens
@@ -251,14 +254,29 @@ func (s *TrackLocalStaticSample) Unbind(t webrtc.TrackLocalContext) error {
 // all PeerConnections. The error message will contain the ID of the failed
 // PeerConnections so you can remove them.
 func (s *TrackLocalStaticSample) WriteData(frame []byte) error {
-	s.rtpTrack.mu.RLock()
+	s.rtpTrack.mu.Lock()
 	p := s.packetizer
-	s.rtpTrack.mu.RUnlock()
-
 	if p == nil {
+		s.rtpTrack.mu.Unlock()
 		return nil
 	}
+	if s.isAudio && s.audioLatency == 0 {
+		return nil
+	}
+	sampler := s.sampler
+	if sampler == nil {
+		if s.isAudio {
+			s.sampler = newAudioSampler(s.clockRate, s.audioLatency)
+		} else {
+			s.sampler = newVideoSampler(s.clockRate)
+		}
+	}
 
+	s.rtpTrack.mu.Unlock()
+
+	if s.sampler == nil {
+		return nil
+	}
 	samples := s.sampler()
 	packets := p.Packetize(frame, samples)
 

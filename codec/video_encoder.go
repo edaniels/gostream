@@ -2,8 +2,8 @@
 package codec
 
 import (
+	"context"
 	"image"
-	"time"
 
 	"github.com/edaniels/golog"
 )
@@ -13,16 +13,11 @@ import (
 // latency.
 const DefaultKeyFrameInterval = 30
 
-// DefaultAudioLatency is the default latency chosen
-// in order to produce high enough quality results at a low
-// latency.
-const DefaultAudioLatency = 20 * time.Millisecond
-
 // A VideoEncoder is anything that can encode images into bytes. This means that
 // the encoder must follow some type of format dictated by a type (see EncoderFactory.MimeType).
 // An encoder that produces bytes of different encoding formats per call is invalid.
 type VideoEncoder interface {
-	Encode(img image.Image) ([]byte, error)
+	Encode(ctx context.Context, img image.Image) ([]byte, error)
 }
 
 // A VideoEncoderFactory produces VideoEncoders and provides information about the underlying encoder itself.

@@ -10,6 +10,7 @@ import (
 
 	"github.com/edaniels/golog"
 	"github.com/google/uuid"
+
 	// register screen drivers.
 	_ "github.com/pion/mediadevices/pkg/driver/microphone"
 	"github.com/pion/mediadevices/pkg/wave"
@@ -36,7 +37,7 @@ type Stream interface {
 
 	InputImageFrames() (chan<- FrameReleasePair, error)
 
-	InputAudioChunks() (chan<- AudioChunkReleasePair, error)
+	InputAudioChunks(latency time.Duration) (chan<- AudioChunkReleasePair, error)
 
 	// Stop stops further processing of frames.
 	Stop()
@@ -76,9 +77,6 @@ func NewStream(config StreamConfig) (Stream, error) {
 	if config.TargetFrameRate == 0 {
 		config.TargetFrameRate = codec.DefaultKeyFrameInterval
 	}
-	if config.AudioLatency == 0 {
-		config.AudioLatency = codec.DefaultAudioLatency
-	}
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
 	name := config.Name
@@ -99,7 +97,6 @@ func NewStream(config StreamConfig) (Stream, error) {
 	if config.AudioEncoderFactory != nil {
 		audioTrackLocal = ourwebrtc.NewAudioTrackLocalStaticSample(
 			webrtc.RTPCodecCapability{MimeType: config.AudioEncoderFactory.MIMEType()},
-			config.AudioLatency,
 			name,
 			name,
 		)
@@ -127,6 +124,7 @@ func NewStream(config StreamConfig) (Stream, error) {
 }
 
 type basicStream struct {
+	mu               sync.Mutex
 	name             string
 	config           StreamConfig
 	readyOnce        sync.Once
@@ -141,6 +139,11 @@ type basicStream struct {
 	inputAudioChan  chan AudioChunkReleasePair
 	outputAudioChan chan []byte
 	audioEncoder    codec.AudioEncoder
+
+	// audioLatency specifies how long in between audio samples. This must be guaranteed
+	// by all streamed audio.
+	audioLatency    time.Duration
+	audioLatencySet bool
 
 	shutdownCtx             context.Context
 	shutdownCtxCancel       func()
@@ -174,10 +177,17 @@ func (bs *basicStream) InputImageFrames() (chan<- FrameReleasePair, error) {
 	return bs.inputImageChan, nil
 }
 
-func (bs *basicStream) InputAudioChunks() (chan<- AudioChunkReleasePair, error) {
+func (bs *basicStream) InputAudioChunks(latency time.Duration) (chan<- AudioChunkReleasePair, error) {
 	if bs.config.AudioEncoderFactory == nil {
 		return nil, errors.New("no audio in stream")
 	}
+	bs.mu.Lock()
+	if bs.audioLatencySet && bs.audioLatency != latency {
+		return nil, errors.New("cannot stream audio source with different latencies")
+	}
+	bs.audioLatencySet = true
+	bs.audioLatency = latency
+	bs.mu.Unlock()
 	return bs.inputAudioChan, nil
 }
 
@@ -243,13 +253,17 @@ func (bs *basicStream) processInputFrames() {
 			}
 
 			// thread-safe because the size is static
-			encodedFrame, err := bs.videoEncoder.Encode(framePair.Frame)
+			encodedFrame, err := bs.videoEncoder.Encode(bs.shutdownCtx, framePair.Frame)
 			if err != nil {
 				bs.logger.Error(err)
 				return
 			}
 			if encodedFrame != nil {
-				bs.outputVideoChan <- encodedFrame
+				select {
+				case <-bs.shutdownCtx.Done():
+					return
+				case bs.outputVideoChan <- encodedFrame:
+				}
 			}
 		}()
 		if initErr {
@@ -288,6 +302,7 @@ func (bs *basicStream) processInputAudioChunks() {
 				samplingRate, channels = newSamplingRate, newChannels
 				bs.logger.Infow("detected new audio info", "sampling_rate", samplingRate, "channels", channels)
 
+				bs.audioTrackLocal.SetAudioLatency(bs.audioLatency)
 				if err := bs.initAudioCodec(samplingRate, channels); err != nil {
 					bs.logger.Error(err)
 					initErr = true
@@ -295,13 +310,17 @@ func (bs *basicStream) processInputAudioChunks() {
 				}
 			}
 
-			encodedChunk, ready, err := bs.audioEncoder.Encode(audioChunkPair.Chunk)
+			encodedChunk, ready, err := bs.audioEncoder.Encode(bs.shutdownCtx, audioChunkPair.Chunk)
 			if err != nil {
 				bs.logger.Error(err)
 				return
 			}
 			if ready && encodedChunk != nil {
-				bs.outputAudioChan <- encodedChunk
+				select {
+				case <-bs.shutdownCtx.Done():
+					return
+				case bs.outputAudioChan <- encodedChunk:
+				}
 			}
 		}()
 		if initErr {
@@ -359,6 +378,6 @@ func (bs *basicStream) initAudioCodec(sampleRate, channelCount int) error {
 	if bs.audioEncoder != nil {
 		bs.audioEncoder.Close()
 	}
-	bs.audioEncoder, err = bs.config.AudioEncoderFactory.New(sampleRate, channelCount, bs.config.AudioLatency, bs.logger)
+	bs.audioEncoder, err = bs.config.AudioEncoderFactory.New(sampleRate, channelCount, bs.audioLatency, bs.logger)
 	return err
 }

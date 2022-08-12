@@ -108,9 +108,11 @@ func (a *encoder) Read() (chunk wave.Audio, release func(), err error) {
 }
 
 // Encode asks the codec to process the given audio chunk.
-func (a *encoder) Encode(chunk wave.Audio) ([]byte, bool, error) {
+func (a *encoder) Encode(ctx context.Context, chunk wave.Audio) ([]byte, bool, error) {
 	defer func() {
 		select {
+		case <-ctx.Done():
+			return
 		case <-a.cancelCtx.Done():
 			return
 		case a.chunkCh <- chunk:
@@ -120,6 +122,8 @@ func (a *encoder) Encode(chunk wave.Audio) ([]byte, bool, error) {
 		return nil, false, err
 	}
 	select {
+	case <-ctx.Done():
+		return nil, false, ctx.Err()
 	case <-a.cancelCtx.Done():
 		return nil, false, a.cancelCtx.Err()
 	case encoded := <-a.encodedCh:
