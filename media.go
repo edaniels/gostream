@@ -18,7 +18,7 @@ type MediaReader[T any] interface {
 // A MediaStream streams media forever until closed.
 type MediaStream[T any] interface {
 	Next(ctx context.Context) (T, func(), error)
-	Close()
+	Close(ctx context.Context) error
 }
 
 // A MediaSource can produce Streams of Ts.
@@ -154,8 +154,9 @@ func (ms *mediaStreamFromChannel[T]) Next(ctx context.Context) (T, func(), error
 	}
 }
 
-func (ms *mediaStreamFromChannel[T]) Close() {
+func (ms *mediaStreamFromChannel[T]) Close(ctx context.Context) error {
 	ms.cancel()
+	return nil
 }
 
 type mediaStream[T any, U any] struct {
@@ -192,8 +193,9 @@ func (ms *mediaStream[T, U]) Next(ctx context.Context) (T, func(), error) {
 	return ms.ms.copyFn(current.Media), func() {}, nil
 }
 
-func (ms *mediaStream[T, U]) Close() {
+func (ms *mediaStream[T, U]) Close(ctx context.Context) error {
 	ms.cancel()
+	return nil
 }
 
 func (ms *mediaSource[T, U]) Stream(ctx context.Context) (MediaStream[T], error) {

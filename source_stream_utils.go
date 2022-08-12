@@ -2,6 +2,8 @@ package gostream
 
 import (
 	"context"
+
+	"go.viam.com/utils"
 )
 
 // ErrorHandler receives the error returned by a TSource.Next
@@ -77,7 +79,9 @@ func streamMediaSource[T any, U any](
 	if err != nil {
 		return err
 	}
-	defer mediaStream.Close()
+	defer func() {
+		utils.UncheckedError(mediaStream.Close(ctx))
+	}()
 	for {
 		select {
 		case <-ctx.Done():
