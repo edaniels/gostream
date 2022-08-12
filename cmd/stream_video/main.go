@@ -15,8 +15,6 @@ import (
 	"github.com/edaniels/gostream"
 	"github.com/edaniels/gostream/codec/vpx"
 	"github.com/edaniels/gostream/codec/x264"
-	"github.com/edaniels/gostream/media"
-	"github.com/edaniels/gostream/utils"
 )
 
 func main() {
@@ -42,11 +40,11 @@ func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error
 		return err
 	}
 	if argsParsed.Dump {
-		var all []media.DeviceInfo
+		var all []gostream.DeviceInfo
 		if argsParsed.Camera {
-			all = media.QueryVideoDevices()
+			all = gostream.QueryVideoDevices()
 		} else {
-			all = media.QueryScreenDevices()
+			all = gostream.QueryScreenDevices()
 		}
 		for _, info := range all {
 			logger.Debugf("%s", info.ID)
@@ -78,17 +76,17 @@ func runServer(
 	dupeStream bool,
 	logger golog.Logger,
 ) (err error) {
-	var videoReader media.ReadCloser[image.Image, prop.Video]
+	var videoReader gostream.MediaSource[image.Image, prop.Video]
 	if camera {
-		videoReader, err = media.GetAnyVideoReader(media.DefaultConstraints)
+		videoReader, err = gostream.GetAnyVideoReader(gostream.DefaultConstraints)
 	} else {
-		videoReader, err = media.GetAnyScreenReader(media.DefaultConstraints)
+		videoReader, err = gostream.GetAnyScreenReader(gostream.DefaultConstraints)
 	}
 	if err != nil {
 		return err
 	}
 	defer func() {
-		err = multierr.Combine(err, videoReader.Close())
+		err = multierr.Combine(err, videoReader.Close(ctx))
 	}()
 
 	_ = x264.DefaultStreamConfig
@@ -126,10 +124,10 @@ func runServer(
 
 	if secondStream != nil {
 		go func() {
-			secondErr <- utils.StreamImageSource(ctx, videoReader, secondStream)
+			secondErr <- gostream.StreamImageSource(ctx, videoReader, secondStream)
 		}()
 	} else {
 		close(secondErr)
 	}
-	return utils.StreamImageSource(ctx, videoReader, stream)
+	return gostream.StreamImageSource(ctx, videoReader, stream)
 }

@@ -13,12 +13,12 @@ import (
 
 	// register screen drivers.
 	_ "github.com/pion/mediadevices/pkg/driver/microphone"
+	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pion/mediadevices/pkg/wave"
 	"github.com/pion/webrtc/v3"
 	"go.viam.com/utils"
 
 	"github.com/edaniels/gostream/codec"
-	ourwebrtc "github.com/edaniels/gostream/webrtc"
 )
 
 // A Stream is sink that accepts any image frames for the purpose
@@ -35,9 +35,9 @@ type Stream interface {
 	// streams are ready for input.
 	StreamingReady() <-chan struct{}
 
-	InputImageFrames() (chan<- FrameReleasePair, error)
+	InputImageFrames(props prop.Video) (chan<- MediaReleasePair[image.Image], error)
 
-	InputAudioChunks(latency time.Duration) (chan<- AudioChunkReleasePair, error)
+	InputAudioChunks(props prop.Audio) (chan<- MediaReleasePair[wave.Audio], error)
 
 	// Stop stops further processing of frames.
 	Stop()
@@ -48,19 +48,11 @@ type internalStream interface {
 	AudioTrackLocal() (webrtc.TrackLocal, bool)
 }
 
-// FrameReleasePair associates a frame with a corresponding
+// MediaReleasePair associates a media with a corresponding
 // function to release its resources once the receiver of a
-// pair is finished with the frame.
-type FrameReleasePair struct {
-	Frame   image.Image
-	Release func()
-}
-
-// AudioChunkReleasePair associates an audio chunk with a corresponding
-// function to release its resources once the receiver of a
-// pair is finished with the chunk.
-type AudioChunkReleasePair struct {
-	Chunk   wave.Audio
+// pair is finished with the media.
+type MediaReleasePair[T any] struct {
+	Media   T
 	Release func()
 }
 
@@ -84,18 +76,18 @@ func NewStream(config StreamConfig) (Stream, error) {
 		name = uuid.NewString()
 	}
 
-	var trackLocal *ourwebrtc.TrackLocalStaticSample
+	var trackLocal *trackLocalStaticSample
 	if config.VideoEncoderFactory != nil {
-		trackLocal = ourwebrtc.NewTrackLocalStaticSample(
+		trackLocal = newVideoTrackLocalStaticSample(
 			webrtc.RTPCodecCapability{MimeType: config.VideoEncoderFactory.MIMEType()},
 			name,
 			name,
 		)
 	}
 
-	var audioTrackLocal *ourwebrtc.TrackLocalStaticSample
+	var audioTrackLocal *trackLocalStaticSample
 	if config.AudioEncoderFactory != nil {
-		audioTrackLocal = ourwebrtc.NewAudioTrackLocalStaticSample(
+		audioTrackLocal = newAudioTrackLocalStaticSample(
 			webrtc.RTPCodecCapability{MimeType: config.AudioEncoderFactory.MIMEType()},
 			name,
 			name,
@@ -108,11 +100,11 @@ func NewStream(config StreamConfig) (Stream, error) {
 		streamingReadyCh: make(chan struct{}),
 
 		videoTrackLocal: trackLocal,
-		inputImageChan:  make(chan FrameReleasePair),
+		inputImageChan:  make(chan MediaReleasePair[image.Image]),
 		outputVideoChan: make(chan []byte),
 
 		audioTrackLocal: audioTrackLocal,
-		inputAudioChan:  make(chan AudioChunkReleasePair),
+		inputAudioChan:  make(chan MediaReleasePair[wave.Audio]),
 		outputAudioChan: make(chan []byte),
 
 		logger:            logger,
@@ -130,13 +122,13 @@ type basicStream struct {
 	readyOnce        sync.Once
 	streamingReadyCh chan struct{}
 
-	videoTrackLocal *ourwebrtc.TrackLocalStaticSample
-	inputImageChan  chan FrameReleasePair
+	videoTrackLocal *trackLocalStaticSample
+	inputImageChan  chan MediaReleasePair[image.Image]
 	outputVideoChan chan []byte
 	videoEncoder    codec.VideoEncoder
 
-	audioTrackLocal *ourwebrtc.TrackLocalStaticSample
-	inputAudioChan  chan AudioChunkReleasePair
+	audioTrackLocal *trackLocalStaticSample
+	inputAudioChan  chan MediaReleasePair[wave.Audio]
 	outputAudioChan chan []byte
 	audioEncoder    codec.AudioEncoder
 
@@ -170,23 +162,23 @@ func (bs *basicStream) StreamingReady() <-chan struct{} {
 	return bs.streamingReadyCh
 }
 
-func (bs *basicStream) InputImageFrames() (chan<- FrameReleasePair, error) {
+func (bs *basicStream) InputImageFrames(props prop.Video) (chan<- MediaReleasePair[image.Image], error) {
 	if bs.config.VideoEncoderFactory == nil {
 		return nil, errors.New("no video in stream")
 	}
 	return bs.inputImageChan, nil
 }
 
-func (bs *basicStream) InputAudioChunks(latency time.Duration) (chan<- AudioChunkReleasePair, error) {
+func (bs *basicStream) InputAudioChunks(props prop.Audio) (chan<- MediaReleasePair[wave.Audio], error) {
 	if bs.config.AudioEncoderFactory == nil {
 		return nil, errors.New("no audio in stream")
 	}
 	bs.mu.Lock()
-	if bs.audioLatencySet && bs.audioLatency != latency {
+	if bs.audioLatencySet && bs.audioLatency != props.Latency {
 		return nil, errors.New("cannot stream audio source with different latencies")
 	}
 	bs.audioLatencySet = true
-	bs.audioLatency = latency
+	bs.audioLatency = props.Latency
 	bs.mu.Unlock()
 	return bs.inputAudioChan, nil
 }
@@ -224,13 +216,13 @@ func (bs *basicStream) processInputFrames() {
 			return
 		case <-ticker.C:
 		}
-		var framePair FrameReleasePair
+		var framePair MediaReleasePair[image.Image]
 		select {
 		case framePair = <-bs.inputImageChan:
 		case <-bs.shutdownCtx.Done():
 			return
 		}
-		if framePair.Frame == nil {
+		if framePair.Media == nil {
 			continue
 		}
 		var initErr bool
@@ -239,7 +231,7 @@ func (bs *basicStream) processInputFrames() {
 				defer framePair.Release()
 			}
 
-			bounds := framePair.Frame.Bounds()
+			bounds := framePair.Media.Bounds()
 			newDx, newDy := bounds.Dx(), bounds.Dy()
 			if dx != newDx || dy != newDy {
 				dx, dy = newDx, newDy
@@ -253,7 +245,7 @@ func (bs *basicStream) processInputFrames() {
 			}
 
 			// thread-safe because the size is static
-			encodedFrame, err := bs.videoEncoder.Encode(bs.shutdownCtx, framePair.Frame)
+			encodedFrame, err := bs.videoEncoder.Encode(bs.shutdownCtx, framePair.Media)
 			if err != nil {
 				bs.logger.Error(err)
 				return
@@ -281,13 +273,13 @@ func (bs *basicStream) processInputAudioChunks() {
 			return
 		default:
 		}
-		var audioChunkPair AudioChunkReleasePair
+		var audioChunkPair MediaReleasePair[wave.Audio]
 		select {
 		case audioChunkPair = <-bs.inputAudioChan:
 		case <-bs.shutdownCtx.Done():
 			return
 		}
-		if audioChunkPair.Chunk == nil {
+		if audioChunkPair.Media == nil {
 			continue
 		}
 		var initErr bool
@@ -296,13 +288,13 @@ func (bs *basicStream) processInputAudioChunks() {
 				defer audioChunkPair.Release()
 			}
 
-			info := audioChunkPair.Chunk.ChunkInfo()
+			info := audioChunkPair.Media.ChunkInfo()
 			newSamplingRate, newChannels := info.SamplingRate, info.Channels
 			if samplingRate != newSamplingRate || channels != newChannels {
 				samplingRate, channels = newSamplingRate, newChannels
 				bs.logger.Infow("detected new audio info", "sampling_rate", samplingRate, "channels", channels)
 
-				bs.audioTrackLocal.SetAudioLatency(bs.audioLatency)
+				bs.audioTrackLocal.setAudioLatency(bs.audioLatency)
 				if err := bs.initAudioCodec(samplingRate, channels); err != nil {
 					bs.logger.Error(err)
 					initErr = true
@@ -310,7 +302,7 @@ func (bs *basicStream) processInputAudioChunks() {
 				}
 			}
 
-			encodedChunk, ready, err := bs.audioEncoder.Encode(bs.shutdownCtx, audioChunkPair.Chunk)
+			encodedChunk, ready, err := bs.audioEncoder.Encode(bs.shutdownCtx, audioChunkPair.Media)
 			if err != nil {
 				bs.logger.Error(err)
 				return
@@ -349,7 +341,7 @@ func (bs *basicStream) processOutputFrames() {
 }
 
 func (bs *basicStream) processOutputAudioChunks() {
-	framesSent := 0
+	chunksSent := 0
 	for outputChunk := range bs.outputAudioChan {
 		select {
 		case <-bs.shutdownCtx.Done():
@@ -360,9 +352,9 @@ func (bs *basicStream) processOutputAudioChunks() {
 		if err := bs.audioTrackLocal.WriteData(outputChunk); err != nil {
 			bs.logger.Errorw("error writing audio chunk", "error", err)
 		}
-		framesSent++
+		chunksSent++
 		if Debug {
-			bs.logger.Debugw("wrote sample", "frames_sent", framesSent, "write_time", time.Since(now))
+			bs.logger.Debugw("wrote sample", "chunks_sent", chunksSent, "write_time", time.Since(now))
 		}
 	}
 }

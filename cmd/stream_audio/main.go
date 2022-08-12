@@ -11,7 +11,6 @@ import (
 
 	"github.com/edaniels/golog"
 	"github.com/gen2brain/malgo"
-
 	// register microphone drivers.
 	_ "github.com/pion/mediadevices/pkg/driver/microphone"
 	"github.com/pion/webrtc/v3"
@@ -22,8 +21,6 @@ import (
 
 	"github.com/edaniels/gostream"
 	"github.com/edaniels/gostream/codec/opus"
-	"github.com/edaniels/gostream/media"
-	"github.com/edaniels/gostream/utils"
 )
 
 func main() {
@@ -48,7 +45,7 @@ func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error
 		return err
 	}
 	if argsParsed.Dump {
-		all := media.QueryAudioDevices()
+		all := gostream.QueryAudioDevices()
 		for _, info := range all {
 			logger.Debugf("%s", info.ID)
 			logger.Debugf("\t labels: %v", info.Labels)
@@ -77,12 +74,12 @@ func runServer(
 	playback bool,
 	logger golog.Logger,
 ) (err error) {
-	audioReader, err := media.GetAnyAudioReader(media.DefaultConstraints)
+	audioReader, err := gostream.GetAnyAudioReader(gostream.DefaultConstraints)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		err = multierr.Combine(err, audioReader.Close())
+		err = multierr.Combine(err, audioReader.Close(ctx))
 	}()
 
 	config := opus.DefaultStreamConfig
@@ -130,12 +127,13 @@ func runServer(
 	}
 
 	defer func() { err = multierr.Combine(err, server.Stop(ctx)) }()
-	return utils.StreamAudioSource(ctx, audioReader, stream)
+	return gostream.StreamAudioSource(ctx, audioReader, stream)
 }
 
 func decodeAndPlayTrack(ctx context.Context, track *webrtc.TrackRemote) {
 	var hostEndian binary.ByteOrder
 
+	//nolint:gosec
 	switch v := *(*uint16)(unsafe.Pointer(&([]byte{0x12, 0x34}[0]))); v {
 	case 0x1234:
 		hostEndian = binary.BigEndian
