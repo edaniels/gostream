@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/pion/mediadevices/pkg/driver"
+	"go.uber.org/multierr"
 	"go.viam.com/utils"
 )
 
@@ -27,8 +27,8 @@ type Source[T any, U any] interface {
 	Next(ctx context.Context) (T, func(), error)
 	Stream(ctx context.Context) (Stream[T], error)
 	Properties(ctx context.Context) (U, error)
-	// Close cleans up any associated resources with the audio.Reader (e.g. a Driver).
-	Close() error
+	// Close cleans up any associated resources with the Source (e.g. a Driver).
+	Close(ctx context.Context) error
 }
 
 type mediaSource[T any, U any] struct {
@@ -88,12 +88,7 @@ func (ms *mediaSource[T, U]) start(ctx context.Context) {
 			case <-ms.ready:
 			}
 
-			now := time.Now()
 			media, release, err := ms.reader.Read()
-			fmt.Println("took", time.Since(now))
-
-			// TODO(erd): maybe copy and no release since we are fanning out and dont know
-			// who will/won't receive/close
 			ms.current.Store(&mediaReleasePair[T]{media, release, err})
 			if first {
 				first = false
@@ -179,16 +174,15 @@ func (ms *mediaSource[T, U]) Stream(ctx context.Context) (Stream[T], error) {
 	return stream, nil
 }
 
-func (ms *mediaSource[T, U]) Close() error {
+func (ms *mediaSource[T, U]) Close(ctx context.Context) error {
 	ms.mu.Lock()
 	ms.cancel()
 	ms.mu.Unlock()
 	ms.activeBackgroundWorkers.Wait()
-	// TODO(erd): okay to do?
-	utils.TryClose(context.Background(), ms.reader)
+	err := utils.TryClose(ctx, ms.reader)
 
 	if ms.driver == nil {
-		return nil
+		return err
 	}
 	driverRefs.mu.Lock()
 	defer driverRefs.mu.Unlock()
@@ -197,13 +191,13 @@ func (ms *mediaSource[T, U]) Close() error {
 	if rcv, ok := driverRefs.refs[label]; ok {
 		if rcv.Deref() {
 			delete(driverRefs.refs, label)
-			return ms.driver.Close()
+			return multierr.Combine(err, ms.driver.Close())
 		}
 	} else {
-		return ms.driver.Close()
+		return multierr.Combine(err, ms.driver.Close())
 	}
 
 	// Do not close if a driver is being referenced. Client will decide what to do if
 	// they encounter this error.
-	return &DriverInUseError{label}
+	return multierr.Combine(err, &DriverInUseError{label})
 }

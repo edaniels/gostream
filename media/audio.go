@@ -19,6 +19,9 @@ type AudioSource interface {
 
 	// Properties returns information about the audio that will be produced.
 	Properties(ctx context.Context) (prop.Audio, error)
+
+	// Close closes the media source and waits for all active operations to terminate.
+	Close(ctx context.Context) error
 }
 
 // An AudioStream is similar to an AudioSource but is used to represent a continuous,
