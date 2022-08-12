@@ -36,7 +36,6 @@ type ReadCloser[T any, U any] interface {
 }
 
 type mediaReadCloser[T any, U any] struct {
-	count                   int
 	mu                      sync.Mutex
 	driver                  driver.Driver
 	reader                  Reader[T]
@@ -132,8 +131,6 @@ type mediaReleasePair[T any] struct {
 }
 
 type stream[T any, U any] struct {
-	last      time.Time
-	count     int
 	mrc       *mediaReadCloser[T, U]
 	cancelCtx context.Context
 	cancel    func()
@@ -159,10 +156,6 @@ func (ms *stream[T, U]) Next(ctx context.Context) (T, func(), error) {
 	ms.mrc.cond.Wait()
 	ms.mrc.cond.L.Unlock()
 
-	now := time.Now()
-	println("GOT", ms.count)
-	fmt.Println("GOT", ms.count, now.Sub(ms.last))
-	ms.last = now
 	current := ms.mrc.current.Load().(*mediaReleasePair[T])
 	return current.media, current.release, current.err
 }
@@ -172,10 +165,8 @@ func (ms *stream[T, U]) Close() {
 }
 
 func (mrc *mediaReadCloser[T, U]) Stream(ctx context.Context) (Stream[T], error) {
-	mrc.count++
 	cancelCtx, cancel := context.WithCancel(mrc.cancelCtx)
 	stream := &stream[T, U]{
-		count:     mrc.count,
 		mrc:       mrc,
 		cancelCtx: cancelCtx,
 		cancel:    cancel,

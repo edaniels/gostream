@@ -250,3 +250,5 @@ require (
 
 // https://github.com/gen2brain/malgo/pull/39; remember to remove from ./etc/.golangci.yaml
 replace github.com/gen2brain/malgo => github.com/edaniels/malgo v0.0.0-20220811034517-27da536c69ba
+
+replace github.com/pion/mediadevices => /Users/eric/mediadevices
