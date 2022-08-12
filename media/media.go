@@ -21,13 +21,9 @@ type Stream[T any] interface {
 	Close()
 }
 
-// A ReadCloser is a T.Reader that requires it be closed.
-type ReadCloser[T any, U any] interface {
-	Reader[T]
-
-	// Next returns the next media read. This method satisfies APIs that use Next instead
-	// of Read with a given context. The release function should be called once the
-	// media no longer will be utilized.
+// A Source can produce Streams of Ts.
+type Source[T any, U any] interface {
+	// TODO(erd): REMOVE THIS but it breaks some image stuff
 	Next(ctx context.Context) (T, func(), error)
 	Stream(ctx context.Context) (Stream[T], error)
 	Properties(ctx context.Context) (U, error)
@@ -35,7 +31,7 @@ type ReadCloser[T any, U any] interface {
 	Close() error
 }
 
-type mediaReadCloser[T any, U any] struct {
+type mediaSource[T any, U any] struct {
 	mu                      sync.Mutex
 	driver                  driver.Driver
 	reader                  Reader[T]
@@ -47,25 +43,27 @@ type mediaReadCloser[T any, U any] struct {
 	ready                   chan struct{}
 	cond                    *sync.Cond
 	triggerStartOnce        sync.Once
+	copyFn                  func(src T) T
 }
 
-// newReadCloser instantiates a new media read closer and references the given
-// driver.
-func newReadCloser[T any, U any](d driver.Driver, r Reader[T], p U) ReadCloser[T, U] {
-	driverRefs.mu.Lock()
-	defer driverRefs.mu.Unlock()
+// newSource instantiates a new media read closer and possibly references the given driver.
+func newSource[T any, U any](d driver.Driver, r Reader[T], p U, copyFn func(src T) T) Source[T, U] {
+	if d != nil {
+		driverRefs.mu.Lock()
+		defer driverRefs.mu.Unlock()
 
-	label := d.Info().Label
-	if rcv, ok := driverRefs.refs[label]; ok {
-		rcv.Ref()
-	} else {
-		driverRefs.refs[label] = utils.NewRefCountedValue(d)
-		driverRefs.refs[label].Ref()
+		label := d.Info().Label
+		if rcv, ok := driverRefs.refs[label]; ok {
+			rcv.Ref()
+		} else {
+			driverRefs.refs[label] = utils.NewRefCountedValue(d)
+			driverRefs.refs[label].Ref()
+		}
 	}
 
 	cancelCtx, cancel := context.WithCancel(context.Background())
 	cond := sync.NewCond(&sync.RWMutex{})
-	mrc := &mediaReadCloser[T, U]{
+	ms := &mediaSource[T, U]{
 		driver:    d,
 		reader:    r,
 		props:     p,
@@ -73,54 +71,56 @@ func newReadCloser[T any, U any](d driver.Driver, r Reader[T], p U) ReadCloser[T
 		cancel:    cancel,
 		ready:     make(chan struct{}, 1),
 		cond:      cond,
+		copyFn:    copyFn,
 	}
-	mrc.start(cancelCtx)
-	return mrc
+	ms.start(cancelCtx)
+	return ms
 }
 
-func (mrc *mediaReadCloser[T, U]) start(ctx context.Context) {
-	mrc.activeBackgroundWorkers.Add(1)
+func (ms *mediaSource[T, U]) start(ctx context.Context) {
+	ms.activeBackgroundWorkers.Add(1)
 	utils.ManagedGo(func() {
 		first := true
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case <-mrc.ready:
+			case <-ms.ready:
 			}
 
 			now := time.Now()
-			media, release, err := mrc.Read()
+			media, release, err := ms.reader.Read()
 			fmt.Println("took", time.Since(now))
 
 			// TODO(erd): maybe copy and no release since we are fanning out and dont know
 			// who will/won't receive/close
-			mrc.current.Store(&mediaReleasePair[T]{media, release, err})
+			ms.current.Store(&mediaReleasePair[T]{media, release, err})
 			if first {
 				first = false
-				close(mrc.ready)
+				close(ms.ready)
 			}
-			mrc.cond.Broadcast()
+			ms.cond.Broadcast()
 		}
-	}, func() { defer mrc.activeBackgroundWorkers.Done(); mrc.cancel() })
+	}, func() { defer ms.activeBackgroundWorkers.Done(); ms.cancel() })
 }
 
-func (mrc *mediaReadCloser[T, U]) Read() (T, func(), error) {
-	return mrc.reader.Read()
+func (ms *mediaSource[T, U]) Next(ctx context.Context) (T, func(), error) {
+	mediaStream, err := ms.Stream(ctx)
+	var zero T
+	if err != nil {
+		return zero, nil, err
+	}
+	return mediaStream.Next(ctx)
 }
 
-func (mrc *mediaReadCloser[T, U]) Properties(_ context.Context) (U, error) {
-	fmt.Printf("PROPS %#v\n", mrc.props)
-	return mrc.props, nil
+func (ms *mediaSource[T, U]) Properties(_ context.Context) (U, error) {
+	fmt.Printf("PROPS %#v\n", ms.props)
+	return ms.props, nil
 }
 
-func (mrc *mediaReadCloser[T, U]) Next(ctx context.Context) (T, func(), error) {
-	return mrc.Read()
-}
-
-func (mrc *mediaReadCloser[T, U]) triggerStart() {
-	mrc.triggerStartOnce.Do(func() {
-		mrc.ready <- struct{}{}
+func (ms *mediaSource[T, U]) triggerStart() {
+	ms.triggerStartOnce.Do(func() {
+		ms.ready <- struct{}{}
 	})
 }
 
@@ -131,43 +131,47 @@ type mediaReleasePair[T any] struct {
 }
 
 type stream[T any, U any] struct {
-	mrc       *mediaReadCloser[T, U]
+	ms        *mediaSource[T, U]
 	cancelCtx context.Context
 	cancel    func()
 }
 
-func (ms *stream[T, U]) Next(ctx context.Context) (T, func(), error) {
+func (s *stream[T, U]) Next(ctx context.Context) (T, func(), error) {
 	var zero T
-	if err := ms.cancelCtx.Err(); err != nil {
+	if err := s.cancelCtx.Err(); err != nil {
 		return zero, nil, err
 	}
-	ms.mrc.triggerStart()
+	s.ms.triggerStart()
 	select {
-	case <-ms.cancelCtx.Done():
-		return zero, nil, ms.cancelCtx.Err()
+	case <-s.cancelCtx.Done():
+		return zero, nil, s.cancelCtx.Err()
 	case <-ctx.Done():
 		return zero, nil, ctx.Err()
-	case <-ms.mrc.ready:
+	case <-s.ms.ready:
 	}
-	ms.mrc.cond.L.Lock()
-	if err := ms.cancelCtx.Err(); err != nil {
+	s.ms.cond.L.Lock()
+	if err := s.cancelCtx.Err(); err != nil {
 		return zero, nil, err
 	}
-	ms.mrc.cond.Wait()
-	ms.mrc.cond.L.Unlock()
+	s.ms.cond.Wait()
+	s.ms.cond.L.Unlock()
 
-	current := ms.mrc.current.Load().(*mediaReleasePair[T])
-	return current.media, current.release, current.err
+	current := s.ms.current.Load().(*mediaReleasePair[T])
+	if current.err != nil {
+		return zero, nil, current.err
+	}
+	defer current.release()
+	return s.ms.copyFn(current.media), func() {}, nil
 }
 
-func (ms *stream[T, U]) Close() {
-	ms.cancel()
+func (s *stream[T, U]) Close() {
+	s.cancel()
 }
 
-func (mrc *mediaReadCloser[T, U]) Stream(ctx context.Context) (Stream[T], error) {
-	cancelCtx, cancel := context.WithCancel(mrc.cancelCtx)
+func (ms *mediaSource[T, U]) Stream(ctx context.Context) (Stream[T], error) {
+	cancelCtx, cancel := context.WithCancel(ms.cancelCtx)
 	stream := &stream[T, U]{
-		mrc:       mrc,
+		ms:        ms,
 		cancelCtx: cancelCtx,
 		cancel:    cancel,
 	}
@@ -175,23 +179,28 @@ func (mrc *mediaReadCloser[T, U]) Stream(ctx context.Context) (Stream[T], error)
 	return stream, nil
 }
 
-func (mrc *mediaReadCloser[T, U]) Close() error {
-	mrc.mu.Lock()
-	mrc.cancel()
-	mrc.mu.Unlock()
-	mrc.activeBackgroundWorkers.Wait()
+func (ms *mediaSource[T, U]) Close() error {
+	ms.mu.Lock()
+	ms.cancel()
+	ms.mu.Unlock()
+	ms.activeBackgroundWorkers.Wait()
+	// TODO(erd): okay to do?
+	utils.TryClose(context.Background(), ms.reader)
 
+	if ms.driver == nil {
+		return nil
+	}
 	driverRefs.mu.Lock()
 	defer driverRefs.mu.Unlock()
 
-	label := mrc.driver.Info().Label
+	label := ms.driver.Info().Label
 	if rcv, ok := driverRefs.refs[label]; ok {
 		if rcv.Deref() {
 			delete(driverRefs.refs, label)
-			return mrc.driver.Close()
+			return ms.driver.Close()
 		}
 	} else {
-		return mrc.driver.Close()
+		return ms.driver.Close()
 	}
 
 	// Do not close if a driver is being referenced. Client will decide what to do if

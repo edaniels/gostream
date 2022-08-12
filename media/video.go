@@ -8,8 +8,19 @@ import (
 	"github.com/pion/mediadevices/pkg/prop"
 )
 
-// NewVideoReadCloser instantiates a new video read closer and references the given
-// driver.
-func NewVideoReadCloser(d driver.Driver, r video.Reader, p prop.Video) ReadCloser[image.Image, prop.Video] {
-	return newReadCloser[image.Image](d, r, p)
+// NewVideoSource instantiates a new video source.
+func NewVideoSource(r video.Reader, p prop.Video) Source[image.Image, prop.Video] {
+	return newSource[image.Image](nil, r, p, imageCopy)
+}
+
+// NewVideoSourceForDriver instantiates a new video source and references the given driver.
+func NewVideoSourceForDriver(d driver.Driver, r video.Reader, p prop.Video) Source[image.Image, prop.Video] {
+	return newSource[image.Image](d, r, p, imageCopy)
+}
+
+func imageCopy(src image.Image) image.Image {
+	buffer := video.NewFrameBuffer(0)
+	realSrc, _ := src.(image.Image)
+	buffer.StoreCopy(realSrc)
+	return buffer.Load()
 }
