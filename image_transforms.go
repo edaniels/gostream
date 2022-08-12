@@ -9,6 +9,7 @@ import (
 
 	"github.com/disintegration/imaging"
 	"github.com/edaniels/golog"
+	"github.com/pion/mediadevices/pkg/prop"
 	"go.uber.org/multierr"
 	"go.viam.com/utils"
 )
@@ -54,6 +55,10 @@ func (ris ResizeImageSource) Next(ctx context.Context) (image.Image, func(), err
 	}
 
 	return imaging.Resize(img, ris.Width, ris.Height, imaging.NearestNeighbor), func() {}, nil
+}
+
+func (ris ResizeImageSource) Properties(ctx context.Context) (prop.Video, error) {
+	return prop.Video{}, nil
 }
 
 // Close closes the underlying source.
