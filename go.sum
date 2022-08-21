@@ -240,8 +240,6 @@ github.com/edaniels/golinters v0.0.5-0.20210512224240-495d3b8eed19 h1:H1ItaK5N1m
 github.com/edaniels/golinters v0.0.5-0.20210512224240-495d3b8eed19/go.mod h1:i/zcokIKs893VZA41BS8jTOHW23PlqiiZEa7Y+4Nujk=
 github.com/edaniels/golog v0.0.0-20210326173913-16d408aa7a5e h1:K3N0Zm7JySHjvThqKBWO294ZnEPUK2W3os647RVTJB8=
 github.com/edaniels/golog v0.0.0-20210326173913-16d408aa7a5e/go.mod h1:nsP/KxpaFaTriZlxPlULlPKf7F3LS0J4BgoxZN8QJAU=
-github.com/edaniels/malgo v0.0.0-20220811034517-27da536c69ba h1:nL4EybVH2AgiKYUK9VfcYqdxKPDl6Df5atW9vhibZiY=
-github.com/edaniels/malgo v0.0.0-20220811034517-27da536c69ba/go.mod h1:f9TtuN7DVrXMiV/yIceMeWpvanyVzJQMlBecJFVMxww=
 github.com/edaniels/zeroconf v0.0.0-20220607181113-3dc7461460c6 h1:F/jBRznlkuX/MoSbMGLLInX0CS+s1rSByyIzDZG+MYM=
 github.com/edaniels/zeroconf v0.0.0-20220607181113-3dc7461460c6/go.mod h1:do5J/2+5MrOvDQ8GAYs+PVqVfD4dydgSwNQ76CGw5GY=
 github.com/edsrzf/mmap-go v1.0.0/go.mod h1:YO35OhQPt3KJa3ryjFM5Bs14WD66h8eGKpfaBNrHW5M=
@@ -287,6 +285,8 @@ github.com/fullstorydev/grpcurl v1.6.0/go.mod h1:ZQ+ayqbKMJNhzLmbpCiurTVlaK2M/3n
 github.com/fzipp/gocyclo v0.3.1/go.mod h1:DJHO6AUmbdqj2ET4Z9iArSuwWgYDRryYt2wASxc7x3E=
 github.com/fzipp/gocyclo v0.5.1 h1:L66amyuYogbxl0j2U+vGqJXusPF2IkduvXLnYD5TFgw=
 github.com/fzipp/gocyclo v0.5.1/go.mod h1:rXPyn8fnlpa0R2csP/31uerbiVBugk5whMdlyaLkLoA=
+github.com/gen2brain/malgo v0.10.35 h1:D6aNo/Q0SnzQLHomTydTXxj4AJFdGJcVoE7I8JxPoUo=
+github.com/gen2brain/malgo v0.10.35/go.mod h1:zHSUNZAXfCeNsZou0RtQ6Zk7gDYLIcKOrUWtAdksnEs=
 github.com/gen2brain/shm v0.0.0-20200228170931-49f9650110c5 h1:Y5Q2mEwfzjMt5+3u70Gtw93ZOu2UuPeeeTBDntF7FoY=
 github.com/gen2brain/shm v0.0.0-20200228170931-49f9650110c5/go.mod h1:uF6rMu/1nvu+5DpiRLwusA6xB8zlkNoGzKn8lmYONUo=
 github.com/ghodss/yaml v1.0.0/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=
@@ -908,8 +908,6 @@ github.com/pion/logging v0.2.2 h1:M9+AIj/+pxNsDfAT64+MAVgJO0rsyLnoJKCqf//DoeY=
 github.com/pion/logging v0.2.2/go.mod h1:k0/tDVsRCX2Mb2ZEmTqNa7CWsQPc+YYCB7Q+5pahoms=
 github.com/pion/mdns v0.0.5 h1:Q2oj/JB3NqfzY9xGZ1fPzZzK7sDSD8rZPOvcIQ10BCw=
 github.com/pion/mdns v0.0.5/go.mod h1:UgssrvdD3mxpi8tMxAXbsppL3vJ4Jipw1mTCW+al01g=
-github.com/pion/mediadevices v0.3.10-0.20220809131747-6f204fa3d1bf h1:/+UQ6bKb4+AVoHy89Dlxh32PuouOV14jNDKcBH3cBL4=
-github.com/pion/mediadevices v0.3.10-0.20220809131747-6f204fa3d1bf/go.mod h1:sKLty4bEcD45Q+cp4tbIGflx4veFrbMHuIg0+5HWWe4=
 github.com/pion/randutil v0.1.0 h1:CFG1UdESneORglEsnimhUjf33Rwjubwj6xfiOXBa3mA=
 github.com/pion/randutil v0.1.0/go.mod h1:XcJrSMMbbMRhASFVOlj/5hQial/Y8oH/HVo7TBZq+j8=
 github.com/pion/rtcp v1.2.9/go.mod h1:qVPhiCzAm4D/rxb6XzKeyZiQK69yJpbUDJSF7TgrqNo=

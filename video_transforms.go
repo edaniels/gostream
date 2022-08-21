@@ -57,6 +57,7 @@ func (rvs ResizeVideoSource) Read(ctx context.Context) (image.Image, func(), err
 	return imaging.Resize(img, rvs.Width, rvs.Height, imaging.NearestNeighbor), func() {}, nil
 }
 
+// Properties returns no information.
 func (rvs ResizeVideoSource) Properties(ctx context.Context) (prop.Video, error) {
 	return prop.Video{}, nil
 }

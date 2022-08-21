@@ -11,7 +11,6 @@ import (
 
 	"github.com/edaniels/golog"
 	"github.com/gen2brain/malgo"
-
 	// register microphone drivers.
 	_ "github.com/pion/mediadevices/pkg/driver/microphone"
 	"github.com/pion/webrtc/v3"
@@ -175,7 +174,7 @@ func decodeAndPlayTrack(ctx context.Context, track *webrtc.TrackRemote) {
 					return &newData
 				},
 			}
-			decodeRPTData := func() (*[]float32, int, error) {
+			decodeRTPData := func() (*[]float32, int, error) {
 				data, _, err := track.ReadRTP()
 				if err != nil {
 					return nil, 0, err
@@ -195,7 +194,7 @@ func decodeAndPlayTrack(ctx context.Context, track *webrtc.TrackRemote) {
 				// we assume all packets will contain this amount of samples going forward
 				// if it's anything larger than one RTP packet (or close to MTU?) then
 				// this could fail.
-				_, numSamples, err := decodeRPTData()
+				_, numSamples, err := decodeRTPData()
 				if err != nil {
 					panic(err)
 				}
@@ -205,7 +204,7 @@ func decodeAndPlayTrack(ctx context.Context, track *webrtc.TrackRemote) {
 				}
 			}
 
-			deviceConfig := malgo.DefaultDeviceConfig(malgo.Playback)
+			deviceConfig := malgo.DefaultDeviceConfig(malgo.Duplex)
 			deviceConfig.Playback.Format = malgo.FormatF32 // tied to what we opus decode to
 			deviceConfig.Playback.Channels = uint32(channels)
 			deviceConfig.SampleRate = sampleRate
@@ -223,13 +222,14 @@ func decodeAndPlayTrack(ctx context.Context, track *webrtc.TrackRemote) {
 				case <-ctx.Done():
 					return
 				case pcm := <-pcmChan:
-					if len(*pcm) > int(samplesRequested) {
+					pcmToWrite := *pcm
+					if len(pcmToWrite) > int(samplesRequested) {
 						logger.Errorw("not enough samples requested; trimming our own data", "samples_requested", samplesRequested)
-						*pcm = (*pcm)[:samplesRequested]
+						pcmToWrite = pcmToWrite[:samplesRequested]
 					}
 					pOutput = pOutput[:0]
 					buf := bytes.NewBuffer(pOutput)
-					if err := binary.Write(buf, hostEndian, pcm); err != nil {
+					if err := binary.Write(buf, hostEndian, pcmToWrite); err != nil {
 						logger.Errorw("error writing to pcm buf", "error", err)
 					}
 					dataPool.Put(pcm)
@@ -250,11 +250,13 @@ func decodeAndPlayTrack(ctx context.Context, track *webrtc.TrackRemote) {
 				panic(err)
 			}
 
+			defer device.Uninit()
+
 			for {
 				if ctx.Err() != nil {
 					return
 				}
-				pcmData, numSamples, err := decodeRPTData()
+				pcmData, numSamples, err := decodeRTPData()
 				if errors.Is(err, io.EOF) {
 					return
 				}
