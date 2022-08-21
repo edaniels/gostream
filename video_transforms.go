@@ -14,15 +14,15 @@ import (
 	"go.viam.com/utils"
 )
 
-// RotateImageSource rotates images by a set amount of degrees.
-type RotateImageSource struct {
-	Src         ImageSource
+// RotateVideoSource rotates images by a set amount of degrees.
+type RotateVideoSource struct {
+	Src         VideoSource
 	RotateByDeg float64
 }
 
-// Next returns a rotated image by RotateByDeg degrees.
-func (rms *RotateImageSource) Next(ctx context.Context) (image.Image, func(), error) {
-	img, release, err := rms.Src.Next(ctx)
+// Read returns a rotated image by RotateByDeg degrees.
+func (rvs *RotateVideoSource) Read(ctx context.Context) (image.Image, func(), error) {
+	img, release, err := rvs.Src.Read(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -30,23 +30,23 @@ func (rms *RotateImageSource) Next(ctx context.Context) (image.Image, func(), er
 		defer release()
 	}
 
-	return imaging.Rotate(img, rms.RotateByDeg, color.Black), func() {}, nil
+	return imaging.Rotate(img, rvs.RotateByDeg, color.Black), func() {}, nil
 }
 
 // Close closes the underlying source.
-func (rms *RotateImageSource) Close(ctx context.Context) error {
-	return utils.TryClose(ctx, rms.Src)
+func (rvs *RotateVideoSource) Close(ctx context.Context) error {
+	return utils.TryClose(ctx, rvs.Src)
 }
 
-// ResizeImageSource resizes images to the set dimensions.
-type ResizeImageSource struct {
-	Src           ImageSource
+// ResizeVideoSource resizes images to the set dimensions.
+type ResizeVideoSource struct {
+	Src           VideoSource
 	Width, Height int
 }
 
-// Next returns a resized image to Width x Height dimensions.
-func (ris ResizeImageSource) Next(ctx context.Context) (image.Image, func(), error) {
-	img, release, err := ris.Src.Next(ctx)
+// Read returns a resized image to Width x Height dimensions.
+func (rvs ResizeVideoSource) Read(ctx context.Context) (image.Image, func(), error) {
+	img, release, err := rvs.Src.Read(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -54,16 +54,16 @@ func (ris ResizeImageSource) Next(ctx context.Context) (image.Image, func(), err
 		defer release()
 	}
 
-	return imaging.Resize(img, ris.Width, ris.Height, imaging.NearestNeighbor), func() {}, nil
+	return imaging.Resize(img, rvs.Width, rvs.Height, imaging.NearestNeighbor), func() {}, nil
 }
 
-func (ris ResizeImageSource) Properties(ctx context.Context) (prop.Video, error) {
+func (rvs ResizeVideoSource) Properties(ctx context.Context) (prop.Video, error) {
 	return prop.Video{}, nil
 }
 
 // Close closes the underlying source.
-func (ris ResizeImageSource) Close(ctx context.Context) error {
-	return utils.TryClose(ctx, ris.Src)
+func (rvs ResizeVideoSource) Close(ctx context.Context) error {
+	return utils.TryClose(ctx, rvs.Src)
 }
 
 // An AutoTiler automatically tiles a series of images from sources. It rudimentarily
@@ -73,7 +73,7 @@ func (ris ResizeImageSource) Close(ctx context.Context) error {
 // adding image sources over time (but not removing them yet).
 type AutoTiler struct {
 	mu        sync.Mutex
-	sources   []ImageSource
+	sources   []VideoSource
 	maxWidth  int
 	maxHeight int
 	vert      bool
@@ -81,17 +81,17 @@ type AutoTiler struct {
 }
 
 // NewAutoTiler returns an AutoTiler that adapts its image sources to the given width and height.
-func NewAutoTiler(maxWidth, maxHeight int, sources ...ImageSource) *AutoTiler {
+func NewAutoTiler(maxWidth, maxHeight int, sources ...VideoSource) *AutoTiler {
 	return newAutoTiler(maxWidth, maxHeight, false, sources...)
 }
 
 // NewAutoTilerVertical returns an AutoTiler that adapts its image sources to the given width and height.
 // This AutoTiler starts its splits vertically, instead of horizontally.
-func NewAutoTilerVertical(maxWidth, maxHeight int, sources ...ImageSource) *AutoTiler {
+func NewAutoTilerVertical(maxWidth, maxHeight int, sources ...VideoSource) *AutoTiler {
 	return newAutoTiler(maxWidth, maxHeight, true, sources...)
 }
 
-func newAutoTiler(maxWidth, maxHeight int, vert bool, sources ...ImageSource) *AutoTiler {
+func newAutoTiler(maxWidth, maxHeight int, vert bool, sources ...VideoSource) *AutoTiler {
 	return &AutoTiler{
 		maxWidth:  maxWidth,
 		maxHeight: maxHeight,
@@ -109,17 +109,17 @@ func (at *AutoTiler) SetLogger(logger golog.Logger) {
 
 // AddSource adds another image source to the tiler. It will appear down and to
 // the right of the main image.
-func (at *AutoTiler) AddSource(src ImageSource) {
+func (at *AutoTiler) AddSource(src VideoSource) {
 	at.mu.Lock()
 	at.sources = append(at.sources, src)
 	at.mu.Unlock()
 }
 
-// Next produces an image of every source tiled into one main image. If any of
+// Read produces an image of every source tiled into one main image. If any of
 // the image sources error, the image will not be included in the main image
 // but it can certainly appear in subsequent ones. Images are fetched in
 // parallel with no current constraint on parallelism.
-func (at *AutoTiler) Next(ctx context.Context) (image.Image, func(), error) {
+func (at *AutoTiler) Read(ctx context.Context) (image.Image, func(), error) {
 	at.mu.Lock()
 	defer at.mu.Unlock()
 
@@ -131,7 +131,7 @@ func (at *AutoTiler) Next(ctx context.Context) (image.Image, func(), error) {
 		iCopy := i
 		srcCopy := src
 		fs = append(fs, func() error {
-			img, release, err := srcCopy.Next(ctx)
+			img, release, err := srcCopy.Read(ctx)
 			if err != nil {
 				return err
 			}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/edaniels/golog"
 	"github.com/gen2brain/malgo"
+
 	// register microphone drivers.
 	_ "github.com/pion/mediadevices/pkg/driver/microphone"
 	"github.com/pion/webrtc/v3"
@@ -74,12 +75,12 @@ func runServer(
 	playback bool,
 	logger golog.Logger,
 ) (err error) {
-	audioReader, err := gostream.GetAnyAudioReader(gostream.DefaultConstraints)
+	audioSource, err := gostream.GetAnyAudioSource(gostream.DefaultConstraints)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		err = multierr.Combine(err, audioReader.Close(ctx))
+		err = multierr.Combine(err, audioSource.Close(ctx))
 	}()
 
 	config := opus.DefaultStreamConfig
@@ -127,7 +128,7 @@ func runServer(
 	}
 
 	defer func() { err = multierr.Combine(err, server.Stop(ctx)) }()
-	return gostream.StreamAudioSource(ctx, audioReader, stream)
+	return gostream.StreamAudioSource(ctx, audioSource, stream)
 }
 
 func decodeAndPlayTrack(ctx context.Context, track *webrtc.TrackRemote) {

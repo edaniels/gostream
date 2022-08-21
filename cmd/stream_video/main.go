@@ -76,17 +76,17 @@ func runServer(
 	dupeStream bool,
 	logger golog.Logger,
 ) (err error) {
-	var videoReader gostream.MediaSource[image.Image, prop.Video]
+	var videoSource gostream.MediaSource[image.Image, prop.Video]
 	if camera {
-		videoReader, err = gostream.GetAnyVideoReader(gostream.DefaultConstraints)
+		videoSource, err = gostream.GetAnyVideoSource(gostream.DefaultConstraints)
 	} else {
-		videoReader, err = gostream.GetAnyScreenReader(gostream.DefaultConstraints)
+		videoSource, err = gostream.GetAnyScreenSource(gostream.DefaultConstraints)
 	}
 	if err != nil {
 		return err
 	}
 	defer func() {
-		err = multierr.Combine(err, videoReader.Close(ctx))
+		err = multierr.Combine(err, videoSource.Close(ctx))
 	}()
 
 	_ = x264.DefaultStreamConfig
@@ -124,10 +124,10 @@ func runServer(
 
 	if secondStream != nil {
 		go func() {
-			secondErr <- gostream.StreamImageSource(ctx, videoReader, secondStream)
+			secondErr <- gostream.StreamVideoSource(ctx, videoSource, secondStream)
 		}()
 	} else {
 		close(secondErr)
 	}
-	return gostream.StreamImageSource(ctx, videoReader, stream)
+	return gostream.StreamVideoSource(ctx, videoSource, stream)
 }

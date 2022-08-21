@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/pion/mediadevices/pkg/driver"
-	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
 	"go.viam.com/test"
 
@@ -54,10 +53,10 @@ func newFakeDriver(label string) driver.Driver {
 // fakeReader is a reader that always returns a pixel-sized canvas.
 type fakeReader struct{}
 
-func (r *fakeReader) Read() (img image.Image, release func(), err error) {
+func (r *fakeReader) Read(_ context.Context) (img image.Image, release func(), err error) {
 	return image.NewNRGBA(image.Rect(0, 0, 1, 1)), func() {}, nil
 }
 
-func newFakeReader() video.Reader {
+func newFakeReader() gostream.MediaReader[image.Image] {
 	return &fakeReader{}
 }

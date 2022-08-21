@@ -89,18 +89,18 @@ func runServer(
 	camera bool,
 	logger golog.Logger,
 ) (err error) {
-	audioReader, err := gostream.GetAnyAudioReader(gostream.DefaultConstraints)
+	audioSource, err := gostream.GetAnyAudioSource(gostream.DefaultConstraints)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		err = multierr.Combine(err, audioReader.Close(ctx))
+		err = multierr.Combine(err, audioSource.Close(ctx))
 	}()
 	var videoReader gostream.MediaSource[image.Image, prop.Video]
 	if camera {
-		videoReader, err = gostream.GetAnyVideoReader(gostream.DefaultConstraints)
+		videoReader, err = gostream.GetAnyVideoSource(gostream.DefaultConstraints)
 	} else {
-		videoReader, err = gostream.GetAnyScreenReader(gostream.DefaultConstraints)
+		videoReader, err = gostream.GetAnyScreenSource(gostream.DefaultConstraints)
 	}
 	if err != nil {
 		return err
@@ -130,7 +130,7 @@ func runServer(
 	}()
 
 	go func() {
-		audioErr <- gostream.StreamAudioSource(ctx, audioReader, stream)
+		audioErr <- gostream.StreamAudioSource(ctx, audioSource, stream)
 	}()
-	return gostream.StreamImageSource(ctx, videoReader, stream)
+	return gostream.StreamVideoSource(ctx, videoReader, stream)
 }

@@ -8,18 +8,18 @@ import (
 	"github.com/pion/mediadevices/pkg/prop"
 )
 
-// An ImageSource is responsible for producing images when requested. A source
+// A VideoSource is responsible for producing images when requested. A source
 // should produce the image as quickly as possible and introduce no rate limiting
 // of its own as that is handled internally.
-type ImageSource = MediaSource[image.Image, prop.Video]
+type VideoSource = MediaSource[image.Image, prop.Video]
 
 // NewVideoSource instantiates a new video source.
-func NewVideoSource(r video.Reader, p prop.Video) MediaSource[image.Image, prop.Video] {
+func NewVideoSource(r MediaReader[image.Image], p prop.Video) MediaSource[image.Image, prop.Video] {
 	return newMediaSource[image.Image](nil, r, p, imageCopy)
 }
 
 // NewVideoSourceForDriver instantiates a new video source and references the given driver.
-func NewVideoSourceForDriver(d driver.Driver, r video.Reader, p prop.Video) MediaSource[image.Image, prop.Video] {
+func NewVideoSourceForDriver(d driver.Driver, r MediaReader[image.Image], p prop.Video) MediaSource[image.Image, prop.Video] {
 	return newMediaSource[image.Image](d, r, p, imageCopy)
 }
 

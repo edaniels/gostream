@@ -6,40 +6,26 @@ import (
 	"go.viam.com/utils"
 )
 
-// ErrorHandler receives the error returned by a TSource.Next
-// regardless of whether or not the error is nil (This allows
-// for error handling logic based on consecutively retrieved errors).
-// It returns a boolean indicating whether or not the loop should continue.
-type ErrorHandler func(ctx context.Context, frameErr error) bool
-
-// StreamImageSource streams the given image source to the stream forever until context signals cancellation.
-func StreamImageSource(ctx context.Context, is ImageSource, stream Stream) error {
-	return streamMediaSource(ctx, nil, is, stream, func(ctx context.Context, frameErr error) bool {
-		if frameErr != nil {
-			Logger.Debugw("error getting frame", "error", frameErr)
-			return true
-		}
-		return false
-	}, stream.InputImageFrames)
+// StreamVideoSource streams the given video source to the stream forever until context signals cancellation.
+func StreamVideoSource(ctx context.Context, vs VideoSource, stream Stream) error {
+	return streamMediaSource(ctx, nil, vs, stream, func(ctx context.Context, frameErr error) {
+		Logger.Debugw("error getting frame", "error", frameErr)
+	}, stream.InputVideoFrames)
 }
 
-// StreamAudioSource streams the given image source to the stream forever until context signals cancellation.
+// StreamAudioSource streams the given video source to the stream forever until context signals cancellation.
 func StreamAudioSource(ctx context.Context, as AudioSource, stream Stream) error {
-	return streamMediaSource(ctx, nil, as, stream, func(ctx context.Context, frameErr error) bool {
-		if frameErr != nil {
-			Logger.Debugw("error getting frame", "error", frameErr)
-			return true
-		}
-		return false
+	return streamMediaSource(ctx, nil, as, stream, func(ctx context.Context, frameErr error) {
+		Logger.Debugw("error getting frame", "error", frameErr)
 	}, stream.InputAudioChunks)
 }
 
-// StreamImageSourceWithErrorHandler streams the given image source to the stream forever
+// StreamVideoSourceWithErrorHandler streams the given video source to the stream forever
 // until context signals cancellation, frame errors are sent via the error handler.
-func StreamImageSourceWithErrorHandler(
-	ctx context.Context, is ImageSource, stream Stream, errHandler ErrorHandler,
+func StreamVideoSourceWithErrorHandler(
+	ctx context.Context, vs VideoSource, stream Stream, errHandler ErrorHandler,
 ) error {
-	return streamMediaSource(ctx, nil, is, stream, errHandler, stream.InputImageFrames)
+	return streamMediaSource(ctx, nil, vs, stream, errHandler, stream.InputVideoFrames)
 }
 
 // StreamAudioSourceWithErrorHandler streams the given audio source to the stream forever
@@ -75,7 +61,7 @@ func streamMediaSource[T any, U any](
 	if err != nil {
 		return err
 	}
-	mediaStream, err := ms.Stream(ctx)
+	mediaStream, err := ms.Stream(ctx, errHandler)
 	if err != nil {
 		return err
 	}
@@ -89,9 +75,7 @@ func streamMediaSource[T any, U any](
 		default:
 		}
 		media, release, err := mediaStream.Next(ctx)
-		// if errHandler returns true, it means DO NOT continue with the
-		// the rest of the logic on the current iteration
-		if errHandler(ctx, err) {
+		if err != nil {
 			continue
 		}
 		select {

@@ -35,7 +35,7 @@ type Stream interface {
 	// streams are ready for input.
 	StreamingReady() <-chan struct{}
 
-	InputImageFrames(props prop.Video) (chan<- MediaReleasePair[image.Image], error)
+	InputVideoFrames(props prop.Video) (chan<- MediaReleasePair[image.Image], error)
 
 	InputAudioChunks(props prop.Audio) (chan<- MediaReleasePair[wave.Audio], error)
 
@@ -162,7 +162,7 @@ func (bs *basicStream) StreamingReady() <-chan struct{} {
 	return bs.streamingReadyCh
 }
 
-func (bs *basicStream) InputImageFrames(props prop.Video) (chan<- MediaReleasePair[image.Image], error) {
+func (bs *basicStream) InputVideoFrames(props prop.Video) (chan<- MediaReleasePair[image.Image], error) {
 	if bs.config.VideoEncoderFactory == nil {
 		return nil, errors.New("no video in stream")
 	}
