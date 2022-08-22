@@ -55,7 +55,9 @@ func streamMediaSource[T any, U any](
 	}
 	props, err := ms.Properties(ctx)
 	if err != nil {
-		return err
+		Logger.Warnw("no properties found for media; will assume empty", "error", err)
+		var zeroProps U
+		props = zeroProps
 	}
 	input, err := inputChan(props)
 	if err != nil {
