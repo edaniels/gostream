@@ -59,6 +59,7 @@ async function startup() {
 
 					navigator.mediaDevices.getUserMedia({
 						audio: {
+							deviceId: 'default',
 							autoGainControl: false,
 							channelCount: 2,
 							echoCancellation: false,
