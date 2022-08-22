@@ -81,7 +81,7 @@ type mediaSource[T any, U any] struct {
 type ErrorHandler func(ctx context.Context, mediaErr error)
 
 // newMediaSource instantiates a new media read closer and possibly references the given driver.
-func newMediaSource[T any, U any](d driver.Driver, r MediaReader[T], p U, copyFn func(src T) T) MediaSource[T, U] {
+func newMediaSource[T, U any](d driver.Driver, r MediaReader[T], p U, copyFn func(src T) T) MediaSource[T, U] {
 	if d != nil {
 		driverRefs.mu.Lock()
 		defer driverRefs.mu.Unlock()

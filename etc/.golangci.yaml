@@ -59,6 +59,9 @@ linters-settings:
       - commentFormatting
   errcheck:
     check-blank: true
+  gofumpt:
+    lang-version: "1.18"
+    extra-rules: true
   gosec:
     excludes:
       - G601

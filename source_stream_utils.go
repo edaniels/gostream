@@ -37,7 +37,7 @@ func StreamAudioSourceWithErrorHandler(
 }
 
 // streamMediaSource will stream a source of media forever to the stream until the given context tells it to cancel.
-func streamMediaSource[T any, U any](
+func streamMediaSource[T, U any](
 	ctx context.Context,
 	once func(),
 	ms MediaSource[T, U],
