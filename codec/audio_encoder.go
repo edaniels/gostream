@@ -1,6 +1,7 @@
 package codec
 
 import (
+	"context"
 	"time"
 
 	"github.com/edaniels/golog"
@@ -11,7 +12,7 @@ import (
 // the encoder must follow some type of format dictated by a type (see AudioEncoderFactory.MimeType).
 // An encoder that produces bytes of different encoding formats per call is invalid.
 type AudioEncoder interface {
-	Encode(chunk wave.Audio) ([]byte, bool, error)
+	Encode(ctx context.Context, chunk wave.Audio) ([]byte, bool, error)
 	Close()
 }
 

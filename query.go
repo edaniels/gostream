@@ -1,5 +1,4 @@
-// Package media contains media device API helpers.
-package media
+package gostream
 
 import (
 	"errors"
@@ -14,8 +13,6 @@ import (
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pion/mediadevices/pkg/wave"
-
-	"github.com/edaniels/gostream"
 )
 
 // below adapted from github.com/pion/mediadevices
@@ -43,100 +40,100 @@ var DefaultConstraints = mediadevices.MediaStreamConstraints{
 	},
 }
 
-// GetNamedScreenReader attempts to find a screen device by the given name.
-func GetNamedScreenReader(name string, constraints mediadevices.MediaStreamConstraints) (ReadCloser[image.Image], error) {
+// GetNamedScreenSource attempts to find a screen device by the given name.
+func GetNamedScreenSource(name string, constraints mediadevices.MediaStreamConstraints) (MediaSource[image.Image, prop.Video], error) {
 	d, selectedMedia, err := getScreenDriver(constraints, &name)
 	if err != nil {
 		return nil, err
 	}
-	return newVideoReaderFromDriver(d, selectedMedia)
+	return newVideoSourceFromDriver(d, selectedMedia)
 }
 
-// GetPatternedScreenReader attempts to find a screen device by the given label pattern.
-func GetPatternedScreenReader(
+// GetPatternedScreenSource attempts to find a screen device by the given label pattern.
+func GetPatternedScreenSource(
 	labelPattern *regexp.Regexp,
 	constraints mediadevices.MediaStreamConstraints,
-) (ReadCloser[image.Image], error) {
+) (MediaSource[image.Image, prop.Video], error) {
 	d, selectedMedia, err := getScreenDriverPattern(constraints, labelPattern)
 	if err != nil {
 		return nil, err
 	}
-	return newVideoReaderFromDriver(d, selectedMedia)
+	return newVideoSourceFromDriver(d, selectedMedia)
 }
 
-// GetNamedVideoReader attempts to find a video device (not a screen) by the given name.
-func GetNamedVideoReader(
+// GetNamedVideoSource attempts to find a video device (not a screen) by the given name.
+func GetNamedVideoSource(
 	name string,
 	constraints mediadevices.MediaStreamConstraints,
-) (ReadCloser[image.Image], error) {
+) (MediaSource[image.Image, prop.Video], error) {
 	d, selectedMedia, err := getUserVideoDriver(constraints, &name)
 	if err != nil {
 		return nil, err
 	}
-	return newVideoReaderFromDriver(d, selectedMedia)
+	return newVideoSourceFromDriver(d, selectedMedia)
 }
 
-// GetPatternedVideoReader attempts to find a video device (not a screen) by the given label pattern.
-func GetPatternedVideoReader(
+// GetPatternedVideoSource attempts to find a video device (not a screen) by the given label pattern.
+func GetPatternedVideoSource(
 	labelPattern *regexp.Regexp,
 	constraints mediadevices.MediaStreamConstraints,
-) (ReadCloser[image.Image], error) {
+) (MediaSource[image.Image, prop.Video], error) {
 	d, selectedMedia, err := getUserVideoDriverPattern(constraints, labelPattern)
 	if err != nil {
 		return nil, err
 	}
-	return newVideoReaderFromDriver(d, selectedMedia)
+	return newVideoSourceFromDriver(d, selectedMedia)
 }
 
-// GetAnyScreenReader attempts to find any suitable screen device.
-func GetAnyScreenReader(constraints mediadevices.MediaStreamConstraints) (ReadCloser[image.Image], error) {
+// GetAnyScreenSource attempts to find any suitable screen device.
+func GetAnyScreenSource(constraints mediadevices.MediaStreamConstraints) (MediaSource[image.Image, prop.Video], error) {
 	d, selectedMedia, err := getScreenDriver(constraints, nil)
 	if err != nil {
 		return nil, err
 	}
-	return newVideoReaderFromDriver(d, selectedMedia)
+	return newVideoSourceFromDriver(d, selectedMedia)
 }
 
-// GetAnyVideoReader attempts to find any suitable video device (not a screen).
-func GetAnyVideoReader(constraints mediadevices.MediaStreamConstraints) (ReadCloser[image.Image], error) {
+// GetAnyVideoSource attempts to find any suitable video device (not a screen).
+func GetAnyVideoSource(constraints mediadevices.MediaStreamConstraints) (MediaSource[image.Image, prop.Video], error) {
 	d, selectedMedia, err := getUserVideoDriver(constraints, nil)
 	if err != nil {
 		return nil, err
 	}
-	return newVideoReaderFromDriver(d, selectedMedia)
+	return newVideoSourceFromDriver(d, selectedMedia)
 }
 
-// GetAnyAudioReader attempts to find any suitable audio device.
-func GetAnyAudioReader(constraints mediadevices.MediaStreamConstraints) (ReadCloser[wave.Audio], error) {
+// GetAnyAudioSource attempts to find any suitable audio device.
+func GetAnyAudioSource(constraints mediadevices.MediaStreamConstraints) (MediaSource[wave.Audio, prop.Audio], error) {
 	d, selectedMedia, err := getUserAudioDriver(constraints, nil)
 	if err != nil {
 		return nil, err
 	}
-	return newAudioReaderFromDriver(d, selectedMedia)
+	return newAudioSourceFromDriver(d, selectedMedia)
 }
 
-// GetNamedAudioReader attempts to find an audio device by the given name.
-func GetNamedAudioReader(
+// GetNamedAudioSource attempts to find an audio device by the given name.
+func GetNamedAudioSource(
 	name string,
 	constraints mediadevices.MediaStreamConstraints,
-) (ReadCloser[wave.Audio], error) {
+) (MediaSource[wave.Audio, prop.Audio], error) {
 	d, selectedMedia, err := getUserAudioDriver(constraints, &name)
 	if err != nil {
 		return nil, err
 	}
-	return newAudioReaderFromDriver(d, selectedMedia)
+	return newAudioSourceFromDriver(d, selectedMedia)
 }
 
-// GetPatternedAudioReader attempts to find an audio device by the given label pattern.
-func GetPatternedAudioReader(
+// GetPatternedAudioSource attempts to find an audio device by the given label pattern.
+func GetPatternedAudioSource(
 	labelPattern *regexp.Regexp,
 	constraints mediadevices.MediaStreamConstraints,
-) (ReadCloser[wave.Audio], error) {
+) (MediaSource[wave.Audio, prop.Audio], error) {
 	d, selectedMedia, err := getUserAudioDriverPattern(constraints, labelPattern)
 	if err != nil {
 		return nil, err
 	}
-	return newAudioReaderFromDriver(d, selectedMedia)
+	return newAudioSourceFromDriver(d, selectedMedia)
 }
 
 // DeviceInfo describes a driver.
@@ -251,16 +248,16 @@ func getUserVideoDriverPattern(
 	return selectVideoPattern(videoConstraints, labelPattern)
 }
 
-func newVideoReaderFromDriver(videoDriver driver.Driver, mediaProp prop.Media) (ReadCloser[image.Image], error) {
+func newVideoSourceFromDriver(videoDriver driver.Driver, mediaProp prop.Media) (MediaSource[image.Image, prop.Video], error) {
 	recorder, ok := videoDriver.(driver.VideoRecorder)
 	if !ok {
 		return nil, errors.New("driver not a driver.VideoRecorder")
 	}
 
 	if driverStatus := videoDriver.Status(); driverStatus != driver.StateClosed {
-		gostream.Logger.Warnw("video driver is not closed, attempting to close and reopen", "status", driverStatus)
+		Logger.Warnw("video driver is not closed, attempting to close and reopen", "status", driverStatus)
 		if err := videoDriver.Close(); err != nil {
-			gostream.Logger.Errorw("error closing driver", "error", err)
+			Logger.Errorw("error closing driver", "error", err)
 		}
 	}
 	if err := videoDriver.Open(); err != nil {
@@ -270,7 +267,7 @@ func newVideoReaderFromDriver(videoDriver driver.Driver, mediaProp prop.Media) (
 	if err != nil {
 		return nil, err
 	}
-	return newReadCloser[image.Image](videoDriver, reader), nil
+	return newMediaSource[image.Image](videoDriver, mediaReaderFuncNoCtx[image.Image](reader.Read), mediaProp.Video, imageCopy), nil
 }
 
 func getUserAudioDriver(constraints mediadevices.MediaStreamConstraints, label *string) (driver.Driver, prop.Media, error) {
@@ -292,16 +289,16 @@ func getUserAudioDriverPattern(
 	return selectVideoPattern(audioConstraints, labelPattern)
 }
 
-func newAudioReaderFromDriver(audioDriver driver.Driver, mediaProp prop.Media) (ReadCloser[wave.Audio], error) {
+func newAudioSourceFromDriver(audioDriver driver.Driver, mediaProp prop.Media) (MediaSource[wave.Audio, prop.Audio], error) {
 	recorder, ok := audioDriver.(driver.AudioRecorder)
 	if !ok {
 		return nil, errors.New("driver not a driver.AudioRecorder")
 	}
 
 	if driverStatus := audioDriver.Status(); driverStatus != driver.StateClosed {
-		gostream.Logger.Warnw("audio driver is not closed, attempting to close and reopen", "status", driverStatus)
+		Logger.Warnw("audio driver is not closed, attempting to close and reopen", "status", driverStatus)
 		if err := audioDriver.Close(); err != nil {
-			gostream.Logger.Errorw("error closing driver", "error", err)
+			Logger.Errorw("error closing driver", "error", err)
 		}
 	}
 	if err := audioDriver.Open(); err != nil {
@@ -311,7 +308,7 @@ func newAudioReaderFromDriver(audioDriver driver.Driver, mediaProp prop.Media) (
 	if err != nil {
 		return nil, err
 	}
-	return NewAudioReadCloser(audioDriver, reader), nil
+	return newMediaSource[wave.Audio](audioDriver, mediaReaderFuncNoCtx[wave.Audio](reader.Read), mediaProp.Audio, audioCopy), nil
 }
 
 func labelFilter(target string, useSep bool) driver.FilterFn {
@@ -471,7 +468,7 @@ func queryDriverProperties(filter driver.FilterFn) map[driver.Driver][]prop.Medi
 	for _, d := range needToClose {
 		// Since it was closed, we should close it to avoid a leak
 		if err := d.Close(); err != nil {
-			gostream.Logger.Errorw("error closing driver", "error", err)
+			Logger.Errorw("error closing driver", "error", err)
 		}
 	}
 

@@ -1,3 +1,4 @@
+// Package main streams video.
 package main
 
 import (
@@ -8,17 +9,17 @@ import (
 	// register video drivers.
 	_ "github.com/pion/mediadevices/pkg/driver/camera"
 	_ "github.com/pion/mediadevices/pkg/driver/screen"
+	"github.com/pion/mediadevices/pkg/prop"
 	"go.uber.org/multierr"
-	"go.viam.com/utils"
+	goutils "go.viam.com/utils"
 
 	"github.com/edaniels/gostream"
 	"github.com/edaniels/gostream/codec/vpx"
 	"github.com/edaniels/gostream/codec/x264"
-	"github.com/edaniels/gostream/media"
 )
 
 func main() {
-	utils.ContextualMain(mainWithArgs, logger)
+	goutils.ContextualMain(mainWithArgs, logger)
 }
 
 var (
@@ -28,23 +29,23 @@ var (
 
 // Arguments for the command.
 type Arguments struct {
-	Port       utils.NetPortFlag `flag:"0"`
-	Camera     bool              `flag:"camera,usage=use camera"`
-	DupeStream bool              `flag:"dupe_stream,usage=duplicate stream"`
-	Dump       bool              `flag:"dump"`
+	Port       goutils.NetPortFlag `flag:"0"`
+	Camera     bool                `flag:"camera,usage=use camera"`
+	DupeStream bool                `flag:"dupe_stream,usage=duplicate stream"`
+	Dump       bool                `flag:"dump"`
 }
 
 func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error {
 	var argsParsed Arguments
-	if err := utils.ParseFlags(args, &argsParsed); err != nil {
+	if err := goutils.ParseFlags(args, &argsParsed); err != nil {
 		return err
 	}
 	if argsParsed.Dump {
-		var all []media.DeviceInfo
+		var all []gostream.DeviceInfo
 		if argsParsed.Camera {
-			all = media.QueryVideoDevices()
+			all = gostream.QueryVideoDevices()
 		} else {
-			all = media.QueryScreenDevices()
+			all = gostream.QueryScreenDevices()
 		}
 		for _, info := range all {
 			logger.Debugf("%s", info.ID)
@@ -57,7 +58,7 @@ func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error
 		return nil
 	}
 	if argsParsed.Port == 0 {
-		argsParsed.Port = utils.NetPortFlag(defaultPort)
+		argsParsed.Port = goutils.NetPortFlag(defaultPort)
 	}
 
 	return runServer(
@@ -76,17 +77,17 @@ func runServer(
 	dupeStream bool,
 	logger golog.Logger,
 ) (err error) {
-	var videoReader media.ReadCloser[image.Image]
+	var videoSource gostream.MediaSource[image.Image, prop.Video]
 	if camera {
-		videoReader, err = media.GetAnyVideoReader(media.DefaultConstraints)
+		videoSource, err = gostream.GetAnyVideoSource(gostream.DefaultConstraints)
 	} else {
-		videoReader, err = media.GetAnyScreenReader(media.DefaultConstraints)
+		videoSource, err = gostream.GetAnyScreenSource(gostream.DefaultConstraints)
 	}
 	if err != nil {
 		return err
 	}
 	defer func() {
-		err = multierr.Combine(err, videoReader.Close())
+		err = multierr.Combine(err, videoSource.Close(ctx))
 	}()
 
 	_ = x264.DefaultStreamConfig
@@ -124,10 +125,10 @@ func runServer(
 
 	if secondStream != nil {
 		go func() {
-			secondErr <- gostream.StreamImageSource(ctx, videoReader, secondStream)
+			secondErr <- gostream.StreamVideoSource(ctx, videoSource, secondStream)
 		}()
 	} else {
 		close(secondErr)
 	}
-	return gostream.StreamImageSource(ctx, videoReader, stream)
+	return gostream.StreamVideoSource(ctx, videoSource, stream)
 }

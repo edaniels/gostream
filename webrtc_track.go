@@ -1,7 +1,4 @@
-// Package webrtc contains helper utilities for working with WebRTC.
-// Mostly it just contains a local track that can be written to with
-// frames that have their sample times figured out automatically.
-package webrtc
+package gostream
 
 import (
 	"math"
@@ -31,7 +28,7 @@ type trackBinding struct {
 }
 
 // trackLocalStaticRTP  is a TrackLocal that has a pre-set codec and accepts RTP Packets.
-// If you wish to send a media.Sample use TrackLocalStaticSample.
+// If you wish to send a media.Sample use trackLocalStaticSample.
 type trackLocalStaticRTP struct {
 	mu                sync.RWMutex
 	bindings          []trackBinding
@@ -150,52 +147,51 @@ func (s *trackLocalStaticRTP) Write(b []byte) (n int, err error) {
 	return len(b), s.WriteRTP(packet)
 }
 
-// TrackLocalStaticSample is a TrackLocal that has a pre-set codec and accepts Samples.
+// trackLocalStaticSample is a TrackLocal that has a pre-set codec and accepts Samples.
 // If you wish to send a RTP Packet use trackLocalStaticRTP.
-type TrackLocalStaticSample struct {
+type trackLocalStaticSample struct {
 	packetizer   rtp.Packetizer
 	rtpTrack     *trackLocalStaticRTP
 	sampler      samplerFunc
 	isAudio      bool
+	clockRate    uint32
 	audioLatency time.Duration
 }
 
-// NewTrackLocalStaticSample returns a TrackLocalStaticSample for video.
-func NewTrackLocalStaticSample(c webrtc.RTPCodecCapability, id, streamID string) *TrackLocalStaticSample {
-	return &TrackLocalStaticSample{
+// newVideoTrackLocalStaticSample returns a trackLocalStaticSample for video.
+func newVideoTrackLocalStaticSample(c webrtc.RTPCodecCapability, id, streamID string) *trackLocalStaticSample {
+	return &trackLocalStaticSample{
 		rtpTrack: newtrackLocalStaticRTP(c, id, streamID),
 	}
 }
 
-// NewAudioTrackLocalStaticSample returns a TrackLocalStaticSample fo raudio.
-func NewAudioTrackLocalStaticSample(
+// newAudioTrackLocalStaticSample returns a trackLocalStaticSample for audio.
+func newAudioTrackLocalStaticSample(
 	c webrtc.RTPCodecCapability,
-	latency time.Duration,
 	id, streamID string,
-) *TrackLocalStaticSample {
-	return &TrackLocalStaticSample{
-		rtpTrack:     newtrackLocalStaticRTP(c, id, streamID),
-		isAudio:      true,
-		audioLatency: latency,
+) *trackLocalStaticSample {
+	return &trackLocalStaticSample{
+		rtpTrack: newtrackLocalStaticRTP(c, id, streamID),
+		isAudio:  true,
 	}
 }
 
 // ID is the unique identifier for this Track. This should be unique for the
 // stream, but doesn't have to globally unique. A common example would be 'audio' or 'video'
 // and StreamID would be 'desktop' or 'webcam'.
-func (s *TrackLocalStaticSample) ID() string { return s.rtpTrack.ID() }
+func (s *trackLocalStaticSample) ID() string { return s.rtpTrack.ID() }
 
 // StreamID is the group this track belongs too. This must be unique.
-func (s *TrackLocalStaticSample) StreamID() string { return s.rtpTrack.StreamID() }
+func (s *trackLocalStaticSample) StreamID() string { return s.rtpTrack.StreamID() }
 
 // RID is the RTP stream identifier.
-func (s *TrackLocalStaticSample) RID() string { return s.rtpTrack.RID() }
+func (s *trackLocalStaticSample) RID() string { return s.rtpTrack.RID() }
 
 // Kind controls if this TrackLocal is audio or video.
-func (s *TrackLocalStaticSample) Kind() webrtc.RTPCodecType { return s.rtpTrack.Kind() }
+func (s *trackLocalStaticSample) Kind() webrtc.RTPCodecType { return s.rtpTrack.Kind() }
 
 // Codec gets the Codec of the track.
-func (s *TrackLocalStaticSample) Codec() webrtc.RTPCodecCapability {
+func (s *trackLocalStaticSample) Codec() webrtc.RTPCodecCapability {
 	return s.rtpTrack.Codec()
 }
 
@@ -204,7 +200,7 @@ const rtpOutboundMTU = 1200
 // Bind is called by the PeerConnection after negotiation is complete
 // This asserts that the code requested is supported by the remote peer.
 // If so it setups all the state (SSRC and PayloadType) to have a call.
-func (s *TrackLocalStaticSample) Bind(t webrtc.TrackLocalContext) (webrtc.RTPCodecParameters, error) {
+func (s *trackLocalStaticSample) Bind(t webrtc.TrackLocalContext) (webrtc.RTPCodecParameters, error) {
 	codec, err := s.rtpTrack.Bind(t)
 	if err != nil {
 		return codec, err
@@ -213,7 +209,8 @@ func (s *TrackLocalStaticSample) Bind(t webrtc.TrackLocalContext) (webrtc.RTPCod
 	s.rtpTrack.mu.Lock()
 	defer s.rtpTrack.mu.Unlock()
 
-	// We only need one packetizer
+	// We only need one packetizer. But isn't that confusing with other clock rates
+	// from other codecs?
 	if s.packetizer != nil {
 		return codec, nil
 	}
@@ -223,6 +220,7 @@ func (s *TrackLocalStaticSample) Bind(t webrtc.TrackLocalContext) (webrtc.RTPCod
 		return codec, err
 	}
 
+	// TODO(erd): I think we need to do this for each bind
 	s.packetizer = rtp.NewPacketizer(
 		rtpOutboundMTU,
 		uint8(codec.PayloadType),
@@ -232,33 +230,50 @@ func (s *TrackLocalStaticSample) Bind(t webrtc.TrackLocalContext) (webrtc.RTPCod
 		codec.ClockRate,
 	)
 
-	if s.isAudio {
-		s.sampler = newAudioSampler(codec.RTPCodecCapability.ClockRate, s.audioLatency)
-	} else {
-		s.sampler = newVideoSampler(codec.RTPCodecCapability.ClockRate)
-	}
+	s.clockRate = codec.RTPCodecCapability.ClockRate
 	return codec, nil
+}
+
+func (s *trackLocalStaticSample) setAudioLatency(latency time.Duration) {
+	s.rtpTrack.mu.Lock()
+	defer s.rtpTrack.mu.Unlock()
+	s.audioLatency = latency
 }
 
 // Unbind implements the teardown logic when the track is no longer needed. This happens
 // because a track has been stopped.
-func (s *TrackLocalStaticSample) Unbind(t webrtc.TrackLocalContext) error {
+func (s *trackLocalStaticSample) Unbind(t webrtc.TrackLocalContext) error {
 	return s.rtpTrack.Unbind(t)
 }
 
-// WriteData writes already encoded data to the TrackLocalStaticSample
+// WriteData writes already encoded data to the trackLocalStaticSample
 // If one PeerConnection fails the packets will still be sent to
 // all PeerConnections. The error message will contain the ID of the failed
 // PeerConnections so you can remove them.
-func (s *TrackLocalStaticSample) WriteData(frame []byte) error {
-	s.rtpTrack.mu.RLock()
+func (s *trackLocalStaticSample) WriteData(frame []byte) error {
+	s.rtpTrack.mu.Lock()
 	p := s.packetizer
-	s.rtpTrack.mu.RUnlock()
-
 	if p == nil {
+		s.rtpTrack.mu.Unlock()
 		return nil
 	}
+	if s.isAudio && s.audioLatency == 0 {
+		return nil
+	}
+	sampler := s.sampler
+	if sampler == nil {
+		if s.isAudio {
+			s.sampler = newAudioSampler(s.clockRate, s.audioLatency)
+		} else {
+			s.sampler = newVideoSampler(s.clockRate)
+		}
+	}
 
+	s.rtpTrack.mu.Unlock()
+
+	if s.sampler == nil {
+		return nil
+	}
 	samples := s.sampler()
 	packets := p.Packetize(frame, samples)
 

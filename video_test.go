@@ -1,31 +1,31 @@
-package media_test
+package gostream_test
 
 import (
+	"context"
 	"image"
 	"testing"
 
 	"github.com/pion/mediadevices/pkg/driver"
-	"github.com/pion/mediadevices/pkg/io/video"
 	"github.com/pion/mediadevices/pkg/prop"
 	"go.viam.com/test"
 
-	"github.com/edaniels/gostream/media"
+	"github.com/edaniels/gostream"
 )
 
 func TestReaderClose(t *testing.T) {
 	d := newFakeDriver("/dev/fake")
 
-	vrc1 := media.NewVideoReadCloser(d, newFakeReader())
-	vrc2 := media.NewVideoReadCloser(d, newFakeReader())
+	vrc1 := gostream.NewVideoSourceForDriver(d, newFakeReader(), prop.Video{})
+	vrc2 := gostream.NewVideoSourceForDriver(d, newFakeReader(), prop.Video{})
 
 	if closedCount := d.(*fakeDriver).closedCount; closedCount != 0 {
 		t.Fatalf("expected driver to be open, but was closed %d times", closedCount)
 	}
 
-	test.That(t, vrc1.Close(), test.ShouldHaveSameTypeAs, &media.DriverInUseError{})
+	test.That(t, vrc1.Close(context.Background()), test.ShouldHaveSameTypeAs, &gostream.DriverInUseError{})
 	test.That(t, d.(*fakeDriver).closedCount, test.ShouldEqual, 0)
 
-	test.That(t, vrc2.Close(), test.ShouldBeNil)
+	test.That(t, vrc2.Close(context.Background()), test.ShouldBeNil)
 	test.That(t, d.(*fakeDriver).closedCount, test.ShouldEqual, 1)
 }
 
@@ -53,10 +53,10 @@ func newFakeDriver(label string) driver.Driver {
 // fakeReader is a reader that always returns a pixel-sized canvas.
 type fakeReader struct{}
 
-func (r *fakeReader) Read() (img image.Image, release func(), err error) {
+func (r *fakeReader) Read(_ context.Context) (img image.Image, release func(), err error) {
 	return image.NewNRGBA(image.Rect(0, 0, 1, 1)), func() {}, nil
 }
 
-func newFakeReader() video.Reader {
+func newFakeReader() gostream.MediaReader[image.Image] {
 	return &fakeReader{}
 }

@@ -1,11 +1,14 @@
+// Package main streams audio.
 package main
 
 import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"sync"
+	"unsafe"
 
 	"github.com/edaniels/golog"
 	"github.com/gen2brain/malgo"
@@ -14,16 +17,15 @@ import (
 	"github.com/pion/webrtc/v3"
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
-	"go.viam.com/utils"
+	goutils "go.viam.com/utils"
 	hopus "gopkg.in/hraban/opus.v2"
 
 	"github.com/edaniels/gostream"
 	"github.com/edaniels/gostream/codec/opus"
-	"github.com/edaniels/gostream/media"
 )
 
 func main() {
-	utils.ContextualMain(mainWithArgs, logger)
+	goutils.ContextualMain(mainWithArgs, logger)
 }
 
 var (
@@ -33,18 +35,18 @@ var (
 
 // Arguments for the command.
 type Arguments struct {
-	Port     utils.NetPortFlag `flag:"0"`
-	Dump     bool              `flag:"dump"`
-	Playback bool              `flag:"playback"`
+	Port     goutils.NetPortFlag `flag:"0"`
+	Dump     bool                `flag:"dump"`
+	Playback bool                `flag:"playback"`
 }
 
 func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error {
 	var argsParsed Arguments
-	if err := utils.ParseFlags(args, &argsParsed); err != nil {
+	if err := goutils.ParseFlags(args, &argsParsed); err != nil {
 		return err
 	}
 	if argsParsed.Dump {
-		all := media.QueryAudioDevices()
+		all := gostream.QueryAudioDevices()
 		for _, info := range all {
 			logger.Debugf("%s", info.ID)
 			logger.Debugf("\t labels: %v", info.Labels)
@@ -56,7 +58,7 @@ func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error
 		return nil
 	}
 	if argsParsed.Port == 0 {
-		argsParsed.Port = utils.NetPortFlag(defaultPort)
+		argsParsed.Port = goutils.NetPortFlag(defaultPort)
 	}
 
 	return runServer(
@@ -73,12 +75,12 @@ func runServer(
 	playback bool,
 	logger golog.Logger,
 ) (err error) {
-	audioReader, err := media.GetAnyAudioReader(media.DefaultConstraints)
+	audioSource, err := gostream.GetAnyAudioSource(gostream.DefaultConstraints)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		err = multierr.Combine(err, audioReader.Close())
+		err = multierr.Combine(err, audioSource.Close(ctx))
 	}()
 
 	config := opus.DefaultStreamConfig
@@ -126,10 +128,22 @@ func runServer(
 	}
 
 	defer func() { err = multierr.Combine(err, server.Stop(ctx)) }()
-	return gostream.StreamAudioSource(ctx, audioReader, stream)
+	return gostream.StreamAudioSource(ctx, audioSource, stream)
 }
 
 func decodeAndPlayTrack(ctx context.Context, track *webrtc.TrackRemote) {
+	var hostEndian binary.ByteOrder
+
+	//nolint:gosec
+	switch v := *(*uint16)(unsafe.Pointer(&([]byte{0x12, 0x34}[0]))); v {
+	case 0x1234:
+		hostEndian = binary.BigEndian
+	case 0x3412:
+		hostEndian = binary.LittleEndian
+	default:
+		panic(fmt.Sprintf("failed to determine host endianness: %x", v))
+	}
+
 	switch track.Kind() {
 	case webrtc.RTPCodecTypeAudio:
 		{
@@ -140,7 +154,7 @@ func decodeAndPlayTrack(ctx context.Context, track *webrtc.TrackRemote) {
 				panic(err)
 			}
 			defer func() {
-				utils.UncheckedErrorFunc(mCtx.Uninit)
+				goutils.UncheckedErrorFunc(mCtx.Uninit)
 				mCtx.Free()
 			}()
 
@@ -161,7 +175,7 @@ func decodeAndPlayTrack(ctx context.Context, track *webrtc.TrackRemote) {
 					return &newData
 				},
 			}
-			decodeRPTData := func() (*[]float32, int, error) {
+			decodeRTPData := func() (*[]float32, int, error) {
 				data, _, err := track.ReadRTP()
 				if err != nil {
 					return nil, 0, err
@@ -181,7 +195,7 @@ func decodeAndPlayTrack(ctx context.Context, track *webrtc.TrackRemote) {
 				// we assume all packets will contain this amount of samples going forward
 				// if it's anything larger than one RTP packet (or close to MTU?) then
 				// this could fail.
-				_, numSamples, err := decodeRPTData()
+				_, numSamples, err := decodeRTPData()
 				if err != nil {
 					panic(err)
 				}
@@ -209,13 +223,14 @@ func decodeAndPlayTrack(ctx context.Context, track *webrtc.TrackRemote) {
 				case <-ctx.Done():
 					return
 				case pcm := <-pcmChan:
-					if len(*pcm) > int(samplesRequested) {
+					pcmToWrite := *pcm
+					if len(pcmToWrite) > int(samplesRequested) {
 						logger.Errorw("not enough samples requested; trimming our own data", "samples_requested", samplesRequested)
-						*pcm = (*pcm)[:samplesRequested]
+						pcmToWrite = pcmToWrite[:samplesRequested]
 					}
 					pOutput = pOutput[:0]
 					buf := bytes.NewBuffer(pOutput)
-					if err := binary.Write(buf, binary.LittleEndian, pcm); err != nil {
+					if err := binary.Write(buf, hostEndian, pcmToWrite); err != nil {
 						logger.Errorw("error writing to pcm buf", "error", err)
 					}
 					dataPool.Put(pcm)
@@ -236,11 +251,13 @@ func decodeAndPlayTrack(ctx context.Context, track *webrtc.TrackRemote) {
 				panic(err)
 			}
 
+			defer device.Uninit()
+
 			for {
 				if ctx.Err() != nil {
 					return
 				}
-				pcmData, numSamples, err := decodeRPTData()
+				pcmData, numSamples, err := decodeRTPData()
 				if errors.Is(err, io.EOF) {
 					return
 				}
