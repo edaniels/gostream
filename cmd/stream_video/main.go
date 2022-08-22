@@ -1,3 +1,4 @@
+// Package main streams video.
 package main
 
 import (
