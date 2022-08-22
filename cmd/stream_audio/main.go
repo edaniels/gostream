@@ -11,6 +11,7 @@ import (
 
 	"github.com/edaniels/golog"
 	"github.com/gen2brain/malgo"
+
 	// register microphone drivers.
 	_ "github.com/pion/mediadevices/pkg/driver/microphone"
 	"github.com/pion/webrtc/v3"
@@ -204,7 +205,7 @@ func decodeAndPlayTrack(ctx context.Context, track *webrtc.TrackRemote) {
 				}
 			}
 
-			deviceConfig := malgo.DefaultDeviceConfig(malgo.Duplex)
+			deviceConfig := malgo.DefaultDeviceConfig(malgo.Playback)
 			deviceConfig.Playback.Format = malgo.FormatF32 // tied to what we opus decode to
 			deviceConfig.Playback.Channels = uint32(channels)
 			deviceConfig.SampleRate = sampleRate

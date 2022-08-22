@@ -62,6 +62,7 @@ linters-settings:
   gomoddirectives:
     replace-allow-list:
       - github.com/gen2brain/malgo
+      - github.com/pion/mediadevices
   govet:
     enable-all: true
     disable:
