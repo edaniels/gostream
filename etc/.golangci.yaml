@@ -54,17 +54,8 @@ linters:
     - wrapcheck
     - wsl
 linters-settings:
-  gocritic:
-    disabled-checks:
-      - commentFormatting
   errcheck:
     check-blank: true
-  gofumpt:
-    lang-version: "1.18"
-    extra-rules: true
-  gosec:
-    excludes:
-      - G601
   gci:
     sections:
       - standard
@@ -74,6 +65,12 @@ linters-settings:
     replace-allow-list:
       - github.com/gen2brain/malgo
       - github.com/pion/mediadevices
+  gofumpt:
+    lang-version: "1.18"
+    extra-rules: true
+  gosec:
+    excludes:
+      - G601
   govet:
     enable-all: true
     disable:
