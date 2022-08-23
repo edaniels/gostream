@@ -79,7 +79,7 @@ func NewStream(config StreamConfig) (Stream, error) {
 	if config.VideoEncoderFactory != nil {
 		trackLocal = newVideoTrackLocalStaticSample(
 			webrtc.RTPCodecCapability{MimeType: config.VideoEncoderFactory.MIMEType()},
-			name,
+			"video",
 			name,
 		)
 	}
@@ -88,7 +88,7 @@ func NewStream(config StreamConfig) (Stream, error) {
 	if config.AudioEncoderFactory != nil {
 		audioTrackLocal = newAudioTrackLocalStaticSample(
 			webrtc.RTPCodecCapability{MimeType: config.AudioEncoderFactory.MIMEType()},
-			name,
+			"audio",
 			name,
 		)
 	}

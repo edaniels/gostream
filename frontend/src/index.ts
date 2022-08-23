@@ -59,6 +59,7 @@ async function startup() {
 
 	webRTCConn.peerConnection.ontrack = async event => {
 		const mediaElementContainer = document.createElement('div');
+		mediaElementContainer.id = event.track.id;
 		const mediaElement = document.createElement(event.track.kind);
 		if (mediaElement instanceof HTMLVideoElement || mediaElement instanceof HTMLAudioElement) {
 			mediaElement.srcObject = event.streams[0];
@@ -83,23 +84,25 @@ async function startup() {
 
 			let audioSender: RTCRtpSender;
 			stream.onremovetrack = async event => {
+				const mediaElementContainer = document.getElementById(event.track.id)!;
+				const mediaElement = mediaElementContainer.getElementsByTagName(event.track.kind)[0];
 				if (audioSender) {
 					webRTCConn.peerConnection.removeTrack(audioSender);
 				}
-				mediaElementContainer.remove();
 				if (mediaElement instanceof HTMLVideoElement || mediaElement instanceof HTMLAudioElement) {
 					mediaElement.pause();
 					mediaElement.removeAttribute('srcObject');
+					mediaElement.removeAttribute('src');
 					mediaElement.load();
-					mediaElement.remove();
 				}
+				mediaElementContainer.remove();
 
 				button.innerText = `Start ${streamName}`
 				button.onclick = makeButtonClick(button, streamName, true);
 				button.disabled = false;
 			};
 
-			if (window.allowSendAudio) {
+			if (mediaElement instanceof HTMLAudioElement && window.allowSendAudio) {
 				const button = document.createElement("button");
 				button.innerText = `Send audio`
 				button.onclick = async (e) => {
@@ -130,7 +133,7 @@ async function startup() {
 				mediaElementContainer.appendChild(document.createElement("br"));
 			}
 		}
-		mediaElement.appendChild(document.createElement("br"));
+		mediaElementContainer.appendChild(document.createElement("br"));
 		mediaElementContainer.appendChild(mediaElement);
 		streamContainer.appendChild(mediaElementContainer);
 	}
