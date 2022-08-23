@@ -1,5 +1,5 @@
 import { dialWebRTC } from "@viamrobotics/rpc";
-import { AddStreamRequest, AddStreamResponse, ListStreamsRequest, ListStreamsResponse } from "./gen/proto/stream/v1/stream_pb";
+import { AddStreamRequest, AddStreamResponse, RemoveStreamRequest, RemoveStreamResponse, ListStreamsRequest, ListStreamsResponse } from "./gen/proto/stream/v1/stream_pb";
 import { ServiceError, StreamServiceClient } from "./gen/proto/stream/v1/stream_pb_service";
 
 const signalingAddress = `${window.location.protocol}//${window.location.host}`;
@@ -31,7 +31,34 @@ async function startup() {
 	});
 	const names = await namesPromise;
 
+	const makeButtonClick = (button: HTMLButtonElement, streamName: string, add: boolean) => async (e: Event) => {
+		e.preventDefault();
+
+		button.disabled = true;
+
+		if (add) {
+			const addRequest = new AddStreamRequest();
+			addRequest.setName(streamName);
+			streamClient.addStream(addRequest, (err: ServiceError, resp: AddStreamResponse) => {
+				if (err) {
+					console.error(err);
+					button.disabled = false;
+				}
+			});
+		} else {
+			const removeRequest = new RemoveStreamRequest();
+			removeRequest.setName(streamName);
+			streamClient.removeStream(removeRequest, (err: ServiceError, resp: RemoveStreamResponse) => {
+				if (err) {
+					console.error(err);
+					button.disabled = false;
+				}
+			});
+		}
+	};
+
 	webRTCConn.peerConnection.ontrack = async event => {
+		const mediaElementContainer = document.createElement('div');
 		const mediaElement = document.createElement(event.track.kind);
 		if (mediaElement instanceof HTMLVideoElement || mediaElement instanceof HTMLAudioElement) {
 			mediaElement.srcObject = event.streams[0];
@@ -43,11 +70,34 @@ async function startup() {
 				mediaElement.controls = true;
 			}
 		}
-		const streamName = event.streams[0].id;
+
+		const stream = event.streams[0];
+		const streamName = stream.id;
 		const streamContainer = document.getElementById(`stream-${streamName}`)!;
 		let btns = streamContainer.getElementsByTagName("button");
 		if (btns.length) {
-			btns[0].remove();
+			const button = btns[0];
+			button.innerText = `Stop ${streamName}`;
+			button.onclick = makeButtonClick(button, streamName, false);
+			button.disabled = false;
+
+			let audioSender: RTCRtpSender;
+			stream.onremovetrack = async event => {
+				if (audioSender) {
+					webRTCConn.peerConnection.removeTrack(audioSender);
+				}
+				mediaElementContainer.remove();
+				if (mediaElement instanceof HTMLVideoElement || mediaElement instanceof HTMLAudioElement) {
+					mediaElement.pause();
+					mediaElement.removeAttribute('srcObject');
+					mediaElement.load();
+					mediaElement.remove();
+				}
+
+				button.innerText = `Start ${streamName}`
+				button.onclick = makeButtonClick(button, streamName, true);
+				button.disabled = false;
+			};
 
 			if (window.allowSendAudio) {
 				const button = document.createElement("button");
@@ -71,16 +121,18 @@ async function startup() {
 						},
 						video: false
 					}).then((stream) => {
-						webRTCConn.peerConnection.addTrack(stream.getAudioTracks()[0])
+						audioSender = webRTCConn.peerConnection.addTrack(stream.getAudioTracks()[0]);
 					}).catch((err) => {
 						console.error(err)
 					});
 				}
-				streamContainer.appendChild(button);
-				streamContainer.appendChild(document.createElement("br"));
+				mediaElementContainer.appendChild(button);
+				mediaElementContainer.appendChild(document.createElement("br"));
 			}
 		}
-		streamContainer.appendChild(mediaElement);
+		mediaElement.appendChild(document.createElement("br"));
+		mediaElementContainer.appendChild(mediaElement);
+		streamContainer.appendChild(mediaElementContainer);
 	}
 
 	for (const name of names) {
@@ -88,20 +140,7 @@ async function startup() {
 		container.id = `stream-${name}`;
 		const button = document.createElement("button");
 		button.innerText = `Start ${name}`
-		button.onclick = async (e) => {
-			e.preventDefault();
-
-			button.disabled = true;
-
-			const addRequest = new AddStreamRequest();
-			addRequest.setName(name);
-			streamClient.addStream(addRequest, (err: ServiceError, resp: AddStreamResponse) => {
-				if (err) {
-					console.error(err);
-					button.disabled = false;
-				}
-			});
-		}
+		button.onclick = makeButtonClick(button, name, true);
 		container.appendChild(button);
 		document.body.appendChild(container);
 	}

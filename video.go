@@ -15,12 +15,12 @@ type VideoSource = MediaSource[image.Image, prop.Video]
 
 // NewVideoSource instantiates a new video source.
 func NewVideoSource(r MediaReader[image.Image], p prop.Video) MediaSource[image.Image, prop.Video] {
-	return newMediaSource[image.Image](nil, r, p, imageCopy)
+	return newMediaSource(nil, r, p, imageCopy)
 }
 
 // NewVideoSourceForDriver instantiates a new video source and references the given driver.
 func NewVideoSourceForDriver(d driver.Driver, r MediaReader[image.Image], p prop.Video) MediaSource[image.Image, prop.Video] {
-	return newMediaSource[image.Image](d, r, p, imageCopy)
+	return newMediaSource(d, r, p, imageCopy)
 }
 
 func imageCopy(src image.Image) image.Image {

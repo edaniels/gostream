@@ -26,6 +26,10 @@ type StreamServiceClient interface {
 	ListStreams(ctx context.Context, in *ListStreamsRequest, opts ...grpc.CallOption) (*ListStreamsResponse, error)
 	// AddStream requests a particular stream be added.
 	AddStream(ctx context.Context, in *AddStreamRequest, opts ...grpc.CallOption) (*AddStreamResponse, error)
+	// RemoveStream requests a particular stream be removed. If the calling client
+	// is the last to be receiving the stream, it will attempt to be stopped to
+	// conserve resources.
+	RemoveStream(ctx context.Context, in *RemoveStreamRequest, opts ...grpc.CallOption) (*RemoveStreamResponse, error)
 }
 
 type streamServiceClient struct {
@@ -54,6 +58,15 @@ func (c *streamServiceClient) AddStream(ctx context.Context, in *AddStreamReques
 	return out, nil
 }
 
+func (c *streamServiceClient) RemoveStream(ctx context.Context, in *RemoveStreamRequest, opts ...grpc.CallOption) (*RemoveStreamResponse, error) {
+	out := new(RemoveStreamResponse)
+	err := c.cc.Invoke(ctx, "/proto.stream.v1.StreamService/RemoveStream", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // StreamServiceServer is the server API for StreamService service.
 // All implementations must embed UnimplementedStreamServiceServer
 // for forward compatibility
@@ -62,6 +75,10 @@ type StreamServiceServer interface {
 	ListStreams(context.Context, *ListStreamsRequest) (*ListStreamsResponse, error)
 	// AddStream requests a particular stream be added.
 	AddStream(context.Context, *AddStreamRequest) (*AddStreamResponse, error)
+	// RemoveStream requests a particular stream be removed. If the calling client
+	// is the last to be receiving the stream, it will attempt to be stopped to
+	// conserve resources.
+	RemoveStream(context.Context, *RemoveStreamRequest) (*RemoveStreamResponse, error)
 	mustEmbedUnimplementedStreamServiceServer()
 }
 
@@ -74,6 +91,9 @@ func (UnimplementedStreamServiceServer) ListStreams(context.Context, *ListStream
 }
 func (UnimplementedStreamServiceServer) AddStream(context.Context, *AddStreamRequest) (*AddStreamResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddStream not implemented")
+}
+func (UnimplementedStreamServiceServer) RemoveStream(context.Context, *RemoveStreamRequest) (*RemoveStreamResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveStream not implemented")
 }
 func (UnimplementedStreamServiceServer) mustEmbedUnimplementedStreamServiceServer() {}
 
@@ -124,6 +144,24 @@ func _StreamService_AddStream_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _StreamService_RemoveStream_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveStreamRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StreamServiceServer).RemoveStream(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/proto.stream.v1.StreamService/RemoveStream",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StreamServiceServer).RemoveStream(ctx, req.(*RemoveStreamRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // StreamService_ServiceDesc is the grpc.ServiceDesc for StreamService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -138,6 +176,10 @@ var StreamService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AddStream",
 			Handler:    _StreamService_AddStream_Handler,
+		},
+		{
+			MethodName: "RemoveStream",
+			Handler:    _StreamService_RemoveStream_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

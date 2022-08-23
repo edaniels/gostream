@@ -194,6 +194,14 @@
                   <a href="#proto.stream.v1.ListStreamsResponse"><span class="badge">M</span>ListStreamsResponse</a>
                 </li>
               
+                <li>
+                  <a href="#proto.stream.v1.RemoveStreamRequest"><span class="badge">M</span>RemoveStreamRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#proto.stream.v1.RemoveStreamResponse"><span class="badge">M</span>RemoveStreamResponse</a>
+                </li>
+              
               
               
               
@@ -278,6 +286,37 @@
 
         
       
+        <h3 id="proto.stream.v1.RemoveStreamRequest">RemoveStreamRequest</h3>
+        <p>A RemoveStreamRequest requests the given stream be removed from the connection.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="proto.stream.v1.RemoveStreamResponse">RemoveStreamResponse</h3>
+        <p>RemoveStreamResponse is returned after a successful RemoveStreamRequest.</p>
+
+        
+
+        
+      
 
       
 
@@ -304,6 +343,15 @@
                 <td><a href="#proto.stream.v1.AddStreamRequest">AddStreamRequest</a></td>
                 <td><a href="#proto.stream.v1.AddStreamResponse">AddStreamResponse</a></td>
                 <td><p>AddStream requests a particular stream be added.</p></td>
+              </tr>
+            
+              <tr>
+                <td>RemoveStream</td>
+                <td><a href="#proto.stream.v1.RemoveStreamRequest">RemoveStreamRequest</a></td>
+                <td><a href="#proto.stream.v1.RemoveStreamResponse">RemoveStreamResponse</a></td>
+                <td><p>RemoveStream requests a particular stream be removed. If the calling client
+is the last to be receiving the stream, it will attempt to be stopped to
+conserve resources.</p></td>
               </tr>
             
           </tbody>

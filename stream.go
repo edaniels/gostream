@@ -31,8 +31,9 @@ type Stream interface {
 	Start()
 
 	// Ready signals that there is at least one client connected and that
-	// streams are ready for input.
-	StreamingReady() <-chan struct{}
+	// streams are ready for input. The returned context should be used for
+	// signaling that streaming is no longer ready.
+	StreamingReady() (<-chan struct{}, context.Context)
 
 	InputVideoFrames(props prop.Video) (chan<- MediaReleasePair[image.Image], error)
 
@@ -68,7 +69,6 @@ func NewStream(config StreamConfig) (Stream, error) {
 	if config.TargetFrameRate == 0 {
 		config.TargetFrameRate = codec.DefaultKeyFrameInterval
 	}
-	ctx, cancelFunc := context.WithCancel(context.Background())
 
 	name := config.Name
 	if name == "" {
@@ -93,6 +93,7 @@ func NewStream(config StreamConfig) (Stream, error) {
 		)
 	}
 
+	ctx, cancelFunc := context.WithCancel(context.Background())
 	bs := &basicStream{
 		name:             name,
 		config:           config,
@@ -115,10 +116,10 @@ func NewStream(config StreamConfig) (Stream, error) {
 }
 
 type basicStream struct {
-	mu               sync.Mutex
+	mu               sync.RWMutex
 	name             string
 	config           StreamConfig
-	readyOnce        sync.Once
+	started          bool
 	streamingReadyCh chan struct{}
 
 	videoTrackLocal *trackLocalStaticSample
@@ -147,18 +148,49 @@ func (bs *basicStream) Name() string {
 }
 
 func (bs *basicStream) Start() {
-	bs.readyOnce.Do(func() {
-		close(bs.streamingReadyCh)
-		bs.activeBackgroundWorkers.Add(4)
-		utils.ManagedGo(bs.processInputFrames, bs.activeBackgroundWorkers.Done)
-		utils.ManagedGo(bs.processOutputFrames, bs.activeBackgroundWorkers.Done)
-		utils.ManagedGo(bs.processInputAudioChunks, bs.activeBackgroundWorkers.Done)
-		utils.ManagedGo(bs.processOutputAudioChunks, bs.activeBackgroundWorkers.Done)
-	})
+	bs.mu.Lock()
+	defer bs.mu.Unlock()
+
+	if bs.started {
+		return
+	}
+	bs.started = true
+	close(bs.streamingReadyCh)
+	bs.activeBackgroundWorkers.Add(4)
+	utils.ManagedGo(bs.processInputFrames, bs.activeBackgroundWorkers.Done)
+	utils.ManagedGo(bs.processOutputFrames, bs.activeBackgroundWorkers.Done)
+	utils.ManagedGo(bs.processInputAudioChunks, bs.activeBackgroundWorkers.Done)
+	utils.ManagedGo(bs.processOutputAudioChunks, bs.activeBackgroundWorkers.Done)
 }
 
-func (bs *basicStream) StreamingReady() <-chan struct{} {
-	return bs.streamingReadyCh
+func (bs *basicStream) Stop() {
+	bs.mu.Lock()
+	defer bs.mu.Unlock()
+
+	if !bs.started {
+		close(bs.streamingReadyCh)
+	}
+
+	bs.started = false
+	bs.shutdownCtxCancel()
+	bs.activeBackgroundWorkers.Wait()
+	if bs.audioEncoder != nil {
+		bs.audioEncoder.Close()
+	}
+
+	// reset
+	bs.outputVideoChan = make(chan []byte)
+	bs.outputAudioChan = make(chan []byte)
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	bs.shutdownCtx = ctx
+	bs.shutdownCtxCancel = cancelFunc
+	bs.streamingReadyCh = make(chan struct{})
+}
+
+func (bs *basicStream) StreamingReady() (<-chan struct{}, context.Context) {
+	bs.mu.RLock()
+	defer bs.mu.RUnlock()
+	return bs.streamingReadyCh, bs.shutdownCtx
 }
 
 func (bs *basicStream) InputVideoFrames(props prop.Video) (chan<- MediaReleasePair[image.Image], error) {
@@ -188,14 +220,6 @@ func (bs *basicStream) VideoTrackLocal() (webrtc.TrackLocal, bool) {
 
 func (bs *basicStream) AudioTrackLocal() (webrtc.TrackLocal, bool) {
 	return bs.audioTrackLocal, bs.audioTrackLocal != nil
-}
-
-func (bs *basicStream) Stop() {
-	bs.shutdownCtxCancel()
-	bs.activeBackgroundWorkers.Wait()
-	if bs.audioEncoder != nil {
-		bs.audioEncoder.Close()
-	}
 }
 
 func (bs *basicStream) processInputFrames() {

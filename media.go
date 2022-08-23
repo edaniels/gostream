@@ -59,7 +59,6 @@ type MediaSource[T any, U any] interface {
 }
 
 type mediaSource[T any, U any] struct {
-	mu                      sync.Mutex
 	driver                  driver.Driver
 	reader                  MediaReader[T]
 	readWrapper             MediaReader[T]
@@ -70,9 +69,13 @@ type mediaSource[T any, U any] struct {
 	current                 atomic.Value
 	ready                   chan struct{}
 	cond                    *sync.Cond
-	startOnce               sync.Once
 	copyFn                  func(src T) T
 	errHandlers             map[*mediaStream[T, U]][]ErrorHandler
+	listeners               int
+
+	stateMu       sync.Mutex
+	listenersMu   sync.Mutex
+	errHandlersMu sync.Mutex
 }
 
 // ErrorHandler receives the error returned by a TSource.Next
@@ -114,8 +117,8 @@ func newMediaSource[T, U any](d driver.Driver, r MediaReader[T], p U, copyFn fun
 			return media, release, nil
 		}
 
-		ms.mu.Lock()
-		defer ms.mu.Unlock()
+		ms.errHandlersMu.Lock()
+		defer ms.errHandlersMu.Unlock()
 		for _, handlers := range ms.errHandlers {
 			for _, handler := range handlers {
 				handler(ctx, err)
@@ -128,25 +131,55 @@ func newMediaSource[T, U any](d driver.Driver, r MediaReader[T], p U, copyFn fun
 }
 
 func (ms *mediaSource[T, U]) start() {
-	ms.startOnce.Do(func() {
-		ms.activeBackgroundWorkers.Add(1)
-		utils.ManagedGo(func() {
-			first := true
-			for {
-				if ms.cancelCtx.Err() != nil {
-					return
-				}
+	ms.listenersMu.Lock()
+	defer ms.listenersMu.Unlock()
+	ms.listeners++
+	listeners := ms.listeners
 
-				media, release, err := ms.readWrapper.Read(ms.cancelCtx)
-				ms.current.Store(&MediaReleasePairWithError[T]{media, release, err})
-				if first {
-					first = false
-					close(ms.ready)
-				}
-				ms.cond.Broadcast()
+	if listeners != 1 {
+		return
+	}
+
+	ms.activeBackgroundWorkers.Add(1)
+	utils.ManagedGo(func() {
+		first := true
+		for {
+			if ms.cancelCtx.Err() != nil {
+				return
 			}
-		}, func() { defer ms.activeBackgroundWorkers.Done(); ms.cancel() })
-	})
+
+			media, release, err := ms.readWrapper.Read(ms.cancelCtx)
+			ms.current.Store(&MediaReleasePairWithError[T]{media, release, err})
+			if first {
+				first = false
+				close(ms.ready)
+			}
+			ms.cond.Broadcast()
+		}
+	}, func() { defer ms.activeBackgroundWorkers.Done(); ms.cancel() })
+}
+
+func (ms *mediaSource[T, U]) stop() {
+	ms.stateMu.Lock()
+	defer ms.stateMu.Unlock()
+	ms.cancel()
+	ms.activeBackgroundWorkers.Wait()
+
+	// reset
+	cancelCtx, cancel := context.WithCancel(context.Background())
+	ms.cancelCtx = cancelCtx
+	ms.cancel = cancel
+	ms.ready = make(chan struct{})
+}
+
+func (ms *mediaSource[T, U]) stopOne() {
+	ms.listenersMu.Lock()
+	defer ms.listenersMu.Unlock()
+	ms.listeners--
+	listeners := ms.listeners
+	if listeners == 0 {
+		ms.stop()
+	}
 }
 
 func (ms *mediaSource[T, U]) Read(ctx context.Context) (T, func(), error) {
@@ -209,7 +242,6 @@ func (ms *mediaStream[T, U]) Next(ctx context.Context) (T, func(), error) {
 	if err := ms.cancelCtx.Err(); err != nil {
 		return zero, nil, err
 	}
-	ms.ms.start()
 	select {
 	case <-ms.cancelCtx.Done():
 		return zero, nil, ms.cancelCtx.Err()
@@ -234,9 +266,10 @@ func (ms *mediaStream[T, U]) Next(ctx context.Context) (T, func(), error) {
 
 func (ms *mediaStream[T, U]) Close(ctx context.Context) error {
 	ms.cancel()
-	ms.ms.mu.Lock()
+	ms.ms.errHandlersMu.Lock()
 	delete(ms.ms.errHandlers, ms)
-	ms.ms.mu.Unlock()
+	ms.ms.errHandlersMu.Unlock()
+	ms.ms.stopOne()
 	return nil
 }
 
@@ -249,19 +282,17 @@ func (ms *mediaSource[T, U]) Stream(ctx context.Context, errHandlers ...ErrorHan
 	}
 
 	if len(errHandlers) != 0 {
-		ms.mu.Lock()
+		ms.errHandlersMu.Lock()
 		ms.errHandlers[stream] = errHandlers
-		ms.mu.Unlock()
+		ms.errHandlersMu.Unlock()
 	}
+	ms.start()
 
 	return stream, nil
 }
 
 func (ms *mediaSource[T, U]) Close(ctx context.Context) error {
-	ms.mu.Lock()
-	ms.cancel()
-	ms.mu.Unlock()
-	ms.activeBackgroundWorkers.Wait()
+	ms.stop()
 	err := utils.TryClose(ctx, ms.reader)
 
 	if ms.driver == nil {

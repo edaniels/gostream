@@ -12,6 +12,11 @@ service StreamService {
 
 	// AddStream requests a particular stream be added.
 	rpc AddStream(AddStreamRequest) returns (AddStreamResponse);
+
+	// RemoveStream requests a particular stream be removed. If the calling client
+	// is the last to be receiving the stream, it will attempt to be stopped to
+	// conserve resources.
+	rpc RemoveStream(RemoveStreamRequest) returns (RemoveStreamResponse);
 }
 
 // ListStreamsRequest requests all streams registered.
@@ -29,4 +34,14 @@ message AddStreamRequest {
 
 // AddStreamResponse is returned after a successful AddStreamRequest.
 message AddStreamResponse {}
+
+
+// A RemoveStreamRequest requests the given stream be removed from the connection.
+message RemoveStreamRequest {
+	string name = 1;
+}
+
+// RemoveStreamResponse is returned after a successful RemoveStreamRequest.
+message RemoveStreamResponse {}
+
 
