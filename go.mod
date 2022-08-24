@@ -7,11 +7,11 @@ require (
 	github.com/disintegration/imaging v1.6.2
 	github.com/edaniels/golinters v0.0.5-0.20210512224240-495d3b8eed19
 	github.com/edaniels/golog v0.0.0-20210326173913-16d408aa7a5e
-	github.com/gen2brain/malgo v0.10.35
+	github.com/gen2brain/malgo v0.10.36-0.20220421113941-bbd13fadded4
 	github.com/golangci/golangci-lint v1.48.1-0.20220821210316-320a18eb372f
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.2
-	github.com/pion/mediadevices v0.3.10-0.20220809131747-6f204fa3d1bf
+	github.com/pion/mediadevices v0.3.11-0.20220824115655-3bec69bbf884
 	github.com/pion/rtp v1.7.13
 	github.com/pion/webrtc/v3 v3.1.43
 	github.com/pkg/errors v0.9.1
@@ -255,6 +255,3 @@ require (
 
 // https://github.com/gen2brain/malgo/pull/39; remember to remove from ./etc/.golangci.yaml
 replace github.com/gen2brain/malgo => github.com/edaniels/malgo v0.0.0-20220821220938-8eacc7aea0a9
-
-// https://github.com/pion/mediadevices/pull/439; remember to remove from ./etc/.golangci.yaml
-replace github.com/pion/mediadevices => github.com/edaniels/mediadevices v0.0.0-20220822040151-e19d8c7ff187

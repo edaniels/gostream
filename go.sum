@@ -237,8 +237,6 @@ github.com/edaniels/golog v0.0.0-20210326173913-16d408aa7a5e h1:K3N0Zm7JySHjvThq
 github.com/edaniels/golog v0.0.0-20210326173913-16d408aa7a5e/go.mod h1:nsP/KxpaFaTriZlxPlULlPKf7F3LS0J4BgoxZN8QJAU=
 github.com/edaniels/malgo v0.0.0-20220821220938-8eacc7aea0a9 h1:Nxd6Z5l4mF8lX0GMAcVPCQVXt3XykmRQHD9suM1q+pU=
 github.com/edaniels/malgo v0.0.0-20220821220938-8eacc7aea0a9/go.mod h1:f9TtuN7DVrXMiV/yIceMeWpvanyVzJQMlBecJFVMxww=
-github.com/edaniels/mediadevices v0.0.0-20220822040151-e19d8c7ff187 h1:Um60UvKNSgDXfEL0I8fmFIxNglqTcQ7PaGKEvyTGpwg=
-github.com/edaniels/mediadevices v0.0.0-20220822040151-e19d8c7ff187/go.mod h1:sKLty4bEcD45Q+cp4tbIGflx4veFrbMHuIg0+5HWWe4=
 github.com/edaniels/zeroconf v0.0.0-20220607181113-3dc7461460c6 h1:F/jBRznlkuX/MoSbMGLLInX0CS+s1rSByyIzDZG+MYM=
 github.com/edaniels/zeroconf v0.0.0-20220607181113-3dc7461460c6/go.mod h1:do5J/2+5MrOvDQ8GAYs+PVqVfD4dydgSwNQ76CGw5GY=
 github.com/edsrzf/mmap-go v1.0.0/go.mod h1:YO35OhQPt3KJa3ryjFM5Bs14WD66h8eGKpfaBNrHW5M=
@@ -876,6 +874,8 @@ github.com/pion/logging v0.2.2 h1:M9+AIj/+pxNsDfAT64+MAVgJO0rsyLnoJKCqf//DoeY=
 github.com/pion/logging v0.2.2/go.mod h1:k0/tDVsRCX2Mb2ZEmTqNa7CWsQPc+YYCB7Q+5pahoms=
 github.com/pion/mdns v0.0.5 h1:Q2oj/JB3NqfzY9xGZ1fPzZzK7sDSD8rZPOvcIQ10BCw=
 github.com/pion/mdns v0.0.5/go.mod h1:UgssrvdD3mxpi8tMxAXbsppL3vJ4Jipw1mTCW+al01g=
+github.com/pion/mediadevices v0.3.11-0.20220824115655-3bec69bbf884 h1:twQ4Rcez+QuPx5+i10Qrq1+D4qnFUO3GMAn5VQM1wps=
+github.com/pion/mediadevices v0.3.11-0.20220824115655-3bec69bbf884/go.mod h1:sKLty4bEcD45Q+cp4tbIGflx4veFrbMHuIg0+5HWWe4=
 github.com/pion/randutil v0.1.0 h1:CFG1UdESneORglEsnimhUjf33Rwjubwj6xfiOXBa3mA=
 github.com/pion/randutil v0.1.0/go.mod h1:XcJrSMMbbMRhASFVOlj/5hQial/Y8oH/HVo7TBZq+j8=
 github.com/pion/rtcp v1.2.9/go.mod h1:qVPhiCzAm4D/rxb6XzKeyZiQK69yJpbUDJSF7TgrqNo=
