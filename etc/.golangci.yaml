@@ -64,7 +64,6 @@ linters-settings:
   gomoddirectives:
     replace-allow-list:
       - github.com/gen2brain/malgo
-      - github.com/pion/mediadevices
   gofumpt:
     lang-version: "1.18"
     extra-rules: true
