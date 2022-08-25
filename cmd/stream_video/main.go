@@ -3,13 +3,11 @@ package main
 
 import (
 	"context"
-	"image"
 
 	"github.com/edaniels/golog"
 	// register video drivers.
 	_ "github.com/pion/mediadevices/pkg/driver/camera"
 	_ "github.com/pion/mediadevices/pkg/driver/screen"
-	"github.com/pion/mediadevices/pkg/prop"
 	"go.uber.org/multierr"
 	goutils "go.viam.com/utils"
 
@@ -77,7 +75,7 @@ func runServer(
 	dupeStream bool,
 	logger golog.Logger,
 ) (err error) {
-	var videoSource gostream.MediaSource[image.Image, prop.Video]
+	var videoSource gostream.VideoSource
 	if camera {
 		videoSource, err = gostream.GetAnyVideoSource(gostream.DefaultConstraints)
 	} else {

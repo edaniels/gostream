@@ -10,13 +10,41 @@ import (
 	"go.viam.com/utils"
 )
 
-// A MediaReader is anything that can read and recycle data.
-type MediaReader[T any] interface {
-	Read(ctx context.Context) (data T, release func(), err error)
-}
+type (
+	// A MediaReader is anything that can read and recycle data.
+	MediaReader[T any] interface {
+		Read(ctx context.Context) (data T, release func(), err error)
+	}
 
-// A MediaReaderFunc is a helper to turn a function into a MediaReader.
-type MediaReaderFunc[T any] func(ctx context.Context) (T, func(), error)
+	// A MediaReaderFunc is a helper to turn a function into a MediaReader.
+	MediaReaderFunc[T any] func(ctx context.Context) (T, func(), error)
+
+	// A MediaStream streams media forever until closed.
+	MediaStream[T any] interface {
+		// Next returns the next media element in the sequence (best effort).
+		// Note: This element is mutable and shared globally; it MUST be copied
+		// before it is mutated.
+		Next(ctx context.Context) (T, func(), error)
+
+		// Close signals this stream is no longer needed and releases associated
+		// resources.
+		Close(ctx context.Context) error
+	}
+
+	// A MediaSource can produce Streams of Ts.
+	MediaSource[T any] interface {
+		// Stream returns a stream that makes a best effort to return consecutive media element.
+		Stream(ctx context.Context, errHandlers ...ErrorHandler) (MediaStream[T], error)
+
+		// Close cleans up any associated resources with the Source (e.g. a Driver).
+		Close(ctx context.Context) error
+	}
+
+	// MediaPropertyProvider providers information about a source.
+	MediaPropertyProvider[U any] interface {
+		MediaProperties(ctx context.Context) (U, error)
+	}
+)
 
 // Read calls the underlying function to get a media.
 func (mrf MediaReaderFunc[T]) Read(ctx context.Context) (T, func(), error) {
@@ -32,30 +60,18 @@ func (mrf mediaReaderFuncNoCtx[T]) Read(_ context.Context) (T, func(), error) {
 	return mrf()
 }
 
-// A MediaStream streams media forever until closed.
-type MediaStream[T any] interface {
-	// Next returns the next media element in the sequence (best effort).
-	Next(ctx context.Context) (T, func(), error)
-
-	// Close signals this stream is no longer needed and releases associated
-	// resources.
-	Close(ctx context.Context) error
-}
-
-// A MediaSource can produce Streams of Ts.
-type MediaSource[T any, U any] interface {
-	// Read gets a single media from a stream. Using this has less of a guarantee
-	// than Stream that the Nth media element follows the N-1th media element.
-	Read(ctx context.Context) (T, func(), error)
-
-	// Stream returns a stream that makes a best effort to return consecutive media element.
-	Stream(ctx context.Context, errHandlers ...ErrorHandler) (MediaStream[T], error)
-
-	// Properties returns information about the source.
-	Properties(ctx context.Context) (U, error)
-
-	// Close cleans up any associated resources with the Source (e.g. a Driver).
-	Close(ctx context.Context) error
+// ReadMedia gets a single media from a source. Using this has less of a guarantee
+// than MediaSource.Stream that the Nth media element follows the N-1th media element.
+func ReadMedia[T any](ctx context.Context, source MediaSource[T]) (T, func(), error) {
+	stream, err := source.Stream(ctx)
+	var zero T
+	if err != nil {
+		return zero, nil, err
+	}
+	defer func() {
+		utils.UncheckedError(stream.Close(ctx))
+	}()
+	return stream.Next(ctx)
 }
 
 type mediaSource[T any, U any] struct {
@@ -67,9 +83,10 @@ type mediaSource[T any, U any] struct {
 	cancel                  func()
 	activeBackgroundWorkers sync.WaitGroup
 	current                 atomic.Value
-	ready                   chan struct{}
-	cond                    *sync.Cond
-	copyFn                  func(src T) T
+	producerCond            *sync.Cond
+	consumerCond            *sync.Cond
+	condMu                  *sync.RWMutex
+	interestedConsumers     atomic.Int64
 	errHandlers             map[*mediaStream[T, U]][]ErrorHandler
 	listeners               int
 
@@ -84,7 +101,7 @@ type mediaSource[T any, U any] struct {
 type ErrorHandler func(ctx context.Context, mediaErr error)
 
 // newMediaSource instantiates a new media read closer and possibly references the given driver.
-func newMediaSource[T, U any](d driver.Driver, r MediaReader[T], p U, copyFn func(src T) T) MediaSource[T, U] {
+func newMediaSource[T, U any](d driver.Driver, r MediaReader[T], p U) MediaSource[T] {
 	if d != nil {
 		driverRefs.mu.Lock()
 		defer driverRefs.mu.Unlock()
@@ -99,17 +116,19 @@ func newMediaSource[T, U any](d driver.Driver, r MediaReader[T], p U, copyFn fun
 	}
 
 	cancelCtx, cancel := context.WithCancel(context.Background())
-	cond := sync.NewCond(&sync.RWMutex{})
+	condMu := &sync.RWMutex{}
+	producerCond := sync.NewCond(condMu)
+	consumerCond := sync.NewCond(condMu.RLocker())
 	ms := &mediaSource[T, U]{
-		driver:      d,
-		reader:      r,
-		props:       p,
-		cancelCtx:   cancelCtx,
-		cancel:      cancel,
-		ready:       make(chan struct{}),
-		cond:        cond,
-		copyFn:      copyFn,
-		errHandlers: map[*mediaStream[T, U]][]ErrorHandler{},
+		driver:       d,
+		reader:       r,
+		props:        p,
+		cancelCtx:    cancelCtx,
+		cancel:       cancel,
+		producerCond: producerCond,
+		consumerCond: consumerCond,
+		condMu:       condMu,
+		errHandlers:  map[*mediaStream[T, U]][]ErrorHandler{},
 	}
 	ms.readWrapper = MediaReaderFunc[T](func(ctx context.Context) (T, func(), error) {
 		media, release, err := ms.reader.Read(ctx)
@@ -148,13 +167,38 @@ func (ms *mediaSource[T, U]) start() {
 				return
 			}
 
-			media, release, err := ms.readWrapper.Read(ms.cancelCtx)
-			ms.current.Store(&MediaReleasePairWithError[T]{media, release, err})
-			if first {
-				first = false
-				close(ms.ready)
+			ms.producerCond.L.Lock()
+			requests := ms.interestedConsumers.Load()
+			if requests == 0 {
+				ms.producerCond.Wait()
+				ms.producerCond.L.Unlock()
+				if err := ms.cancelCtx.Err(); err != nil {
+					return
+				}
+			} else {
+				ms.producerCond.L.Unlock()
 			}
-			ms.cond.Broadcast()
+
+			func() {
+				defer func() {
+					ms.producerCond.L.Lock()
+					ms.interestedConsumers.Add(-requests)
+					ms.producerCond.L.Unlock()
+				}()
+
+				var lastRelease func()
+				if !first {
+					lastRelease = ms.current.Load().(*MediaReleasePairWithError[T]).Release
+				} else {
+					first = false
+				}
+				media, release, err := ms.readWrapper.Read(ms.cancelCtx)
+				ms.current.Store(&MediaReleasePairWithError[T]{media, release, err})
+				if lastRelease != nil {
+					lastRelease()
+				}
+				ms.consumerCond.Signal()
+			}()
 		}
 	}, func() { defer ms.activeBackgroundWorkers.Done(); ms.cancel() })
 }
@@ -163,13 +207,19 @@ func (ms *mediaSource[T, U]) stop() {
 	ms.stateMu.Lock()
 	defer ms.stateMu.Unlock()
 	ms.cancel()
+
+	ms.producerCond.L.Lock()
+	ms.producerCond.Signal()
+	ms.producerCond.L.Unlock()
+	ms.consumerCond.L.Lock()
+	ms.consumerCond.Broadcast()
+	ms.consumerCond.L.Unlock()
 	ms.activeBackgroundWorkers.Wait()
 
 	// reset
 	cancelCtx, cancel := context.WithCancel(context.Background())
 	ms.cancelCtx = cancelCtx
 	ms.cancel = cancel
-	ms.ready = make(chan struct{})
 }
 
 func (ms *mediaSource[T, U]) stopOne() {
@@ -186,7 +236,7 @@ func (ms *mediaSource[T, U]) Read(ctx context.Context) (T, func(), error) {
 	return ms.readWrapper.Read(ctx)
 }
 
-func (ms *mediaSource[T, U]) Properties(_ context.Context) (U, error) {
+func (ms *mediaSource[T, U]) MediaProperties(_ context.Context) (U, error) {
 	return ms.props, nil
 }
 
@@ -232,36 +282,51 @@ func (ms *mediaStreamFromChannel[T]) Close(ctx context.Context) error {
 }
 
 type mediaStream[T any, U any] struct {
+	mu        sync.Mutex
 	ms        *mediaSource[T, U]
 	cancelCtx context.Context
 	cancel    func()
 }
 
 func (ms *mediaStream[T, U]) Next(ctx context.Context) (T, func(), error) {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+	// lock keeps us sequential and prevents misuse
+
 	var zero T
 	if err := ms.cancelCtx.Err(); err != nil {
 		return zero, nil, err
 	}
+
+	ms.ms.consumerCond.L.Lock()
+	// Even though interestedConsumers is atomic, this is a critical section!
+	// That's because if the producer sees zero interested consumers, it's going
+	// to Wait but we only want it to do that once we are ready to signal it.
+	// It's also a RLock because we have many consumers (readers) and one producer (writer).
+	ms.ms.interestedConsumers.Add(1)
+	ms.ms.producerCond.Signal()
+
 	select {
 	case <-ms.cancelCtx.Done():
+		ms.ms.consumerCond.L.Unlock()
 		return zero, nil, ms.cancelCtx.Err()
 	case <-ctx.Done():
+		ms.ms.consumerCond.L.Unlock()
 		return zero, nil, ctx.Err()
-	case <-ms.ms.ready:
+	default:
 	}
-	ms.ms.cond.L.Lock()
+
+	ms.ms.consumerCond.Wait()
+	ms.ms.consumerCond.L.Unlock()
 	if err := ms.cancelCtx.Err(); err != nil {
 		return zero, nil, err
 	}
-	ms.ms.cond.Wait()
-	ms.ms.cond.L.Unlock()
 
 	current := ms.ms.current.Load().(*MediaReleasePairWithError[T])
 	if current.Err != nil {
 		return zero, nil, current.Err
 	}
-	defer current.Release()
-	return ms.ms.copyFn(current.Media), func() {}, nil
+	return current.Media, func() {}, nil
 }
 
 func (ms *mediaStream[T, U]) Close(ctx context.Context) error {

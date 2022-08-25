@@ -39,7 +39,7 @@ func StreamAudioSourceWithErrorHandler(
 // streamMediaSource will stream a source of media forever to the stream until the given context tells it to cancel.
 func streamMediaSource[T, U any](
 	ctx context.Context,
-	ms MediaSource[T, U],
+	ms MediaSource[T],
 	stream Stream,
 	errHandler ErrorHandler,
 	inputChan func(props U) (chan<- MediaReleasePair[T], error),
@@ -51,11 +51,15 @@ func streamMediaSource[T, U any](
 			return ctx.Err()
 		case <-readyCh:
 		}
-		props, err := ms.Properties(ctx)
-		if err != nil {
-			Logger.Warnw("no properties found for media; will assume empty", "error", err)
-			var zeroProps U
-			props = zeroProps
+		var props U
+		if provider, ok := ms.(MediaPropertyProvider[U]); ok {
+			var err error
+			props, err = provider.MediaProperties(ctx)
+			if err != nil {
+				Logger.Warnw("no properties found for media; will assume empty", "error", err)
+			}
+		} else {
+			Logger.Warn("no properties found for media; will assume empty")
 		}
 		input, err := inputChan(props)
 		if err != nil {

@@ -3,14 +3,12 @@ package main
 
 import (
 	"context"
-	"image"
 
 	"github.com/edaniels/golog"
 	// register drivers.
 	_ "github.com/pion/mediadevices/pkg/driver/camera"
 	_ "github.com/pion/mediadevices/pkg/driver/microphone"
 	_ "github.com/pion/mediadevices/pkg/driver/screen"
-	"github.com/pion/mediadevices/pkg/prop"
 	"go.uber.org/multierr"
 	goutils "go.viam.com/utils"
 
@@ -97,17 +95,17 @@ func runServer(
 	defer func() {
 		err = multierr.Combine(err, audioSource.Close(ctx))
 	}()
-	var videoReader gostream.MediaSource[image.Image, prop.Video]
+	var videoSrc gostream.VideoSource
 	if camera {
-		videoReader, err = gostream.GetAnyVideoSource(gostream.DefaultConstraints)
+		videoSrc, err = gostream.GetAnyVideoSource(gostream.DefaultConstraints)
 	} else {
-		videoReader, err = gostream.GetAnyScreenSource(gostream.DefaultConstraints)
+		videoSrc, err = gostream.GetAnyScreenSource(gostream.DefaultConstraints)
 	}
 	if err != nil {
 		return err
 	}
 	defer func() {
-		err = multierr.Combine(err, videoReader.Close(ctx))
+		err = multierr.Combine(err, videoSrc.Close(ctx))
 	}()
 
 	var config gostream.StreamConfig
@@ -133,5 +131,5 @@ func runServer(
 	go func() {
 		audioErr <- gostream.StreamAudioSource(ctx, audioSource, stream)
 	}()
-	return gostream.StreamVideoSource(ctx, videoReader, stream)
+	return gostream.StreamVideoSource(ctx, videoSrc, stream)
 }
