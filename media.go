@@ -340,6 +340,9 @@ func (ms *mediaStream[T, U]) Close(ctx context.Context) error {
 }
 
 func (ms *mediaSource[T, U]) Stream(ctx context.Context, errHandlers ...ErrorHandler) (MediaStream[T], error) {
+	ms.stateMu.Lock()
+	defer ms.stateMu.Unlock()
+
 	cancelCtx, cancel := context.WithCancel(ms.cancelCtx)
 	stream := &mediaStream[T, U]{
 		ms:        ms,
