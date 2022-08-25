@@ -7,7 +7,7 @@ require (
 	github.com/disintegration/imaging v1.6.2
 	github.com/edaniels/golinters v0.0.5-0.20210512224240-495d3b8eed19
 	github.com/edaniels/golog v0.0.0-20210326173913-16d408aa7a5e
-	github.com/gen2brain/malgo v0.10.36-0.20220421113941-bbd13fadded4
+	github.com/gen2brain/malgo v0.10.36-0.20220825113249-6af716cf2273
 	github.com/golangci/golangci-lint v1.48.1-0.20220821210316-320a18eb372f
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.2
@@ -252,6 +252,3 @@ require (
 	mvdan.cc/unparam v0.0.0-20220706161116-678bad134442 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
 )
-
-// https://github.com/gen2brain/malgo/pull/39; remember to remove from ./etc/.golangci.yaml
-replace github.com/gen2brain/malgo => github.com/edaniels/malgo v0.0.0-20220821220938-8eacc7aea0a9
