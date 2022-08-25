@@ -160,6 +160,7 @@ func (ms *mediaSource[T, U]) start() {
 	}
 
 	ms.activeBackgroundWorkers.Add(1)
+
 	utils.ManagedGo(func() {
 		first := true
 		for {
@@ -183,6 +184,7 @@ func (ms *mediaSource[T, U]) start() {
 				defer func() {
 					ms.producerCond.L.Lock()
 					ms.interestedConsumers.Add(-requests)
+					ms.consumerCond.Broadcast()
 					ms.producerCond.L.Unlock()
 				}()
 
@@ -197,7 +199,6 @@ func (ms *mediaSource[T, U]) start() {
 				if lastRelease != nil {
 					lastRelease()
 				}
-				ms.consumerCond.Signal()
 			}()
 		}
 	}, func() { defer ms.activeBackgroundWorkers.Done(); ms.cancel() })
