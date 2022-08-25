@@ -86,7 +86,7 @@ type mediaSource[T any, U any] struct {
 	producerCond            *sync.Cond
 	consumerCond            *sync.Cond
 	condMu                  *sync.RWMutex
-	interestedConsumers     atomic.Int64
+	interestedConsumers     int64
 	errHandlers             map[*mediaStream[T, U]][]ErrorHandler
 	listeners               int
 
@@ -169,7 +169,7 @@ func (ms *mediaSource[T, U]) start() {
 			}
 
 			ms.producerCond.L.Lock()
-			requests := ms.interestedConsumers.Load()
+			requests := atomic.LoadInt64(&ms.interestedConsumers)
 			if requests == 0 {
 				ms.producerCond.Wait()
 				ms.producerCond.L.Unlock()
@@ -183,7 +183,7 @@ func (ms *mediaSource[T, U]) start() {
 			func() {
 				defer func() {
 					ms.producerCond.L.Lock()
-					ms.interestedConsumers.Add(-requests)
+					atomic.AddInt64(&ms.interestedConsumers, -requests)
 					ms.consumerCond.Broadcast()
 					ms.producerCond.L.Unlock()
 				}()
@@ -304,7 +304,7 @@ func (ms *mediaStream[T, U]) Next(ctx context.Context) (T, func(), error) {
 	// That's because if the producer sees zero interested consumers, it's going
 	// to Wait but we only want it to do that once we are ready to signal it.
 	// It's also a RLock because we have many consumers (readers) and one producer (writer).
-	ms.ms.interestedConsumers.Add(1)
+	atomic.AddInt64(&ms.ms.interestedConsumers, 1)
 	ms.ms.producerCond.Signal()
 
 	select {
