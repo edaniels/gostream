@@ -33,7 +33,8 @@ type (
 
 	// A MediaSource can produce Streams of Ts.
 	MediaSource[T any] interface {
-		// Stream returns a stream that makes a best effort to return consecutive media element.
+		// Stream returns a stream that makes a best effort to return consecutive media elements
+		// that may have a MIME type hint dictated in the context via WithMIMETypeHint.
 		Stream(ctx context.Context, errHandlers ...ErrorHandler) (MediaStream[T], error)
 
 		// Close cleans up any associated resources with the Source (e.g. a Driver).
@@ -75,13 +76,23 @@ func ReadMedia[T any](ctx context.Context, source MediaSource[T]) (T, func(), er
 }
 
 type mediaSource[T any, U any] struct {
-	driver                  driver.Driver
-	reader                  MediaReader[T]
-	readWrapper             MediaReader[T]
-	props                   U
+	driver        driver.Driver
+	reader        MediaReader[T]
+	props         U
+	rootCancelCtx context.Context
+	rootCancel    func()
+
+	producerConsumers   map[string]*producerConsumer[T, U]
+	producerConsumersMu sync.Mutex
+}
+
+type producerConsumer[T any, U any] struct {
+	rootCancelCtx           context.Context
 	cancelCtx               context.Context
 	cancel                  func()
+	mimeType                string
 	activeBackgroundWorkers sync.WaitGroup
+	readWrapper             MediaReader[T]
 	current                 atomic.Value
 	producerCond            *sync.Cond
 	consumerCond            *sync.Cond
@@ -89,10 +100,9 @@ type mediaSource[T any, U any] struct {
 	interestedConsumers     int64
 	errHandlers             map[*mediaStream[T, U]][]ErrorHandler
 	listeners               int
-
-	stateMu       sync.Mutex
-	listenersMu   sync.Mutex
-	errHandlersMu sync.Mutex
+	stateMu                 sync.Mutex
+	listenersMu             sync.Mutex
+	errHandlersMu           sync.Mutex
 }
 
 // ErrorHandler receives the error returned by a TSource.Next
@@ -116,125 +126,99 @@ func newMediaSource[T, U any](d driver.Driver, r MediaReader[T], p U) MediaSourc
 	}
 
 	cancelCtx, cancel := context.WithCancel(context.Background())
-	condMu := &sync.RWMutex{}
-	producerCond := sync.NewCond(condMu)
-	consumerCond := sync.NewCond(condMu.RLocker())
 	ms := &mediaSource[T, U]{
-		driver:       d,
-		reader:       r,
-		props:        p,
-		cancelCtx:    cancelCtx,
-		cancel:       cancel,
-		producerCond: producerCond,
-		consumerCond: consumerCond,
-		condMu:       condMu,
-		errHandlers:  map[*mediaStream[T, U]][]ErrorHandler{},
+		driver:            d,
+		reader:            r,
+		props:             p,
+		rootCancelCtx:     cancelCtx,
+		rootCancel:        cancel,
+		producerConsumers: map[string]*producerConsumer[T, U]{},
 	}
-	ms.readWrapper = MediaReaderFunc[T](func(ctx context.Context) (T, func(), error) {
-		media, release, err := ms.reader.Read(ctx)
-		if err == nil {
-			return media, release, nil
-		}
-
-		ms.errHandlersMu.Lock()
-		defer ms.errHandlersMu.Unlock()
-		for _, handlers := range ms.errHandlers {
-			for _, handler := range handlers {
-				handler(ctx, err)
-			}
-		}
-		var zero T
-		return zero, nil, err
-	})
 	return ms
 }
 
-func (ms *mediaSource[T, U]) start() {
-	ms.listenersMu.Lock()
-	defer ms.listenersMu.Unlock()
-	ms.listeners++
-	listeners := ms.listeners
+func (pc *producerConsumer[T, U]) start() {
+	pc.listenersMu.Lock()
+	defer pc.listenersMu.Unlock()
 
-	if listeners != 1 {
+	pc.listeners++
+
+	if pc.listeners != 1 {
 		return
 	}
 
-	ms.activeBackgroundWorkers.Add(1)
+	pc.activeBackgroundWorkers.Add(1)
 
 	utils.ManagedGo(func() {
 		first := true
 		for {
-			if ms.cancelCtx.Err() != nil {
+			if pc.cancelCtx.Err() != nil {
 				return
 			}
 
-			ms.producerCond.L.Lock()
-			requests := atomic.LoadInt64(&ms.interestedConsumers)
+			pc.producerCond.L.Lock()
+			requests := atomic.LoadInt64(&pc.interestedConsumers)
 			if requests == 0 {
-				ms.producerCond.Wait()
-				ms.producerCond.L.Unlock()
-				if err := ms.cancelCtx.Err(); err != nil {
+				pc.producerCond.Wait()
+				pc.producerCond.L.Unlock()
+				if err := pc.cancelCtx.Err(); err != nil {
 					return
 				}
 			} else {
-				ms.producerCond.L.Unlock()
+				pc.producerCond.L.Unlock()
 			}
 
 			func() {
 				defer func() {
-					ms.producerCond.L.Lock()
-					atomic.AddInt64(&ms.interestedConsumers, -requests)
-					ms.consumerCond.Broadcast()
-					ms.producerCond.L.Unlock()
+					pc.producerCond.L.Lock()
+					atomic.AddInt64(&pc.interestedConsumers, -requests)
+					pc.consumerCond.Broadcast()
+					pc.producerCond.L.Unlock()
 				}()
 
 				var lastRelease func()
 				if !first {
-					lastRelease = ms.current.Load().(*MediaReleasePairWithError[T]).Release
+					lastRelease = pc.current.Load().(*MediaReleasePairWithError[T]).Release
 				} else {
 					first = false
 				}
-				media, release, err := ms.readWrapper.Read(ms.cancelCtx)
-				ms.current.Store(&MediaReleasePairWithError[T]{media, release, err})
+				media, release, err := pc.readWrapper.Read(pc.cancelCtx)
+				pc.current.Store(&MediaReleasePairWithError[T]{media, release, err})
 				if lastRelease != nil {
 					lastRelease()
 				}
 			}()
 		}
-	}, func() { defer ms.activeBackgroundWorkers.Done(); ms.cancel() })
+	}, func() { defer pc.activeBackgroundWorkers.Done(); pc.cancel() })
 }
 
-func (ms *mediaSource[T, U]) stop() {
-	ms.stateMu.Lock()
-	defer ms.stateMu.Unlock()
-	ms.cancel()
+func (pc *producerConsumer[T, U]) stop() {
+	pc.stateMu.Lock()
+	defer pc.stateMu.Unlock()
 
-	ms.producerCond.L.Lock()
-	ms.producerCond.Signal()
-	ms.producerCond.L.Unlock()
-	ms.consumerCond.L.Lock()
-	ms.consumerCond.Broadcast()
-	ms.consumerCond.L.Unlock()
-	ms.activeBackgroundWorkers.Wait()
+	pc.cancel()
+
+	pc.producerCond.L.Lock()
+	pc.producerCond.Signal()
+	pc.producerCond.L.Unlock()
+	pc.consumerCond.L.Lock()
+	pc.consumerCond.Broadcast()
+	pc.consumerCond.L.Unlock()
+	pc.activeBackgroundWorkers.Wait()
 
 	// reset
-	cancelCtx, cancel := context.WithCancel(context.Background())
-	ms.cancelCtx = cancelCtx
-	ms.cancel = cancel
+	cancelCtx, cancel := context.WithCancel(WithMIMETypeHint(pc.rootCancelCtx, pc.mimeType))
+	pc.cancelCtx = cancelCtx
+	pc.cancel = cancel
 }
 
-func (ms *mediaSource[T, U]) stopOne() {
-	ms.listenersMu.Lock()
-	defer ms.listenersMu.Unlock()
-	ms.listeners--
-	listeners := ms.listeners
-	if listeners == 0 {
-		ms.stop()
+func (pc *producerConsumer[T, U]) stopOne() {
+	pc.listenersMu.Lock()
+	defer pc.listenersMu.Unlock()
+	pc.listeners--
+	if pc.listeners == 0 {
+		pc.stop()
 	}
-}
-
-func (ms *mediaSource[T, U]) Read(ctx context.Context) (T, func(), error) {
-	return ms.readWrapper.Read(ctx)
 }
 
 func (ms *mediaSource[T, U]) MediaProperties(_ context.Context) (U, error) {
@@ -285,6 +269,7 @@ func (ms *mediaStreamFromChannel[T]) Close(ctx context.Context) error {
 type mediaStream[T any, U any] struct {
 	mu        sync.Mutex
 	ms        *mediaSource[T, U]
+	prodCon   *producerConsumer[T, U]
 	cancelCtx context.Context
 	cancel    func()
 }
@@ -299,31 +284,31 @@ func (ms *mediaStream[T, U]) Next(ctx context.Context) (T, func(), error) {
 		return zero, nil, err
 	}
 
-	ms.ms.consumerCond.L.Lock()
+	ms.prodCon.consumerCond.L.Lock()
 	// Even though interestedConsumers is atomic, this is a critical section!
 	// That's because if the producer sees zero interested consumers, it's going
 	// to Wait but we only want it to do that once we are ready to signal it.
 	// It's also a RLock because we have many consumers (readers) and one producer (writer).
-	atomic.AddInt64(&ms.ms.interestedConsumers, 1)
-	ms.ms.producerCond.Signal()
+	atomic.AddInt64(&ms.prodCon.interestedConsumers, 1)
+	ms.prodCon.producerCond.Signal()
 
 	select {
 	case <-ms.cancelCtx.Done():
-		ms.ms.consumerCond.L.Unlock()
+		ms.prodCon.consumerCond.L.Unlock()
 		return zero, nil, ms.cancelCtx.Err()
 	case <-ctx.Done():
-		ms.ms.consumerCond.L.Unlock()
+		ms.prodCon.consumerCond.L.Unlock()
 		return zero, nil, ctx.Err()
 	default:
 	}
 
-	ms.ms.consumerCond.Wait()
-	ms.ms.consumerCond.L.Unlock()
+	ms.prodCon.consumerCond.Wait()
+	ms.prodCon.consumerCond.L.Unlock()
 	if err := ms.cancelCtx.Err(); err != nil {
 		return zero, nil, err
 	}
 
-	current := ms.ms.current.Load().(*MediaReleasePairWithError[T])
+	current := ms.prodCon.current.Load().(*MediaReleasePairWithError[T])
 	if current.Err != nil {
 		return zero, nil, current.Err
 	}
@@ -332,36 +317,82 @@ func (ms *mediaStream[T, U]) Next(ctx context.Context) (T, func(), error) {
 
 func (ms *mediaStream[T, U]) Close(ctx context.Context) error {
 	ms.cancel()
-	ms.ms.errHandlersMu.Lock()
-	delete(ms.ms.errHandlers, ms)
-	ms.ms.errHandlersMu.Unlock()
-	ms.ms.stopOne()
+	ms.prodCon.errHandlersMu.Lock()
+	delete(ms.prodCon.errHandlers, ms)
+	ms.prodCon.errHandlersMu.Unlock()
+	ms.prodCon.stopOne()
 	return nil
 }
 
 func (ms *mediaSource[T, U]) Stream(ctx context.Context, errHandlers ...ErrorHandler) (MediaStream[T], error) {
-	ms.stateMu.Lock()
-	defer ms.stateMu.Unlock()
+	ms.producerConsumersMu.Lock()
+	mimeType := MIMETypeHint(ctx, "")
+	prodCon, ok := ms.producerConsumers[mimeType]
+	if !ok {
+		cancelCtx, cancel := context.WithCancel(WithMIMETypeHint(ms.rootCancelCtx, mimeType))
+		condMu := &sync.RWMutex{}
+		producerCond := sync.NewCond(condMu)
+		consumerCond := sync.NewCond(condMu.RLocker())
 
-	cancelCtx, cancel := context.WithCancel(ms.cancelCtx)
+		prodCon = &producerConsumer[T, U]{
+			rootCancelCtx: ms.rootCancelCtx,
+			cancelCtx:     cancelCtx,
+			cancel:        cancel,
+			mimeType:      mimeType,
+			producerCond:  producerCond,
+			consumerCond:  consumerCond,
+			condMu:        condMu,
+			errHandlers:   map[*mediaStream[T, U]][]ErrorHandler{},
+		}
+		prodCon.readWrapper = MediaReaderFunc[T](func(ctx context.Context) (T, func(), error) {
+			media, release, err := ms.reader.Read(ctx)
+			if err == nil {
+				return media, release, nil
+			}
+
+			prodCon.errHandlersMu.Lock()
+			defer prodCon.errHandlersMu.Unlock()
+			for _, handlers := range prodCon.errHandlers {
+				for _, handler := range handlers {
+					handler(ctx, err)
+				}
+			}
+			var zero T
+			return zero, nil, err
+		})
+		ms.producerConsumers[mimeType] = prodCon
+	}
+	ms.producerConsumersMu.Unlock()
+
+	prodCon.stateMu.Lock()
+	defer prodCon.stateMu.Unlock()
+
+	cancelCtx, cancel := context.WithCancel(prodCon.cancelCtx)
 	stream := &mediaStream[T, U]{
 		ms:        ms,
+		prodCon:   prodCon,
 		cancelCtx: cancelCtx,
 		cancel:    cancel,
 	}
 
 	if len(errHandlers) != 0 {
-		ms.errHandlersMu.Lock()
-		ms.errHandlers[stream] = errHandlers
-		ms.errHandlersMu.Unlock()
+		prodCon.errHandlersMu.Lock()
+		prodCon.errHandlers[stream] = errHandlers
+		prodCon.errHandlersMu.Unlock()
 	}
-	ms.start()
+	prodCon.start()
 
 	return stream, nil
 }
 
 func (ms *mediaSource[T, U]) Close(ctx context.Context) error {
-	ms.stop()
+	func() {
+		ms.producerConsumersMu.Lock()
+		defer ms.producerConsumersMu.Unlock()
+		for _, prodCon := range ms.producerConsumers {
+			prodCon.stop()
+		}
+	}()
 	err := utils.TryClose(ctx, ms.reader)
 
 	if ms.driver == nil {

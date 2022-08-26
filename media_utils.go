@@ -75,3 +75,22 @@ func (emrs *embeddedMediaReaderStream[T, U]) Next(ctx context.Context) (T, func(
 func (emrs *embeddedMediaReaderStream[T, U]) Close(ctx context.Context) error {
 	return multierr.Combine(emrs.stream.Close(ctx), emrs.src.Close(ctx))
 }
+
+type contextValue byte
+
+const contextValueMIMETypeHint contextValue = iota
+
+// WithMIMETypeHint provides a hint to readers that media should be encoded to
+// this type.
+func WithMIMETypeHint(ctx context.Context, mimeType string) context.Context {
+	return context.WithValue(ctx, contextValueMIMETypeHint, mimeType)
+}
+
+// MIMETypeHint gets the hint of what MIME type to use in encoding; if nothing is
+// set, the default provided is used.
+func MIMETypeHint(ctx context.Context, defaultType string) string {
+	if val, ok := ctx.Value(contextValueMIMETypeHint).(string); ok {
+		return val
+	}
+	return defaultType
+}
