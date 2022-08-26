@@ -12,7 +12,11 @@ import (
 )
 
 type (
-	// A MediaReader is anything that can read and recycle data.
+	// A MediaReader is anything that can read and recycle data. It is expected
+	// that reader can handle multiple reads at the same time. This would ideally only
+	// happen during streaming when a specific MIME type is requested. In the future,
+	// we may be able to notice multiple MIME types and either do deferred encode/decode
+	// or have the reader do it for us.
 	MediaReader[T any] interface {
 		Read(ctx context.Context) (data T, release func(), err error)
 	}
