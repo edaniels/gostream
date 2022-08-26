@@ -2,6 +2,7 @@ package gostream
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 
@@ -329,6 +330,10 @@ func (ms *mediaSource[T, U]) Stream(ctx context.Context, errHandlers ...ErrorHan
 	mimeType := MIMETypeHint(ctx, "")
 	prodCon, ok := ms.producerConsumers[mimeType]
 	if !ok {
+		// TODO(erd): better to have no max like this and instead clean up over time.
+		if len(ms.producerConsumers)+1 == 256 {
+			return nil, errors.New("reached max producer consumers of 256")
+		}
 		cancelCtx, cancel := context.WithCancel(WithMIMETypeHint(ms.rootCancelCtx, mimeType))
 		condMu := &sync.RWMutex{}
 		producerCond := sync.NewCond(condMu)
