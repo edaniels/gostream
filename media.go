@@ -321,6 +321,7 @@ func (ms *mediaStream[T, U]) Next(ctx context.Context) (T, func(), error) {
 	}
 
 	for ms.prodCon.current.Load() == nil {
+		ms.prodCon.consumerCond.L.Lock()
 		if err := waitForNext(); err != nil {
 			return zero, nil, err
 		}
