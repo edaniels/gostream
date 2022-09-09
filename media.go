@@ -307,10 +307,23 @@ func (ms *mediaStream[T, U]) Next(ctx context.Context) (T, func(), error) {
 	default:
 	}
 
-	ms.prodCon.consumerCond.Wait()
-	ms.prodCon.consumerCond.L.Unlock()
-	if err := ms.cancelCtx.Err(); err != nil {
+	waitForNext := func() error {
+		ms.prodCon.consumerCond.Wait()
+		ms.prodCon.consumerCond.L.Unlock()
+		if err := ms.cancelCtx.Err(); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if err := waitForNext(); err != nil {
 		return zero, nil, err
+	}
+
+	for ms.prodCon.current.Load() == nil {
+		if err := waitForNext(); err != nil {
+			return zero, nil, err
+		}
 	}
 
 	current := ms.prodCon.current.Load().(*MediaReleasePairWithError[T])
