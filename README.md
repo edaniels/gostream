@@ -22,6 +22,10 @@ gostream is a library to simplify the streaming of images as video and audio chu
 - Support removal of streams
 - Synchronize audio with video
 
+## With NixOS (Experimental)
+
+`nix-shell --pure`
+
 ## Examples
 
 * Stream current desktop: `make stream-desktop`
