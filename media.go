@@ -98,7 +98,8 @@ type producerConsumer[T any, U any] struct {
 	mimeType                string
 	activeBackgroundWorkers sync.WaitGroup
 	readWrapper             MediaReader[T]
-	current                 atomic.Value
+	current                 *mediaRefReleasePairWithError[T]
+	currentMu               sync.RWMutex
 	producerCond            *sync.Cond
 	consumerCond            *sync.Cond
 	condMu                  *sync.RWMutex
@@ -183,18 +184,40 @@ func (pc *producerConsumer[T, U]) start() {
 
 				var lastRelease func()
 				if !first {
-					lastRelease = pc.current.Load().(*MediaReleasePairWithError[T]).Release
+					// okay to not hold a lock because we are the only both reader AND writer;
+					// other goroutines are just readers.
+					lastRelease = pc.current.Release
 				} else {
 					first = false
 				}
 				media, release, err := pc.readWrapper.Read(pc.cancelCtx)
-				pc.current.Store(&MediaReleasePairWithError[T]{media, release, err})
+				ref := utils.NewRefCountedValue(struct{}{})
+				ref.Ref()
+
+				// hold write lock long enough to set current but not for lastRelease
+				// since the reader (who will call ref) will hold a similar read lock
+				// to ref before unlocking. This ordering makes sure that we only ever
+				// call a deref of the previous media once a new one can be fetched.
+				pc.currentMu.Lock()
+				pc.current = &mediaRefReleasePairWithError[T]{media, ref, func() {
+					if ref.Deref() {
+						release()
+					}
+				}, err}
+				pc.currentMu.Unlock()
 				if lastRelease != nil {
 					lastRelease()
 				}
 			}()
 		}
 	}, func() { defer pc.activeBackgroundWorkers.Done(); pc.cancel() })
+}
+
+type mediaRefReleasePairWithError[T any] struct {
+	Media   T
+	Ref     utils.RefCountedValue
+	Release func()
+	Err     error
 }
 
 func (pc *producerConsumer[T, U]) stop() {
@@ -320,18 +343,29 @@ func (ms *mediaStream[T, U]) Next(ctx context.Context) (T, func(), error) {
 		return zero, nil, err
 	}
 
-	for ms.prodCon.current.Load() == nil {
+	isAvailable := func() bool {
+		ms.prodCon.currentMu.RLock()
+		available := ms.prodCon.current != nil
+		ms.prodCon.currentMu.RUnlock()
+		return available
+	}
+	for !isAvailable() {
 		ms.prodCon.consumerCond.L.Lock()
 		if err := waitForNext(); err != nil {
 			return zero, nil, err
 		}
 	}
 
-	current := ms.prodCon.current.Load().(*MediaReleasePairWithError[T])
+	// hold a read lock long enough before current.Ref can be dereffed
+	// due to a new current being set.
+	ms.prodCon.currentMu.RLock()
+	defer ms.prodCon.currentMu.RUnlock()
+	current := ms.prodCon.current
 	if current.Err != nil {
 		return zero, nil, current.Err
 	}
-	return current.Media, func() {}, nil
+	current.Ref.Ref()
+	return current.Media, current.Release, nil
 }
 
 func (ms *mediaStream[T, U]) Close(ctx context.Context) error {
