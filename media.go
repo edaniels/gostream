@@ -201,7 +201,9 @@ func (pc *producerConsumer[T, U]) start() {
 				pc.currentMu.Lock()
 				pc.current = &mediaRefReleasePairWithError[T]{media, ref, func() {
 					if ref.Deref() {
-						release()
+						if release != nil {
+							release()
+						}
 					}
 				}, err}
 				pc.currentMu.Unlock()
