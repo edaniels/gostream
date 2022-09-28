@@ -256,7 +256,7 @@ func (bs *basicStream) processInputFrames() {
 
 			bounds := framePair.Media.Bounds()
 			newDx, newDy := bounds.Dx(), bounds.Dy()
-			if dx != newDx || dy != newDy {
+			if bs.videoEncoder == nil || dx != newDx || dy != newDy {
 				dx, dy = newDx, newDy
 				bs.logger.Infow("detected new image bounds", "width", dx, "height", dy)
 
