@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/edaniels/golog"
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/driver/camera"
@@ -255,9 +256,9 @@ func newVideoSourceFromDriver(videoDriver driver.Driver, mediaProp prop.Media) (
 	}
 
 	if driverStatus := videoDriver.Status(); driverStatus != driver.StateClosed {
-		Logger.Warnw("video driver is not closed, attempting to close and reopen", "status", driverStatus)
+		golog.Global().Warnw("video driver is not closed, attempting to close and reopen", "status", driverStatus)
 		if err := videoDriver.Close(); err != nil {
-			Logger.Errorw("error closing driver", "error", err)
+			golog.Global().Errorw("error closing driver", "error", err)
 		}
 	}
 	if err := videoDriver.Open(); err != nil {
@@ -296,9 +297,9 @@ func newAudioSourceFromDriver(audioDriver driver.Driver, mediaProp prop.Media) (
 	}
 
 	if driverStatus := audioDriver.Status(); driverStatus != driver.StateClosed {
-		Logger.Warnw("audio driver is not closed, attempting to close and reopen", "status", driverStatus)
+		golog.Global().Warnw("audio driver is not closed, attempting to close and reopen", "status", driverStatus)
 		if err := audioDriver.Close(); err != nil {
-			Logger.Errorw("error closing driver", "error", err)
+			golog.Global().Errorw("error closing driver", "error", err)
 		}
 	}
 	if err := audioDriver.Open(); err != nil {
@@ -468,7 +469,7 @@ func queryDriverProperties(filter driver.FilterFn) map[driver.Driver][]prop.Medi
 	for _, d := range needToClose {
 		// Since it was closed, we should close it to avoid a leak
 		if err := d.Close(); err != nil {
-			Logger.Errorw("error closing driver", "error", err)
+			golog.Global().Errorw("error closing driver", "error", err)
 		}
 	}
 
