@@ -10,6 +10,7 @@ import (
 
 	"github.com/edaniels/golog"
 	"github.com/google/uuid"
+
 	// register screen drivers.
 	_ "github.com/pion/mediadevices/pkg/driver/microphone"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -61,7 +62,7 @@ type MediaReleasePair[T any] struct {
 func NewStream(config StreamConfig) (Stream, error) {
 	logger := config.Logger
 	if logger == nil {
-		logger = Logger
+		logger = golog.Global()
 	}
 	if config.VideoEncoderFactory == nil && config.AudioEncoderFactory == nil {
 		return nil, errors.New("at least one audio or video encoder factory must be set")
