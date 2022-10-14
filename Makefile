@@ -35,7 +35,7 @@ cover:
 	go test -tags=no_skip -race -coverprofile=coverage.txt ./...
 
 test:
-	go test -tags=no_skip -race ./...
+	./test.sh
 
 stream-desktop: buf-go build-web
 	go run cmd/stream_video/main.go
