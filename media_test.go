@@ -16,6 +16,7 @@ type ImageSource struct {
 	idx    int
 }
 
+// Returns the next image or nil if there are no more images left. This should never error.
 func (is *ImageSource) Read(_ context.Context) (image.Image, func(), error) {
 	if is.idx >= len(is.Images) {
 		return nil, func() {}, nil
@@ -25,6 +26,7 @@ func (is *ImageSource) Read(_ context.Context) (image.Image, func(), error) {
 	return img, func() {}, nil
 }
 
+// Nothing to do.
 func (is *ImageSource) Close(_ context.Context) error {
 	return nil
 }
