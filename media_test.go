@@ -48,12 +48,23 @@ func TestReadMedia(t *testing.T) {
 	}
 
 	var imgSource ImageSource
+	// Create a deep copy
 	imgSource.Images = append(imgSource.Images, colors...)
 
 	videoSrc := NewVideoSource(&imgSource, prop.Video{})
+	// Test all images are returned in order.
 	for _, expected := range colors {
 		actual, _, err := ReadMedia(context.Background(), videoSrc)
 		test.That(t, err, test.ShouldBeNil)
 		test.That(t, actual, test.ShouldEqual, expected)
 	}
+
+	// Test image comparison can fail if two images are not the same
+	imgSource.Images = []image.Image{PNGtoImage(t, "data/red.png")}
+	videoSrc = NewVideoSource(&imgSource, prop.Video{})
+
+	blue := PNGtoImage(t, "data/blue.png")
+	red, _, err := ReadMedia(context.Background(), videoSrc)
+	test.That(t, err, test.ShouldBeNil)
+	test.That(t, red, test.ShouldNotEqual, blue)
 }
