@@ -5,4 +5,4 @@ if [[ "$os" == "Darwin" ]]; then
 else
 	args="./..."
 fi
-go test -tags=no_skip -race $args
+go test -tags=no_skip -race $args -v
