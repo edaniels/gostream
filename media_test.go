@@ -50,10 +50,7 @@ func TestReadMedia(t *testing.T) {
 		pngToImage(t, "data/cyan.png"),
 	}
 
-	var imgSource imageSource
-	// Create a deep copy
-	imgSource.Images = append(imgSource.Images, colors...)
-
+	imgSource := imageSource{Images: colors}
 	videoSrc := NewVideoSource(&imgSource, prop.Video{})
 	// Test all images are returned in order.
 	for _, expected := range colors {
