@@ -3,12 +3,13 @@ package gostream
 import (
 	"bytes"
 	"context"
-	"github.com/pion/mediadevices/pkg/prop"
-	"go.viam.com/test"
 	"image"
 	"image/png"
 	"os"
 	"testing"
+
+	"github.com/pion/mediadevices/pkg/prop"
+	"go.viam.com/test"
 )
 
 type ImageSource struct {
@@ -32,6 +33,7 @@ func (is *ImageSource) Close(_ context.Context) error {
 }
 
 func PNGtoImage(t *testing.T, path string) image.Image {
+	t.Helper()
 	openBytes, err := os.ReadFile(path)
 	test.That(t, err, test.ShouldBeNil)
 	img, err := png.Decode(bytes.NewReader(openBytes))
