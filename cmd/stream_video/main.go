@@ -77,9 +77,9 @@ func runServer(
 ) (err error) {
 	var videoSource gostream.VideoSource
 	if camera {
-		videoSource, err = gostream.GetAnyVideoSource(gostream.DefaultConstraints)
+		videoSource, err = gostream.GetAnyVideoSource(gostream.DefaultConstraints, logger)
 	} else {
-		videoSource, err = gostream.GetAnyScreenSource(gostream.DefaultConstraints)
+		videoSource, err = gostream.GetAnyScreenSource(gostream.DefaultConstraints, logger)
 	}
 	if err != nil {
 		return err

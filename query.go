@@ -42,99 +42,117 @@ var DefaultConstraints = mediadevices.MediaStreamConstraints{
 }
 
 // GetNamedScreenSource attempts to find a screen device by the given name.
-func GetNamedScreenSource(name string, constraints mediadevices.MediaStreamConstraints) (MediaSource[image.Image], error) {
-	d, selectedMedia, err := getScreenDriver(constraints, &name)
+func GetNamedScreenSource(
+	name string,
+	constraints mediadevices.MediaStreamConstraints,
+	logger golog.Logger,
+) (MediaSource[image.Image], error) {
+	d, selectedMedia, err := getScreenDriver(constraints, &name, logger)
 	if err != nil {
 		return nil, err
 	}
-	return newVideoSourceFromDriver(d, selectedMedia)
+	return newVideoSourceFromDriver(d, selectedMedia, logger)
 }
 
 // GetPatternedScreenSource attempts to find a screen device by the given label pattern.
 func GetPatternedScreenSource(
 	labelPattern *regexp.Regexp,
 	constraints mediadevices.MediaStreamConstraints,
+	logger golog.Logger,
 ) (MediaSource[image.Image], error) {
-	d, selectedMedia, err := getScreenDriverPattern(constraints, labelPattern)
+	d, selectedMedia, err := getScreenDriverPattern(constraints, labelPattern, logger)
 	if err != nil {
 		return nil, err
 	}
-	return newVideoSourceFromDriver(d, selectedMedia)
+	return newVideoSourceFromDriver(d, selectedMedia, logger)
 }
 
 // GetNamedVideoSource attempts to find a video device (not a screen) by the given name.
 func GetNamedVideoSource(
 	name string,
 	constraints mediadevices.MediaStreamConstraints,
+	logger golog.Logger,
 ) (MediaSource[image.Image], error) {
-	d, selectedMedia, err := getUserVideoDriver(constraints, &name)
+	d, selectedMedia, err := getUserVideoDriver(constraints, &name, logger)
 	if err != nil {
 		return nil, err
 	}
-	return newVideoSourceFromDriver(d, selectedMedia)
+	return newVideoSourceFromDriver(d, selectedMedia, logger)
 }
 
 // GetPatternedVideoSource attempts to find a video device (not a screen) by the given label pattern.
 func GetPatternedVideoSource(
 	labelPattern *regexp.Regexp,
 	constraints mediadevices.MediaStreamConstraints,
+	logger golog.Logger,
 ) (MediaSource[image.Image], error) {
-	d, selectedMedia, err := getUserVideoDriverPattern(constraints, labelPattern)
+	d, selectedMedia, err := getUserVideoDriverPattern(constraints, labelPattern, logger)
 	if err != nil {
 		return nil, err
 	}
-	return newVideoSourceFromDriver(d, selectedMedia)
+	return newVideoSourceFromDriver(d, selectedMedia, logger)
 }
 
 // GetAnyScreenSource attempts to find any suitable screen device.
-func GetAnyScreenSource(constraints mediadevices.MediaStreamConstraints) (MediaSource[image.Image], error) {
-	d, selectedMedia, err := getScreenDriver(constraints, nil)
+func GetAnyScreenSource(
+	constraints mediadevices.MediaStreamConstraints,
+	logger golog.Logger,
+) (MediaSource[image.Image], error) {
+	d, selectedMedia, err := getScreenDriver(constraints, nil, logger)
 	if err != nil {
 		return nil, err
 	}
-	return newVideoSourceFromDriver(d, selectedMedia)
+	return newVideoSourceFromDriver(d, selectedMedia, logger)
 }
 
 // GetAnyVideoSource attempts to find any suitable video device (not a screen).
-func GetAnyVideoSource(constraints mediadevices.MediaStreamConstraints) (MediaSource[image.Image], error) {
-	d, selectedMedia, err := getUserVideoDriver(constraints, nil)
+func GetAnyVideoSource(
+	constraints mediadevices.MediaStreamConstraints,
+	logger golog.Logger,
+) (MediaSource[image.Image], error) {
+	d, selectedMedia, err := getUserVideoDriver(constraints, nil, logger)
 	if err != nil {
 		return nil, err
 	}
-	return newVideoSourceFromDriver(d, selectedMedia)
+	return newVideoSourceFromDriver(d, selectedMedia, logger)
 }
 
 // GetAnyAudioSource attempts to find any suitable audio device.
-func GetAnyAudioSource(constraints mediadevices.MediaStreamConstraints) (MediaSource[wave.Audio], error) {
-	d, selectedMedia, err := getUserAudioDriver(constraints, nil)
+func GetAnyAudioSource(
+	constraints mediadevices.MediaStreamConstraints,
+	logger golog.Logger,
+) (MediaSource[wave.Audio], error) {
+	d, selectedMedia, err := getUserAudioDriver(constraints, nil, logger)
 	if err != nil {
 		return nil, err
 	}
-	return newAudioSourceFromDriver(d, selectedMedia)
+	return newAudioSourceFromDriver(d, selectedMedia, logger)
 }
 
 // GetNamedAudioSource attempts to find an audio device by the given name.
 func GetNamedAudioSource(
 	name string,
 	constraints mediadevices.MediaStreamConstraints,
+	logger golog.Logger,
 ) (MediaSource[wave.Audio], error) {
-	d, selectedMedia, err := getUserAudioDriver(constraints, &name)
+	d, selectedMedia, err := getUserAudioDriver(constraints, &name, logger)
 	if err != nil {
 		return nil, err
 	}
-	return newAudioSourceFromDriver(d, selectedMedia)
+	return newAudioSourceFromDriver(d, selectedMedia, logger)
 }
 
 // GetPatternedAudioSource attempts to find an audio device by the given label pattern.
 func GetPatternedAudioSource(
 	labelPattern *regexp.Regexp,
 	constraints mediadevices.MediaStreamConstraints,
+	logger golog.Logger,
 ) (MediaSource[wave.Audio], error) {
-	d, selectedMedia, err := getUserAudioDriverPattern(constraints, labelPattern)
+	d, selectedMedia, err := getUserAudioDriverPattern(constraints, labelPattern, logger)
 	if err != nil {
 		return nil, err
 	}
-	return newAudioSourceFromDriver(d, selectedMedia)
+	return newAudioSourceFromDriver(d, selectedMedia, logger)
 }
 
 // DeviceInfo describes a driver.
@@ -211,54 +229,68 @@ func getDriverLabels(d driver.Driver, useSep bool) []string {
 	return strings.Split(d.Info().Label, camera.LabelSeparator)
 }
 
-func getScreenDriver(constraints mediadevices.MediaStreamConstraints, label *string) (driver.Driver, prop.Media, error) {
+func getScreenDriver(
+	constraints mediadevices.MediaStreamConstraints,
+	label *string,
+	logger golog.Logger,
+) (driver.Driver, prop.Media, error) {
 	var videoConstraints mediadevices.MediaTrackConstraints
 	if constraints.Video != nil {
 		constraints.Video(&videoConstraints)
 	}
-	return selectScreen(videoConstraints, label)
+	return selectScreen(videoConstraints, label, logger)
 }
 
 func getScreenDriverPattern(
 	constraints mediadevices.MediaStreamConstraints,
 	labelPattern *regexp.Regexp,
+	logger golog.Logger,
 ) (driver.Driver, prop.Media, error) {
 	var videoConstraints mediadevices.MediaTrackConstraints
 	if constraints.Video != nil {
 		constraints.Video(&videoConstraints)
 	}
-	return selectScreenPattern(videoConstraints, labelPattern)
+	return selectScreenPattern(videoConstraints, labelPattern, logger)
 }
 
-func getUserVideoDriver(constraints mediadevices.MediaStreamConstraints, label *string) (driver.Driver, prop.Media, error) {
+func getUserVideoDriver(
+	constraints mediadevices.MediaStreamConstraints,
+	label *string,
+	logger golog.Logger,
+) (driver.Driver, prop.Media, error) {
 	var videoConstraints mediadevices.MediaTrackConstraints
 	if constraints.Video != nil {
 		constraints.Video(&videoConstraints)
 	}
-	return selectVideo(videoConstraints, label)
+	return selectVideo(videoConstraints, label, logger)
 }
 
 func getUserVideoDriverPattern(
 	constraints mediadevices.MediaStreamConstraints,
 	labelPattern *regexp.Regexp,
+	logger golog.Logger,
 ) (driver.Driver, prop.Media, error) {
 	var videoConstraints mediadevices.MediaTrackConstraints
 	if constraints.Video != nil {
 		constraints.Video(&videoConstraints)
 	}
-	return selectVideoPattern(videoConstraints, labelPattern)
+	return selectVideoPattern(videoConstraints, labelPattern, logger)
 }
 
-func newVideoSourceFromDriver(videoDriver driver.Driver, mediaProp prop.Media) (MediaSource[image.Image], error) {
+func newVideoSourceFromDriver(
+	videoDriver driver.Driver,
+	mediaProp prop.Media,
+	logger golog.Logger,
+) (MediaSource[image.Image], error) {
 	recorder, ok := videoDriver.(driver.VideoRecorder)
 	if !ok {
 		return nil, errors.New("driver not a driver.VideoRecorder")
 	}
 
 	if driverStatus := videoDriver.Status(); driverStatus != driver.StateClosed {
-		golog.Global().Warnw("video driver is not closed, attempting to close and reopen", "status", driverStatus)
+		logger.Warnw("video driver is not closed, attempting to close and reopen", "status", driverStatus)
 		if err := videoDriver.Close(); err != nil {
-			golog.Global().Errorw("error closing driver", "error", err)
+			logger.Errorw("error closing driver", "error", err)
 		}
 	}
 	if err := videoDriver.Open(); err != nil {
@@ -271,35 +303,44 @@ func newVideoSourceFromDriver(videoDriver driver.Driver, mediaProp prop.Media) (
 	return newMediaSource[image.Image](videoDriver, mediaReaderFuncNoCtx[image.Image](reader.Read), mediaProp.Video), nil
 }
 
-func getUserAudioDriver(constraints mediadevices.MediaStreamConstraints, label *string) (driver.Driver, prop.Media, error) {
-	var audioConstraints mediadevices.MediaTrackConstraints
-	if constraints.Audio != nil {
-		constraints.Audio(&audioConstraints)
-	}
-	return selectAudio(audioConstraints, label)
-}
-
-func getUserAudioDriverPattern(
+func getUserAudioDriver(
 	constraints mediadevices.MediaStreamConstraints,
-	labelPattern *regexp.Regexp,
+	label *string,
+	logger golog.Logger,
 ) (driver.Driver, prop.Media, error) {
 	var audioConstraints mediadevices.MediaTrackConstraints
 	if constraints.Audio != nil {
 		constraints.Audio(&audioConstraints)
 	}
-	return selectVideoPattern(audioConstraints, labelPattern)
+	return selectAudio(audioConstraints, label, logger)
 }
 
-func newAudioSourceFromDriver(audioDriver driver.Driver, mediaProp prop.Media) (MediaSource[wave.Audio], error) {
+func getUserAudioDriverPattern(
+	constraints mediadevices.MediaStreamConstraints,
+	labelPattern *regexp.Regexp,
+	logger golog.Logger,
+) (driver.Driver, prop.Media, error) {
+	var audioConstraints mediadevices.MediaTrackConstraints
+	if constraints.Audio != nil {
+		constraints.Audio(&audioConstraints)
+	}
+	return selectVideoPattern(audioConstraints, labelPattern, logger)
+}
+
+func newAudioSourceFromDriver(
+	audioDriver driver.Driver,
+	mediaProp prop.Media,
+	logger golog.Logger,
+) (MediaSource[wave.Audio], error) {
 	recorder, ok := audioDriver.(driver.AudioRecorder)
 	if !ok {
 		return nil, errors.New("driver not a driver.AudioRecorder")
 	}
 
 	if driverStatus := audioDriver.Status(); driverStatus != driver.StateClosed {
-		golog.Global().Warnw("audio driver is not closed, attempting to close and reopen", "status", driverStatus)
+		logger.Warnw("audio driver is not closed, attempting to close and reopen", "status", driverStatus)
 		if err := audioDriver.Close(); err != nil {
-			golog.Global().Errorw("error closing driver", "error", err)
+			logger.Errorw("error closing driver", "error", err)
 		}
 	}
 	if err := audioDriver.Open(); err != nil {
@@ -342,24 +383,44 @@ func labelFilterPattern(labelPattern *regexp.Regexp, useSep bool) driver.FilterF
 	})
 }
 
-func selectVideo(constraints mediadevices.MediaTrackConstraints, label *string) (driver.Driver, prop.Media, error) {
-	return selectBestDriver(getVideoFilter(label), constraints)
+func selectVideo(
+	constraints mediadevices.MediaTrackConstraints,
+	label *string,
+	logger golog.Logger,
+) (driver.Driver, prop.Media, error) {
+	return selectBestDriver(getVideoFilter(label), constraints, logger)
 }
 
-func selectVideoPattern(constraints mediadevices.MediaTrackConstraints, labelPattern *regexp.Regexp) (driver.Driver, prop.Media, error) {
-	return selectBestDriver(getVideoFilterPattern(labelPattern), constraints)
+func selectVideoPattern(
+	constraints mediadevices.MediaTrackConstraints,
+	labelPattern *regexp.Regexp,
+	logger golog.Logger,
+) (driver.Driver, prop.Media, error) {
+	return selectBestDriver(getVideoFilterPattern(labelPattern), constraints, logger)
 }
 
-func selectScreen(constraints mediadevices.MediaTrackConstraints, label *string) (driver.Driver, prop.Media, error) {
-	return selectBestDriver(getScreenFilter(label), constraints)
+func selectScreen(
+	constraints mediadevices.MediaTrackConstraints,
+	label *string,
+	logger golog.Logger,
+) (driver.Driver, prop.Media, error) {
+	return selectBestDriver(getScreenFilter(label), constraints, logger)
 }
 
-func selectScreenPattern(constraints mediadevices.MediaTrackConstraints, labelPattern *regexp.Regexp) (driver.Driver, prop.Media, error) {
-	return selectBestDriver(getScreenFilterPattern(labelPattern), constraints)
+func selectScreenPattern(
+	constraints mediadevices.MediaTrackConstraints,
+	labelPattern *regexp.Regexp,
+	logger golog.Logger,
+) (driver.Driver, prop.Media, error) {
+	return selectBestDriver(getScreenFilterPattern(labelPattern), constraints, logger)
 }
 
-func selectAudio(constraints mediadevices.MediaTrackConstraints, label *string) (driver.Driver, prop.Media, error) {
-	return selectBestDriver(getAudioFilter(label), constraints)
+func selectAudio(
+	constraints mediadevices.MediaTrackConstraints,
+	label *string,
+	logger golog.Logger,
+) (driver.Driver, prop.Media, error) {
+	return selectBestDriver(getAudioFilter(label), constraints, logger)
 }
 
 func getVideoFilterBase() driver.FilterFn {
@@ -416,27 +477,31 @@ func getAudioFilter(label *string) driver.FilterFn {
 
 // select implements SelectSettings algorithm.
 // Reference: https://w3c.github.io/mediacapture-main/#dfn-selectsettings
-func selectBestDriver(filter driver.FilterFn, constraints mediadevices.MediaTrackConstraints) (driver.Driver, prop.Media, error) {
+func selectBestDriver(
+	filter driver.FilterFn,
+	constraints mediadevices.MediaTrackConstraints,
+	logger golog.Logger,
+) (driver.Driver, prop.Media, error) {
 	var bestDriver driver.Driver
 	var bestProp prop.Media
 	minFitnessDist := math.Inf(1)
 
-	driverProperties := queryDriverProperties(filter)
+	driverProperties := queryDriverProperties(filter, logger)
 	if len(driverProperties) == 0 {
-		golog.Global().Debugw("found no drivers matching filter")
+		logger.Debugw("found no drivers matching filter")
 	} else {
-		golog.Global().Debugw("found drivers matching filter", "count", len(driverProperties))
+		logger.Debugw("found drivers matching filter", "count", len(driverProperties))
 	}
 	for d, props := range driverProperties {
 		priority := float64(d.Info().Priority)
 		for _, p := range props {
 			fitnessDist, ok := constraints.MediaConstraints.FitnessDistance(p)
 			if !ok {
-				golog.Global().Debugw("driver does not satisfy any constraints", "label", d.Info().Label)
+				logger.Debugw("driver does not satisfy any constraints", "label", d.Info().Label)
 				continue
 			}
 			fitnessDistWithPriority := fitnessDist - priority
-			golog.Global().Debugw(
+			logger.Debugw(
 				"driver satisfies some constraints",
 				"label", d.Info().Label,
 				"distance", fitnessDist,
@@ -453,14 +518,17 @@ func selectBestDriver(filter driver.FilterFn, constraints mediadevices.MediaTrac
 		return nil, prop.Media{}, ErrNotFound
 	}
 
-	golog.Global().Debugw("winning driver", "label", bestDriver.Info().Label)
+	logger.Debugw("winning driver", "label", bestDriver.Info().Label)
 	selectedMedia := prop.Media{}
 	selectedMedia.MergeConstraints(constraints.MediaConstraints)
 	selectedMedia.Merge(bestProp)
 	return bestDriver, selectedMedia, nil
 }
 
-func queryDriverProperties(filter driver.FilterFn) map[driver.Driver][]prop.Media {
+func queryDriverProperties(
+	filter driver.FilterFn,
+	logger golog.Logger,
+) map[driver.Driver][]prop.Media {
 	var needToClose []driver.Driver
 	drivers := driver.GetManager().Query(filter)
 	m := make(map[driver.Driver][]prop.Media)
@@ -469,7 +537,7 @@ func queryDriverProperties(filter driver.FilterFn) map[driver.Driver][]prop.Medi
 		if d.Status() == driver.StateClosed {
 			err := d.Open()
 			if err != nil {
-				golog.Global().Debugw("error opening driver for querying", "error", err)
+				logger.Debugw("error opening driver for querying", "error", err)
 				// Skip this driver if we failed to open because we can't get the properties
 				continue
 			}
@@ -482,7 +550,7 @@ func queryDriverProperties(filter driver.FilterFn) map[driver.Driver][]prop.Medi
 	for _, d := range needToClose {
 		// Since it was closed, we should close it to avoid a leak
 		if err := d.Close(); err != nil {
-			golog.Global().Errorw("error closing driver", "error", err)
+			logger.Errorw("error closing driver", "error", err)
 		}
 	}
 

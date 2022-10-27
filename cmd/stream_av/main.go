@@ -88,7 +88,7 @@ func runServer(
 	camera bool,
 	logger golog.Logger,
 ) (err error) {
-	audioSource, err := gostream.GetAnyAudioSource(gostream.DefaultConstraints)
+	audioSource, err := gostream.GetAnyAudioSource(gostream.DefaultConstraints, logger)
 	if err != nil {
 		return err
 	}
@@ -97,9 +97,9 @@ func runServer(
 	}()
 	var videoSrc gostream.VideoSource
 	if camera {
-		videoSrc, err = gostream.GetAnyVideoSource(gostream.DefaultConstraints)
+		videoSrc, err = gostream.GetAnyVideoSource(gostream.DefaultConstraints, logger)
 	} else {
-		videoSrc, err = gostream.GetAnyScreenSource(gostream.DefaultConstraints)
+		videoSrc, err = gostream.GetAnyScreenSource(gostream.DefaultConstraints, logger)
 	}
 	if err != nil {
 		return err

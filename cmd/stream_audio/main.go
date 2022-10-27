@@ -75,7 +75,7 @@ func runServer(
 	playback bool,
 	logger golog.Logger,
 ) (err error) {
-	audioSource, err := gostream.GetAnyAudioSource(gostream.DefaultConstraints)
+	audioSource, err := gostream.GetAnyAudioSource(gostream.DefaultConstraints, logger)
 	if err != nil {
 		return err
 	}
