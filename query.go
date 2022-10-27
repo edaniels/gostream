@@ -490,14 +490,14 @@ func selectBestDriver(
 	baseDrivers := driver.GetManager().Query(baseFilter)
 	logger.Debugw("before specific filter, we found the following drivers", "count", len(baseDrivers))
 	for _, d := range baseDrivers {
-		logger.Debugw(d.Info().Label, "priority", d.Info().Priority)
+		logger.Debugw(d.Info().Label, "priority", d.Info().Priority, "type", d.Info().DeviceType)
 	}
 
 	driverProperties := queryDriverProperties(filter, logger)
 	if len(driverProperties) == 0 {
 		logger.Debugw("found no drivers matching filter")
 	} else {
-		logger.Debugw("found drivers matching filter", "count", len(driverProperties))
+		logger.Debugw("found drivers matching specific filter", "count", len(driverProperties))
 	}
 	for d, props := range driverProperties {
 		priority := float64(d.Info().Priority)
@@ -513,8 +513,9 @@ func selectBestDriver(
 			}
 			fitnessDistWithPriority := fitnessDist - priority
 			logger.Debugw(
-				"driver satisfies some constraints",
+				"driver properties satisfy some constraints",
 				"label", d.Info().Label,
+				"props", p,
 				"distance", fitnessDist,
 				"distance_with_priority", fitnessDistWithPriority)
 			if fitnessDistWithPriority < minFitnessDist {
@@ -529,7 +530,7 @@ func selectBestDriver(
 		return nil, prop.Media{}, ErrNotFound
 	}
 
-	logger.Debugw("winning driver", "label", bestDriver.Info().Label)
+	logger.Debugw("winning driver", "label", bestDriver.Info().Label, "props", bestProp)
 	selectedMedia := prop.Media{}
 	selectedMedia.MergeConstraints(constraints.MediaConstraints)
 	selectedMedia.Merge(bestProp)
