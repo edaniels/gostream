@@ -422,16 +422,27 @@ func selectBestDriver(filter driver.FilterFn, constraints mediadevices.MediaTrac
 	minFitnessDist := math.Inf(1)
 
 	driverProperties := queryDriverProperties(filter)
+	if len(driverProperties) == 0 {
+		golog.Global().Debugw("found no drivers matching filter")
+	} else {
+		golog.Global().Debugw("found drivers matching filter", "count", len(driverProperties))
+	}
 	for d, props := range driverProperties {
 		priority := float64(d.Info().Priority)
 		for _, p := range props {
 			fitnessDist, ok := constraints.MediaConstraints.FitnessDistance(p)
 			if !ok {
+				golog.Global().Debugw("driver does not satisfy any constraints", "label", d.Info().Label)
 				continue
 			}
-			fitnessDist -= priority
-			if fitnessDist < minFitnessDist {
-				minFitnessDist = fitnessDist
+			fitnessDistWithPriority := fitnessDist - priority
+			golog.Global().Debugw(
+				"driver satisfies some constraints",
+				"label", d.Info().Label,
+				"distance", fitnessDist,
+				"distance_with_priority", fitnessDistWithPriority)
+			if fitnessDistWithPriority < minFitnessDist {
+				minFitnessDist = fitnessDistWithPriority
 				bestDriver = d
 				bestProp = p
 			}
@@ -442,6 +453,7 @@ func selectBestDriver(filter driver.FilterFn, constraints mediadevices.MediaTrac
 		return nil, prop.Media{}, ErrNotFound
 	}
 
+	golog.Global().Debugw("winning driver", "label", bestDriver.Info().Label)
 	selectedMedia := prop.Media{}
 	selectedMedia.MergeConstraints(constraints.MediaConstraints)
 	selectedMedia.Merge(bestProp)
@@ -457,6 +469,7 @@ func queryDriverProperties(filter driver.FilterFn) map[driver.Driver][]prop.Medi
 		if d.Status() == driver.StateClosed {
 			err := d.Open()
 			if err != nil {
+				golog.Global().Debugw("error opening driver for querying", "error", err)
 				// Skip this driver if we failed to open because we can't get the properties
 				continue
 			}
