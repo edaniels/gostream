@@ -388,7 +388,7 @@ func selectVideo(
 	label *string,
 	logger golog.Logger,
 ) (driver.Driver, prop.Media, error) {
-	return selectBestDriver(getVideoFilter(label), constraints, logger)
+	return selectBestDriver(getVideoFilterBase(), getVideoFilter(label), constraints, logger)
 }
 
 func selectVideoPattern(
@@ -396,7 +396,7 @@ func selectVideoPattern(
 	labelPattern *regexp.Regexp,
 	logger golog.Logger,
 ) (driver.Driver, prop.Media, error) {
-	return selectBestDriver(getVideoFilterPattern(labelPattern), constraints, logger)
+	return selectBestDriver(getVideoFilterBase(), getVideoFilterPattern(labelPattern), constraints, logger)
 }
 
 func selectScreen(
@@ -404,7 +404,7 @@ func selectScreen(
 	label *string,
 	logger golog.Logger,
 ) (driver.Driver, prop.Media, error) {
-	return selectBestDriver(getScreenFilter(label), constraints, logger)
+	return selectBestDriver(getScreenFilterBase(), getScreenFilter(label), constraints, logger)
 }
 
 func selectScreenPattern(
@@ -412,7 +412,7 @@ func selectScreenPattern(
 	labelPattern *regexp.Regexp,
 	logger golog.Logger,
 ) (driver.Driver, prop.Media, error) {
-	return selectBestDriver(getScreenFilterPattern(labelPattern), constraints, logger)
+	return selectBestDriver(getScreenFilterBase(), getScreenFilterPattern(labelPattern), constraints, logger)
 }
 
 func selectAudio(
@@ -420,7 +420,7 @@ func selectAudio(
 	label *string,
 	logger golog.Logger,
 ) (driver.Driver, prop.Media, error) {
-	return selectBestDriver(getAudioFilter(label), constraints, logger)
+	return selectBestDriver(getAudioFilterBase(), getAudioFilter(label), constraints, logger)
 }
 
 func getVideoFilterBase() driver.FilterFn {
@@ -478,6 +478,7 @@ func getAudioFilter(label *string) driver.FilterFn {
 // select implements SelectSettings algorithm.
 // Reference: https://w3c.github.io/mediacapture-main/#dfn-selectsettings
 func selectBestDriver(
+	baseFilter driver.FilterFn,
 	filter driver.FilterFn,
 	constraints mediadevices.MediaTrackConstraints,
 	logger golog.Logger,
@@ -485,6 +486,12 @@ func selectBestDriver(
 	var bestDriver driver.Driver
 	var bestProp prop.Media
 	minFitnessDist := math.Inf(1)
+
+	baseDrivers := driver.GetManager().Query(baseFilter)
+	logger.Debugw("before specific filter, we found the following drivers", "count", len(baseDrivers))
+	for _, d := range baseDrivers {
+		logger.Debugw(d.Info().Label, "priority", d.Info().Priority)
+	}
 
 	driverProperties := queryDriverProperties(filter, logger)
 	if len(driverProperties) == 0 {
@@ -494,6 +501,10 @@ func selectBestDriver(
 	}
 	for d, props := range driverProperties {
 		priority := float64(d.Info().Priority)
+		logger.Debugw(
+			"considering driver",
+			"label", d.Info().Label,
+			"priority", priority)
 		for _, p := range props {
 			fitnessDist, ok := constraints.MediaConstraints.FitnessDistance(p)
 			if !ok {
