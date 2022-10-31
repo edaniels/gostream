@@ -221,7 +221,7 @@ require (
 	github.com/yeya24/promlinter v0.2.0 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20201027041543-1326539a0a0a // indirect
 	gitlab.com/bosi/decorder v0.2.3 // indirect
-	go.mongodb.org/mongo-driver v1.10.1 // indirect
+	go.mongodb.org/mongo-driver v1.10.0-prerelease.0.20221031215941-4a22ce6d689a // indirect
 	go.opencensus.io v0.23.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/goleak v1.1.12 // indirect
