@@ -17,7 +17,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	go.uber.org/multierr v1.8.0
 	go.viam.com/test v1.1.0
-	go.viam.com/utils v0.0.6-0.20220930162826-7802059812f8
+	go.viam.com/utils v0.1.3-0.20221031222728-28b27f2ed84e
 	goji.io v2.0.2+incompatible
 	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.1
