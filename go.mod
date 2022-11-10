@@ -17,7 +17,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	go.uber.org/multierr v1.8.0
 	go.viam.com/test v1.1.0
-	go.viam.com/utils v0.1.3-0.20221104183111-b76f756ce25c
+	go.viam.com/utils v0.1.4-0.20221110133338-7838caa75809
 	goji.io v2.0.2+incompatible
 	google.golang.org/grpc v1.50.1
 	google.golang.org/protobuf v1.28.1
@@ -221,7 +221,7 @@ require (
 	github.com/yeya24/promlinter v0.2.0 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20201027041543-1326539a0a0a // indirect
 	gitlab.com/bosi/decorder v0.2.3 // indirect
-	go.mongodb.org/mongo-driver v1.10.0-prerelease.0.20221031215941-4a22ce6d689a // indirect
+	go.mongodb.org/mongo-driver v1.12.0-prerelease.0.20221109213319-d3466eeae7a7 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/goleak v1.1.12 // indirect
