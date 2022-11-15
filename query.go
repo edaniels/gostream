@@ -80,6 +80,18 @@ func GetNamedVideoSource(
 	return newVideoSourceFromDriver(d, selectedMedia, logger)
 }
 
+func GetStatusVideoSource(
+	name string,
+	constraints mediadevices.MediaStreamConstraints,
+	logger golog.Logger,
+) (driver.State, error) {
+	d, _, err := getUserVideoDriver(constraints, &name, logger)
+	if err != nil {
+		return driver.StateClosed, err
+	}
+	return d.Status(), nil
+}
+
 // GetPatternedVideoSource attempts to find a video device (not a screen) by the given label pattern.
 func GetPatternedVideoSource(
 	labelPattern *regexp.Regexp,
