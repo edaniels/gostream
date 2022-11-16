@@ -80,16 +80,13 @@ func GetNamedVideoSource(
 	return newVideoSourceFromDriver(d, selectedMedia, logger)
 }
 
-func GetStatusVideoSource(
+func GetDriverVideoSource(
 	name string,
 	constraints mediadevices.MediaStreamConstraints,
 	logger golog.Logger,
-) (driver.State, error) {
+) (driver.Driver, error) {
 	d, _, err := getUserVideoDriver(constraints, &name, logger)
-	if err != nil {
-		return driver.StateClosed, err
-	}
-	return d.Status(), nil
+	return d, err
 }
 
 // GetPatternedVideoSource attempts to find a video device (not a screen) by the given label pattern.
@@ -485,6 +482,24 @@ func getAudioFilter(label *string) driver.FilterFn {
 		filter = driver.FilterAnd(filter, labelFilter(*label, true))
 	}
 	return filter
+}
+
+func SelectDriverByDeviceId(uuid string) driver.Driver {
+	filter := func(driver driver.Driver) bool {
+		for _, prop := range driver.Properties() {
+			if prop.DeviceID == uuid {
+				return true
+			}
+		}
+		return false
+	}
+
+	drivers := driver.GetManager().Query(filter)
+	if len(drivers) > 0 {
+		// because we're filtering on the UUID, there should only be one result
+		return drivers[0]
+	}
+	return nil
 }
 
 // select implements SelectSettings algorithm.
