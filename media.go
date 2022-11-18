@@ -3,6 +3,7 @@ package gostream
 import (
 	"context"
 	"errors"
+	"github.com/pion/mediadevices/pkg/prop"
 	"sync"
 	"sync/atomic"
 
@@ -115,6 +116,15 @@ type producerConsumer[T any, U any] struct {
 // regardless of whether or not the error is nil (This allows
 // for error handling logic based on consecutively retrieved errors).
 type ErrorHandler func(ctx context.Context, mediaErr error)
+
+func PropertiesFromMediaSource[T, U any](src MediaSource[T]) []prop.Media {
+	if asMedia, ok := src.(*mediaSource[T, U]); ok {
+		if asMedia.driver != nil {
+			return asMedia.driver.Properties()
+		}
+	}
+	return make([]prop.Media, 0)
+}
 
 // newMediaSource instantiates a new media read closer and possibly references the given driver.
 func newMediaSource[T, U any](d driver.Driver, r MediaReader[T], p U) MediaSource[T] {
