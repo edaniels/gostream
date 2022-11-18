@@ -3,11 +3,11 @@ package gostream
 import (
 	"context"
 	"errors"
-	"github.com/pion/mediadevices/pkg/prop"
 	"sync"
 	"sync/atomic"
 
 	"github.com/pion/mediadevices/pkg/driver"
+	"github.com/pion/mediadevices/pkg/prop"
 	"go.uber.org/multierr"
 	"go.viam.com/utils"
 )
@@ -117,6 +117,8 @@ type producerConsumer[T any, U any] struct {
 // for error handling logic based on consecutively retrieved errors).
 type ErrorHandler func(ctx context.Context, mediaErr error)
 
+// PropertiesFromMediaSource attempts to return properties from the given MediaSource
+// if it has an underlying, online driver.
 func PropertiesFromMediaSource[T, U any](src MediaSource[T]) []prop.Media {
 	if asMedia, ok := src.(*mediaSource[T, U]); ok {
 		if asMedia.driver != nil {
@@ -175,13 +177,18 @@ func (pc *producerConsumer[T, U]) start() {
 			pc.producerCond.L.Lock()
 			requests := atomic.LoadInt64(&pc.interestedConsumers)
 			if requests == 0 {
-				pc.producerCond.Wait()
-				pc.producerCond.L.Unlock()
 				if err := pc.cancelCtx.Err(); err != nil {
 					return
 				}
+
+				pc.producerCond.Wait()
+				pc.producerCond.L.Unlock()
 			} else {
 				pc.producerCond.L.Unlock()
+			}
+
+			if err := pc.cancelCtx.Err(); err != nil {
+				return
 			}
 
 			func() {
