@@ -123,7 +123,7 @@ func PropertiesFromMediaSource[T, U any](src MediaSource[T]) []prop.Media {
 			return asMedia.driver.Properties()
 		}
 	}
-	return make([]prop.Media, 0)
+	return nil
 }
 
 // newMediaSource instantiates a new media read closer and possibly references the given driver.
