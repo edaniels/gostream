@@ -116,7 +116,7 @@ type producerConsumer[T any, U any] struct {
 // for error handling logic based on consecutively retrieved errors).
 type ErrorHandler func(ctx context.Context, mediaErr error)
 
-
+// DriverFromMediaSource returns the underlying driver from the given media source.
 func DriverFromMediaSource[T, U any](src MediaSource[T]) (driver.Driver, error) {
 	if asMedia, ok := src.(*mediaSource[T, U]); ok {
 		if asMedia.driver != nil {
