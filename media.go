@@ -2,6 +2,7 @@ package gostream
 
 import (
 	"context"
+	"github.com/pion/mediadevices/pkg/prop"
 	"sync"
 	"sync/atomic"
 
@@ -116,8 +117,25 @@ type producerConsumer[T any, U any] struct {
 // for error handling logic based on consecutively retrieved errors).
 type ErrorHandler func(ctx context.Context, mediaErr error)
 
-// DriverFromMediaSource returns the underlying driver from the given media source.
-func DriverFromMediaSource[T, U any](src MediaSource[T]) (driver.Driver, error) {
+// PropertiesFromMediaSource returns properties from underlying driver in the given MediaSource.
+func PropertiesFromMediaSource[T, U any](src MediaSource[T]) ([]prop.Media, error) {
+	if d, err := driverFromMediaSource[T, U](src); err != nil {
+		return nil, err
+	} else {
+		return d.Properties(), nil
+	}
+}
+
+// InfoFromMediaSource returns the info from the underlying driver in the MediaSource.
+func InfoFromMediaSource[T, U any](src MediaSource[T]) (driver.Info, error) {
+	if d, err := driverFromMediaSource[T, U](src); err != nil {
+		return driver.Info{}, err // cannot use 'nil' as type driver.Info
+	} else {
+		return d.Info(), nil
+	}
+}
+
+func driverFromMediaSource[T, U any](src MediaSource[T]) (driver.Driver, error) {
 	if asMedia, ok := src.(*mediaSource[T, U]); ok {
 		if asMedia.driver != nil {
 			return asMedia.driver, nil
