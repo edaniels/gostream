@@ -2,12 +2,11 @@ package gostream
 
 import (
 	"context"
-	"errors"
-	"github.com/pion/mediadevices/pkg/prop"
 	"sync"
 	"sync/atomic"
 
 	"github.com/pion/mediadevices/pkg/driver"
+	"github.com/pkg/errors"
 	"go.uber.org/multierr"
 	"go.viam.com/utils"
 )
@@ -117,13 +116,13 @@ type producerConsumer[T any, U any] struct {
 // for error handling logic based on consecutively retrieved errors).
 type ErrorHandler func(ctx context.Context, mediaErr error)
 
-func PropertiesFromMediaSource[T, U any](src MediaSource[T]) []prop.Media {
+func DriverFromMediaSource[T, U any](src MediaSource[T]) (driver.Driver, error) {
 	if asMedia, ok := src.(*mediaSource[T, U]); ok {
 		if asMedia.driver != nil {
-			return asMedia.driver.Properties()
+			return asMedia.driver, nil
 		}
 	}
-	return nil
+	return nil, errors.Errorf("cannot convert media source (type %T) to type (%T)", src, (*mediaSource[T, U])(nil))
 }
 
 // newMediaSource instantiates a new media read closer and possibly references the given driver.
