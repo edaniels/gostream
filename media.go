@@ -116,6 +116,7 @@ type producerConsumer[T any, U any] struct {
 // for error handling logic based on consecutively retrieved errors).
 type ErrorHandler func(ctx context.Context, mediaErr error)
 
+
 func DriverFromMediaSource[T, U any](src MediaSource[T]) (driver.Driver, error) {
 	if asMedia, ok := src.(*mediaSource[T, U]); ok {
 		if asMedia.driver != nil {
@@ -174,13 +175,19 @@ func (pc *producerConsumer[T, U]) start() {
 			pc.producerCond.L.Lock()
 			requests := atomic.LoadInt64(&pc.interestedConsumers)
 			if requests == 0 {
-				pc.producerCond.Wait()
-				pc.producerCond.L.Unlock()
 				if err := pc.cancelCtx.Err(); err != nil {
+					pc.producerCond.L.Unlock()
 					return
 				}
+
+				pc.producerCond.Wait()
+				pc.producerCond.L.Unlock()
 			} else {
 				pc.producerCond.L.Unlock()
+			}
+
+			if err := pc.cancelCtx.Err(); err != nil {
+				return
 			}
 
 			func() {
