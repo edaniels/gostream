@@ -2,7 +2,9 @@ package gostream
 
 import (
 	"context"
+	"github.com/pion/mediadevices/pkg/driver/camera"
 	"github.com/pion/mediadevices/pkg/prop"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -126,12 +128,12 @@ func PropertiesFromMediaSource[T, U any](src MediaSource[T]) ([]prop.Media, erro
 	}
 }
 
-// InfoFromMediaSource returns the info from the underlying driver in the MediaSource.
-func InfoFromMediaSource[T, U any](src MediaSource[T]) (driver.Info, error) {
+// LabelsFromMediaSource returns the labels from the underlying driver in the MediaSource.
+func LabelsFromMediaSource[T, U any](src MediaSource[T]) ([]string, error) {
 	if d, err := driverFromMediaSource[T, U](src); err != nil {
-		return driver.Info{}, err // cannot use 'nil' as type driver.Info
+		return nil, err
 	} else {
-		return d.Info(), nil
+		return strings.Split(d.Info().Label, camera.LabelSeparator), nil
 	}
 }
 
