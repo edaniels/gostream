@@ -57,10 +57,10 @@ func streamMediaSource[T, U any](
 			var err error
 			props, err = provider.MediaProperties(ctx)
 			if err != nil {
-				golog.Global().Warnw("no properties found for media; will assume empty", "error", err)
+				golog.Global().Debugw("no properties found for media; will assume empty", "error", err)
 			}
 		} else {
-			golog.Global().Warn("no properties found for media; will assume empty")
+			golog.Global().Debug("no properties found for media; will assume empty")
 		}
 		input, err := inputChan(props)
 		if err != nil {
