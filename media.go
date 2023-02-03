@@ -2,13 +2,13 @@ package gostream
 
 import (
 	"context"
-	"github.com/pion/mediadevices/pkg/driver/camera"
-	"github.com/pion/mediadevices/pkg/prop"
 	"strings"
 	"sync"
 	"sync/atomic"
 
 	"github.com/pion/mediadevices/pkg/driver"
+	"github.com/pion/mediadevices/pkg/driver/camera"
+	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
 	"go.viam.com/utils"
@@ -121,20 +121,20 @@ type ErrorHandler func(ctx context.Context, mediaErr error)
 
 // PropertiesFromMediaSource returns properties from underlying driver in the given MediaSource.
 func PropertiesFromMediaSource[T, U any](src MediaSource[T]) ([]prop.Media, error) {
-	if d, err := driverFromMediaSource[T, U](src); err != nil {
+	d, err := driverFromMediaSource[T, U](src)
+	if err != nil {
 		return nil, err
-	} else {
-		return d.Properties(), nil
 	}
+	return d.Properties(), nil
 }
 
 // LabelsFromMediaSource returns the labels from the underlying driver in the MediaSource.
 func LabelsFromMediaSource[T, U any](src MediaSource[T]) ([]string, error) {
-	if d, err := driverFromMediaSource[T, U](src); err != nil {
+	d, err := driverFromMediaSource[T, U](src)
+	if err != nil {
 		return nil, err
-	} else {
-		return strings.Split(d.Info().Label, camera.LabelSeparator), nil
 	}
+	return strings.Split(d.Info().Label, camera.LabelSeparator), nil
 }
 
 func driverFromMediaSource[T, U any](src MediaSource[T]) (driver.Driver, error) {

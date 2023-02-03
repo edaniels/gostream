@@ -5,4 +5,5 @@ if [[ "$os" == "Darwin" ]]; then
 else
 	args="./..."
 fi
-go test -tags=no_skip -race $args -v
+set -euo pipefail
+go test -tags=no_skip -race $args -json -v 2>&1 | gotestfmt

@@ -8,4 +8,5 @@ import (
 	_ "github.com/bufbuild/buf/cmd/buf"
 	_ "github.com/edaniels/golinters/cmd/combined"
 	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
+	_ "github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt"
 )
