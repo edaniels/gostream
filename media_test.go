@@ -53,9 +53,18 @@ func TestReadMedia(t *testing.T) {
 	imgSource := imageSource{Images: colors}
 	videoSrc := NewVideoSource(&imgSource, prop.Video{})
 	// Test all images are returned in order.
-	for _, expected := range colors {
+	for i, expected := range colors {
 		actual, _, err := ReadMedia(context.Background(), videoSrc)
 		test.That(t, err, test.ShouldBeNil)
+		test.That(t, actual, test.ShouldNotBeNil)
+		for j, col := range colors {
+			if col == expected {
+				continue
+			}
+			if actual == col {
+				t.Logf("did not expect actual color to equal other color at %d when expecting %d", j, i)
+			}
+		}
 		test.That(t, actual, test.ShouldEqual, expected)
 	}
 

@@ -192,18 +192,31 @@ func (pc *producerConsumer[T, U]) start() {
 				return
 			}
 
-			pc.producerCond.L.Lock()
-			requests := atomic.LoadInt64(&pc.interestedConsumers)
-			if requests == 0 {
-				if err := pc.cancelCtx.Err(); err != nil {
-					pc.producerCond.L.Unlock()
-					return
-				}
+			waitForNext := func() (int64, bool) {
+				for {
+					pc.producerCond.L.Lock()
+					requests := atomic.LoadInt64(&pc.interestedConsumers)
+					if requests == 0 {
+						if err := pc.cancelCtx.Err(); err != nil {
+							pc.producerCond.L.Unlock()
+							return 0, false
+						}
 
-				pc.producerCond.Wait()
-				pc.producerCond.L.Unlock()
-			} else {
-				pc.producerCond.L.Unlock()
+						pc.producerCond.Wait()
+						requests = atomic.LoadInt64(&pc.interestedConsumers)
+						pc.producerCond.L.Unlock()
+						if requests == 0 {
+							continue
+						}
+					} else {
+						pc.producerCond.L.Unlock()
+					}
+					return requests, true
+				}
+			}
+			requests, cont := waitForNext()
+			if !cont {
+				return
 			}
 
 			if err := pc.cancelCtx.Err(); err != nil {
