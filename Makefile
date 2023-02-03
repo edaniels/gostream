@@ -34,7 +34,7 @@ lint: tool-install
 cover:
 	go test -tags=no_skip -race -coverprofile=coverage.txt ./...
 
-test:
+test: tool-install
 	PATH=$(PATH_WITH_TOOLS) ./test.sh
 
 stream-desktop: buf-go build-web
