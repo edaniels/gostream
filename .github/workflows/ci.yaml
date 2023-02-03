@@ -29,17 +29,17 @@ jobs:
           sudo apt-get update -qq \
           && sudo apt-get install --no-install-recommends -y \
             libopus-dev \
+            libopusfile-dev \
             libva-dev \
             libvpx-dev \
             libx264-dev
       - name: Run Test Suite
         run: make lint test
-      - uses: codecov/codecov-action@v3 
-        if: matrix.go == '1.19'
   macos:
     strategy:
       matrix:
         runs-on:
+          - macos-latest
           - ['self-hosted', 'macOS', 'ARM64']
         go:
           - '1.19'
