@@ -82,6 +82,7 @@ jobs:
           brew install \
             pkg-config \
             opus \
+            opusfile \
             libvpx \
             x264
       - name: Run Test Suite

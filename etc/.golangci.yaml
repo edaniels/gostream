@@ -13,6 +13,7 @@ linters:
   enable-all: true
   disable:
     - asasalint
+    - buildir
     - containedctx
     - cyclop
     - deadcode
@@ -45,13 +46,16 @@ linters:
     - nosprintfhostport
     - paralleltest
     - prealloc
+    - rowserrcheck
     - scopelint
+    - sqlclosecheck
     - structcheck
     - tagliatelle
     - testpackage
     - unparam # broken with generics
     - varcheck
     - varnamelen
+    - wastedassign
     - wrapcheck
     - wsl
 linters-settings:
