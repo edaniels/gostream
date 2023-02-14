@@ -74,7 +74,7 @@ func BenchmarkEncodeRGBA(b *testing.B) {
 	}
 }
 
-func BenchmarkEncodeYCbCrs(b *testing.B) {
+func BenchmarkEncodeYCbCr(b *testing.B) {
 	imgFY, err := convertToYCbCr(b, imgFuchsia)
 	test.That(b, err, test.ShouldBeNil)
 
