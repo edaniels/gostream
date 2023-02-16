@@ -14,39 +14,23 @@ import (
 	"testing"
 )
 
-var width int
-var height int
-var logger golog.Logger
-var imgCyan image.Image
-var imgFuchsia image.Image
-var w bool
-
 const DefaultKeyFrameInterval = 30
+const Width = 640
+const Height = 480
 
-func init() {
-	width = 640
-	height = 480
-	imgCyan = resizeImg(pngToImage("../../data/cyan.png"), uint(width), uint(height))
-	imgFuchsia = resizeImg(pngToImage("../../data/fuchsia.png"), uint(width), uint(height))
+func pngToImage(b *testing.B, loc string) (image.Image, error) {
+	b.Helper()
+	openBytes, err := os.ReadFile(loc)
+	test.That(b, err, test.ShouldBeNil)
+	return png.Decode(bytes.NewReader(openBytes))
 }
-
-func pngToImage(path string) image.Image {
-	openBytes, err := os.ReadFile(path)
-	if err != nil {
-		panic(err.Error())
-	}
-	img, err := png.Decode(bytes.NewReader(openBytes))
-	if err != nil {
-		panic(err.Error())
-	}
-	return img
-}
-func resizeImg(img image.Image, width uint, height uint) image.Image {
+func resizeImg(b *testing.B, img image.Image, width uint, height uint) image.Image {
+	b.Helper()
 	newImage := resize.Resize(width, height, img, resize.Lanczos3)
 	return newImage
 }
-
 func convertToYCbCr(b *testing.B, src image.Image) (image.Image, error) {
+	b.Helper()
 	bf := new(bytes.Buffer)
 	err := jpeg.Encode(bf, src, nil)
 	test.That(b, err, test.ShouldBeNil)
@@ -56,12 +40,24 @@ func convertToYCbCr(b *testing.B, src image.Image) (image.Image, error) {
 	return dst, err
 
 }
+func getResizedImageFromFile(b *testing.B, loc string) image.Image {
+	b.Helper()
+	img, err := pngToImage(b, loc)
+	test.That(b, err, test.ShouldBeNil)
+	return resizeImg(b, img, uint(Width), uint(Height))
+}
 
 func BenchmarkEncodeRGBA(b *testing.B) {
+	var w bool
+	var logger golog.Logger
+
+	imgCyan := getResizedImageFromFile(b, "../../data/cyan.png")
+	imgFuchsia := getResizedImageFromFile(b, "../../data/fuchsia.png")
 	ctx := context.Background()
-	encoder, err := NewEncoder(width, height, DefaultKeyFrameInterval, logger)
+	encoder, err := NewEncoder(Width, Height, DefaultKeyFrameInterval, logger)
 	test.That(b, err, test.ShouldBeNil)
 
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if w {
 			_, err = encoder.Encode(ctx, imgCyan)
@@ -75,16 +71,22 @@ func BenchmarkEncodeRGBA(b *testing.B) {
 }
 
 func BenchmarkEncodeYCbCr(b *testing.B) {
+	var w bool
+	var logger golog.Logger
+	imgCyan := getResizedImageFromFile(b, "../../data/cyan.png")
+	imgFuchsia := getResizedImageFromFile(b, "../../data/fuchsia.png")
+
 	imgFY, err := convertToYCbCr(b, imgFuchsia)
 	test.That(b, err, test.ShouldBeNil)
 
 	imgCY, err := convertToYCbCr(b, imgCyan)
 	test.That(b, err, test.ShouldBeNil)
 
-	encoder, err := NewEncoder(width, height, DefaultKeyFrameInterval, logger)
+	encoder, err := NewEncoder(Width, Height, DefaultKeyFrameInterval, logger)
 	test.That(b, err, test.ShouldBeNil)
 
 	ctx := context.Background()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if w {
 			_, err = encoder.Encode(ctx, imgFY)
