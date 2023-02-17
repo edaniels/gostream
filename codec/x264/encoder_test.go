@@ -14,9 +14,11 @@ import (
 	"testing"
 )
 
-const DefaultKeyFrameInterval = 30
-const Width = 640
-const Height = 480
+const (
+    DefaultKeyFrameInterval = 30
+    Width = 640
+    Height = 480
+)
 
 func pngToImage(b *testing.B, loc string) (image.Image, error) {
 	b.Helper()
