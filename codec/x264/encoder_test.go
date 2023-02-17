@@ -38,7 +38,6 @@ func convertToYCbCr(b *testing.B, src image.Image) (image.Image, error) {
 	test.That(b, err, test.ShouldBeNil)
 	test.That(b, dst.ColorModel(), test.ShouldResemble, color.YCbCrModel)
 	return dst, err
-
 }
 func getResizedImageFromFile(b *testing.B, loc string) image.Image {
 	b.Helper()
