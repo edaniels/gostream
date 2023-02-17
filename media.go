@@ -271,10 +271,15 @@ type mediaRefReleasePairWithError[T any] struct {
 	Err     error
 }
 
-func (pc *producerConsumer[T, U]) stop() {
+func (pc *producerConsumer[T, U]) Stop() {
 	pc.stateMu.Lock()
 	defer pc.stateMu.Unlock()
 
+	pc.stop()
+}
+
+// assumes stateMu lock is held.
+func (pc *producerConsumer[T, U]) stop() {
 	pc.cancel()
 
 	pc.producerCond.L.Lock()
@@ -292,6 +297,8 @@ func (pc *producerConsumer[T, U]) stop() {
 }
 
 func (pc *producerConsumer[T, U]) stopOne() {
+	pc.stateMu.Lock()
+	defer pc.stateMu.Unlock()
 	pc.listenersMu.Lock()
 	defer pc.listenersMu.Unlock()
 	pc.listeners--
@@ -498,7 +505,7 @@ func (ms *mediaSource[T, U]) Close(ctx context.Context) error {
 		ms.producerConsumersMu.Lock()
 		defer ms.producerConsumersMu.Unlock()
 		for _, prodCon := range ms.producerConsumers {
-			prodCon.stop()
+			prodCon.Stop()
 		}
 	}()
 	err := utils.TryClose(ctx, ms.reader)
