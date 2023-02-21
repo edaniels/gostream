@@ -15,9 +15,9 @@ import (
 )
 
 const (
-    DefaultKeyFrameInterval = 30
-    Width = 640
-    Height = 480
+	DefaultKeyFrameInterval = 30
+	Width                   = 640
+	Height                  = 480
 )
 
 func pngToImage(b *testing.B, loc string) (image.Image, error) {
@@ -26,11 +26,13 @@ func pngToImage(b *testing.B, loc string) (image.Image, error) {
 	test.That(b, err, test.ShouldBeNil)
 	return png.Decode(bytes.NewReader(openBytes))
 }
+
 func resizeImg(b *testing.B, img image.Image, width uint, height uint) image.Image {
 	b.Helper()
 	newImage := resize.Resize(width, height, img, resize.Lanczos3)
 	return newImage
 }
+
 func convertToYCbCr(b *testing.B, src image.Image) (image.Image, error) {
 	b.Helper()
 	bf := new(bytes.Buffer)
@@ -41,6 +43,7 @@ func convertToYCbCr(b *testing.B, src image.Image) (image.Image, error) {
 	test.That(b, dst.ColorModel(), test.ShouldResemble, color.YCbCrModel)
 	return dst, err
 }
+
 func getResizedImageFromFile(b *testing.B, loc string) image.Image {
 	b.Helper()
 	img, err := pngToImage(b, loc)
