@@ -54,7 +54,7 @@ macOS: `brew install x264`
 
 * opus
 
-Linux: `libopus-dev`
+Linux: `libopus-dev libopusfile-dev`
 
 macOS: `brew install opus`
 
