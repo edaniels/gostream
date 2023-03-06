@@ -6,6 +6,7 @@ import (
 	"math"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/edaniels/golog"
 	"github.com/pion/mediadevices"
@@ -296,6 +297,8 @@ func newVideoSourceFromDriver(
 	if err := videoDriver.Open(); err != nil {
 		return nil, err
 	}
+
+	mediaProp.DiscardFramesOlderThan = time.Second
 	reader, err := recorder.VideoRecord(mediaProp)
 	if err != nil {
 		return nil, err
