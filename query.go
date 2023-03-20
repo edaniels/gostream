@@ -52,7 +52,7 @@ func GetNamedScreenSource(
 	if err != nil {
 		return nil, err
 	}
-	return newVideoSourceFromDriver(d, selectedMedia, logger)
+	return newVideoSourceFromDriver(d, selectedMedia)
 }
 
 // GetPatternedScreenSource attempts to find a screen device by the given label pattern.
@@ -65,7 +65,7 @@ func GetPatternedScreenSource(
 	if err != nil {
 		return nil, err
 	}
-	return newVideoSourceFromDriver(d, selectedMedia, logger)
+	return newVideoSourceFromDriver(d, selectedMedia)
 }
 
 // GetNamedVideoSource attempts to find a video device (not a screen) by the given name.
@@ -78,7 +78,7 @@ func GetNamedVideoSource(
 	if err != nil {
 		return nil, err
 	}
-	return newVideoSourceFromDriver(d, selectedMedia, logger)
+	return newVideoSourceFromDriver(d, selectedMedia)
 }
 
 // GetPatternedVideoSource attempts to find a video device (not a screen) by the given label pattern.
@@ -91,7 +91,7 @@ func GetPatternedVideoSource(
 	if err != nil {
 		return nil, err
 	}
-	return newVideoSourceFromDriver(d, selectedMedia, logger)
+	return newVideoSourceFromDriver(d, selectedMedia)
 }
 
 // GetAnyScreenSource attempts to find any suitable screen device.
@@ -103,7 +103,7 @@ func GetAnyScreenSource(
 	if err != nil {
 		return nil, err
 	}
-	return newVideoSourceFromDriver(d, selectedMedia, logger)
+	return newVideoSourceFromDriver(d, selectedMedia)
 }
 
 // GetAnyVideoSource attempts to find any suitable video device (not a screen).
@@ -115,7 +115,7 @@ func GetAnyVideoSource(
 	if err != nil {
 		return nil, err
 	}
-	return newVideoSourceFromDriver(d, selectedMedia, logger)
+	return newVideoSourceFromDriver(d, selectedMedia)
 }
 
 // GetAnyAudioSource attempts to find any suitable audio device.
@@ -281,7 +281,6 @@ func getUserVideoDriverPattern(
 func newVideoSourceFromDriver(
 	videoDriver driver.Driver,
 	mediaProp prop.Media,
-	logger golog.Logger,
 ) (MediaSource[image.Image], error) {
 	recorder, ok := videoDriver.(driver.VideoRecorder)
 	if !ok {
@@ -289,10 +288,7 @@ func newVideoSourceFromDriver(
 	}
 
 	if driverStatus := videoDriver.Status(); driverStatus != driver.StateClosed {
-		logger.Warnw("video driver is not closed, attempting to close and reopen", "status", driverStatus)
-		if err := videoDriver.Close(); err != nil {
-			logger.Errorw("error closing driver", "error", err)
-		}
+		return nil, errors.New("video driver in use")
 	}
 	if err := videoDriver.Open(); err != nil {
 		return nil, err
