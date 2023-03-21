@@ -489,7 +489,7 @@ func selectBestDriver(
 	baseDrivers := driver.GetManager().Query(baseFilter)
 	logger.Debugw("before specific filter, we found the following drivers", "count", len(baseDrivers))
 	for _, d := range baseDrivers {
-		logger.Debugw(d.Info().Label, "priority", d.Info().Priority, "type", d.Info().DeviceType)
+		logger.Debugw(d.Info().Label, "priority", float32(d.Info().Priority), "type", d.Info().DeviceType)
 	}
 
 	driverProperties := queryDriverProperties(filter, logger)
