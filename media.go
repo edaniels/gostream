@@ -394,6 +394,9 @@ func (ms *mediaStream[T, U]) Next(ctx context.Context) (T, func(), error) {
 		if err := ms.cancelCtx.Err(); err != nil {
 			return err
 		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		return nil
 	}
 

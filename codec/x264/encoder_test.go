@@ -3,15 +3,16 @@ package x264
 import (
 	"bytes"
 	"context"
-	"github.com/edaniels/golog"
-	"github.com/nfnt/resize"
-	"go.viam.com/test"
 	"image"
 	"image/color"
 	"image/jpeg"
 	"image/png"
 	"os"
 	"testing"
+
+	"github.com/edaniels/golog"
+	"github.com/nfnt/resize"
+	"go.viam.com/test"
 )
 
 const (
@@ -27,7 +28,7 @@ func pngToImage(b *testing.B, loc string) (image.Image, error) {
 	return png.Decode(bytes.NewReader(openBytes))
 }
 
-func resizeImg(b *testing.B, img image.Image, width uint, height uint) image.Image {
+func resizeImg(b *testing.B, img image.Image, width, height uint) image.Image {
 	b.Helper()
 	newImage := resize.Resize(width, height, img, resize.Lanczos3)
 	return newImage
