@@ -2,6 +2,7 @@ package gostream
 
 import (
 	"errors"
+	"github.com/pion/mediadevices/pkg/driver/availability"
 	"image"
 	"math"
 	"regexp"
@@ -545,7 +546,19 @@ func queryDriverProperties(
 	m := make(map[driver.Driver][]prop.Media)
 
 	for _, d := range drivers {
-		if d.Status() == driver.StateClosed {
+		var status string
+		isAvailable, err := driver.IsAvailable(d)
+		if errors.Is(err, availability.ErrUnimplemented) {
+			s := d.Status()
+			status = string(s)
+			isAvailable = s == driver.StateClosed
+		} else {
+			if err != nil {
+				status = err.Error()
+			}
+		}
+
+		if isAvailable {
 			err := d.Open()
 			if err != nil {
 				logger.Debugw("error opening driver for querying", "error", err)
@@ -553,6 +566,8 @@ func queryDriverProperties(
 				continue
 			}
 			needToClose = append(needToClose, d)
+		} else {
+			logger.Debugw("driver not available", "name", d.Info().Name, "label", d.Info().Label, "status", status)
 		}
 
 		m[d] = d.Properties()
