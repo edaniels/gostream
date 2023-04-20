@@ -22,6 +22,7 @@ type (
 	// or have the reader do it for us.
 	MediaReader[T any] interface {
 		Read(ctx context.Context) (data T, release func(), err error)
+		Close(ctx context.Context) error
 	}
 
 	// A MediaReaderFunc is a helper to turn a function into a MediaReader.
@@ -60,6 +61,11 @@ func (mrf MediaReaderFunc[T]) Read(ctx context.Context) (T, func(), error) {
 	return mrf(ctx)
 }
 
+// Close does nothing.
+func (mrf MediaReaderFunc[T]) Close(ctx context.Context) error {
+	return nil
+}
+
 // A mediaReaderFuncNoCtx is a helper to turn a function into a MediaReader that cannot
 // accept a context argument.
 type mediaReaderFuncNoCtx[T any] func() (T, func(), error)
@@ -67,6 +73,11 @@ type mediaReaderFuncNoCtx[T any] func() (T, func(), error)
 // Read calls the underlying function to get a media.
 func (mrf mediaReaderFuncNoCtx[T]) Read(_ context.Context) (T, func(), error) {
 	return mrf()
+}
+
+// Close does nothing.
+func (mrf mediaReaderFuncNoCtx[T]) Close(ctx context.Context) error {
+	return nil
 }
 
 // ReadMedia gets a single media from a source. Using this has less of a guarantee
@@ -511,7 +522,7 @@ func (ms *mediaSource[T, U]) Close(ctx context.Context) error {
 			prodCon.Stop()
 		}
 	}()
-	err := utils.TryClose(ctx, ms.reader)
+	err := ms.reader.Close(ctx)
 
 	if ms.driver == nil {
 		return err

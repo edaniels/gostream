@@ -57,6 +57,10 @@ func (r *fakeReader) Read(_ context.Context) (img image.Image, release func(), e
 	return image.NewNRGBA(image.Rect(0, 0, 1, 1)), func() {}, nil
 }
 
+func (r *fakeReader) Close(_ context.Context) error {
+	return nil
+}
+
 func newFakeReader() gostream.MediaReader[image.Image] {
 	return &fakeReader{}
 }
