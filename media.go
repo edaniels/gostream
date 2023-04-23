@@ -83,6 +83,10 @@ func (mrf mediaReaderFuncNoCtx[T]) Close(ctx context.Context) error {
 // ReadMedia gets a single media from a source. Using this has less of a guarantee
 // than MediaSource.Stream that the Nth media element follows the N-1th media element.
 func ReadMedia[T any](ctx context.Context, source MediaSource[T]) (T, func(), error) {
+	if reader, ok := source.(MediaReader[T]); ok {
+		// more efficient if there is a direct way to read
+		return reader.Read(ctx)
+	}
 	stream, err := source.Stream(ctx)
 	var zero T
 	if err != nil {
