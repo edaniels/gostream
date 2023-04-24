@@ -152,6 +152,7 @@ func LabelsFromMediaSource[T, U any](src MediaSource[T]) ([]string, error) {
 	return strings.Split(d.Info().Label, camera.LabelSeparator), nil
 }
 
+// DriverFromMediaSource returns the underlying driver from the MediaSource.
 func DriverFromMediaSource[T, U any](src MediaSource[T]) (driver.Driver, error) {
 	if asMedia, ok := src.(*mediaSource[T, U]); ok {
 		if asMedia.driver != nil {

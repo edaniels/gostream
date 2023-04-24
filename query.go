@@ -2,7 +2,6 @@ package gostream
 
 import (
 	"errors"
-	"github.com/pion/mediadevices/pkg/driver/availability"
 	"image"
 	"math"
 	"regexp"
@@ -12,6 +11,7 @@ import (
 	"github.com/edaniels/golog"
 	"github.com/pion/mediadevices"
 	"github.com/pion/mediadevices/pkg/driver"
+	"github.com/pion/mediadevices/pkg/driver/availability"
 	"github.com/pion/mediadevices/pkg/driver/camera"
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -552,10 +552,8 @@ func queryDriverProperties(
 			s := d.Status()
 			status = string(s)
 			isAvailable = s == driver.StateClosed
-		} else {
-			if err != nil {
-				status = err.Error()
-			}
+		} else if err != nil {
+			status = err.Error()
 		}
 
 		if isAvailable {
