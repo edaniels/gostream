@@ -136,7 +136,7 @@ type ErrorHandler func(ctx context.Context, mediaErr error)
 
 // PropertiesFromMediaSource returns properties from underlying driver in the given MediaSource.
 func PropertiesFromMediaSource[T, U any](src MediaSource[T]) ([]prop.Media, error) {
-	d, err := driverFromMediaSource[T, U](src)
+	d, err := DriverFromMediaSource[T, U](src)
 	if err != nil {
 		return nil, err
 	}
@@ -145,14 +145,15 @@ func PropertiesFromMediaSource[T, U any](src MediaSource[T]) ([]prop.Media, erro
 
 // LabelsFromMediaSource returns the labels from the underlying driver in the MediaSource.
 func LabelsFromMediaSource[T, U any](src MediaSource[T]) ([]string, error) {
-	d, err := driverFromMediaSource[T, U](src)
+	d, err := DriverFromMediaSource[T, U](src)
 	if err != nil {
 		return nil, err
 	}
 	return strings.Split(d.Info().Label, camera.LabelSeparator), nil
 }
 
-func driverFromMediaSource[T, U any](src MediaSource[T]) (driver.Driver, error) {
+// DriverFromMediaSource returns the underlying driver from the MediaSource.
+func DriverFromMediaSource[T, U any](src MediaSource[T]) (driver.Driver, error) {
 	if asMedia, ok := src.(*mediaSource[T, U]); ok {
 		if asMedia.driver != nil {
 			return asMedia.driver, nil
