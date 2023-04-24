@@ -1,7 +1,6 @@
 package gostream
 
 import (
-	"errors"
 	"image"
 	"math"
 	"regexp"
@@ -16,6 +15,7 @@ import (
 	"github.com/pion/mediadevices/pkg/frame"
 	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pion/mediadevices/pkg/wave"
+	"github.com/pkg/errors"
 )
 
 // below adapted from github.com/pion/mediadevices
@@ -288,11 +288,12 @@ func newVideoSourceFromDriver(
 		return nil, errors.New("driver not a driver.VideoRecorder")
 	}
 
-	if driverStatus := videoDriver.Status(); driverStatus != driver.StateClosed {
+	if ok, err := driver.IsAvailable(videoDriver); !errors.Is(err, availability.ErrUnimplemented) && !ok {
+		return nil, errors.Wrap(err, "video driver not available")
+	} else if driverStatus := videoDriver.Status(); driverStatus != driver.StateClosed {
 		return nil, errors.New("video driver in use")
-	}
-	if err := videoDriver.Open(); err != nil {
-		return nil, err
+	} else if err := videoDriver.Open(); err != nil {
+		return nil, errors.Wrap(err, "cannot open video driver")
 	}
 
 	mediaProp.DiscardFramesOlderThan = time.Second
@@ -564,11 +565,10 @@ func queryDriverProperties(
 				continue
 			}
 			needToClose = append(needToClose, d)
+			m[d] = d.Properties()
 		} else {
 			logger.Debugw("driver not available", "name", d.Info().Name, "label", d.Info().Label, "status", status)
 		}
-
-		m[d] = d.Properties()
 	}
 
 	for _, d := range needToClose {
