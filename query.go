@@ -369,6 +369,56 @@ func labelFilter(target string, useSep bool) driver.FilterFn {
 	})
 }
 
+func GetName(info driver.Info) (name string, id string) {
+	nameParts := strings.Split(info.Name, camera.LabelSeparator)
+	if len(nameParts) > 1 {
+		name, id = nameParts[0], nameParts[1]
+	} else {
+		// fallback to the label if the name does not have an any additional parts to use.
+		name, id = nameParts[0], info.Label
+	}
+
+	name, id = strings.TrimSpace(name), strings.TrimSpace(id)
+	return
+}
+
+func parseNameAndId(toParse string) (name string, id string) {
+	// expects '<camera_name> (<camera_id>)'
+	idIdx := strings.LastIndex(toParse, "(")
+	if idIdx == -1 {
+		return
+	}
+
+	if toParse[len(toParse)-1:] != ")" {
+		return
+	}
+
+	name = strings.TrimSpace(toParse[:idIdx])
+	if len(name) == 0 {
+		return
+	}
+
+	id = strings.TrimSpace(toParse[idIdx+1 : len(toParse)-1]) // remove '(', ')'
+	if len(id) == 0 {
+		name = ""
+		return
+	}
+
+	return
+}
+
+func nameFilter(prettyName string) driver.FilterFn {
+	return func(d driver.Driver) bool {
+		expectedName, expectedId := parseNameAndId(prettyName)
+		if len(expectedName)+len(expectedId) == 0 {
+			return false
+		}
+
+		actualName, actualId := GetName(d.Info())
+		return actualName == expectedName && actualId == expectedId
+	}
+}
+
 func labelFilterPattern(labelPattern *regexp.Regexp, useSep bool) driver.FilterFn {
 	return driver.FilterFn(func(d driver.Driver) bool {
 		if !useSep {
@@ -430,10 +480,22 @@ func getVideoFilterBase() driver.FilterFn {
 	return driver.FilterAnd(typeFilter, notScreenFilter)
 }
 
+func filterAny(filters ...driver.FilterFn) driver.FilterFn {
+	return func(d driver.Driver) bool {
+		for _, f := range filters {
+			if f(d) {
+				return true
+			}
+		}
+		return false
+	}
+}
+
 func getVideoFilter(label *string) driver.FilterFn {
 	filter := getVideoFilterBase()
 	if label != nil {
 		filter = driver.FilterAnd(filter, labelFilter(*label, true))
+		filter = filterAny(filter, nameFilter(*label))
 	}
 	return filter
 }
