@@ -369,7 +369,8 @@ func labelFilter(target string, useSep bool) driver.FilterFn {
 	})
 }
 
-func GetName(info driver.Info) (name string, id string) {
+// GetName returns the human-readable name and unique ID from a driver.Info.
+func GetName(info driver.Info) (name, id string) {
 	nameParts := strings.Split(info.Name, camera.LabelSeparator)
 	if len(nameParts) > 1 {
 		name, id = nameParts[0], nameParts[1]
@@ -382,7 +383,7 @@ func GetName(info driver.Info) (name string, id string) {
 	return
 }
 
-func parseNameAndId(toParse string) (name string, id string) {
+func parseNameAndID(toParse string) (name, id string) {
 	// expects '<camera_name> (<camera_id>)'
 	idIdx := strings.LastIndex(toParse, "(")
 	if idIdx == -1 {
@@ -409,13 +410,13 @@ func parseNameAndId(toParse string) (name string, id string) {
 
 func nameFilter(prettyName string) driver.FilterFn {
 	return func(d driver.Driver) bool {
-		expectedName, expectedId := parseNameAndId(prettyName)
-		if len(expectedName)+len(expectedId) == 0 {
+		expectedName, expectedID := parseNameAndID(prettyName)
+		if len(expectedName)+len(expectedID) == 0 {
 			return false
 		}
 
-		actualName, actualId := GetName(d.Info())
-		return actualName == expectedName && actualId == expectedId
+		actualName, actualID := GetName(d.Info())
+		return actualName == expectedName && actualID == expectedID
 	}
 }
 
