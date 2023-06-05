@@ -33,6 +33,7 @@ var DefaultConstraints = mediadevices.MediaStreamConstraints{
 			frame.FormatI420,
 			frame.FormatI444,
 			frame.FormatYUY2,
+			frame.FormatYUYV,
 			frame.FormatUYVY,
 			frame.FormatRGBA,
 			frame.FormatMJPEG,
