@@ -40,7 +40,6 @@ jobs:
       matrix:
         go:
           - '1.19'
-    runs-on: ${{ matrix.runs-on }}
     name: macOS Go ${{ matrix.go }}
     steps:
       - name: Checkout
