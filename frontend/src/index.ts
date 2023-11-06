@@ -1,6 +1,5 @@
 import { dialWebRTC } from "@viamrobotics/rpc";
-import { AddStreamRequest, AddStreamResponse, RemoveStreamRequest, RemoveStreamResponse, ListStreamsRequest, ListStreamsResponse } from "./gen/proto/stream/v1/stream_pb";
-import { ServiceError, StreamServiceClient } from "./gen/proto/stream/v1/stream_pb_service";
+import { GrpcWebImpl, StreamService, StreamServiceClientImpl } from "./gen/proto/stream/v1/stream";
 
 const signalingAddress = `${window.location.protocol}//${window.location.host}`;
 const host = "local";
@@ -13,23 +12,9 @@ declare global {
 
 async function startup() {
 	const webRTCConn = await dialWebRTC(signalingAddress, host);
-	const streamClient = new StreamServiceClient(host, { transport: webRTCConn.transportFactory });
+	const streamClient = new StreamServiceClientImpl(new GrpcWebImpl(host, { transport: webRTCConn.transportFactory }));
 
-	let pResolve: (value: string[]) => void;
-	let pReject: (reason?: any) => void;
-	let namesPromise = new Promise<string[]>((resolve, reject) => {
-		pResolve = resolve;
-		pReject = reject;
-	});
-	const listRequest = new ListStreamsRequest();
-	streamClient.listStreams(listRequest, (err: ServiceError, resp: ListStreamsResponse) => {
-		if (err) {
-			pReject(err);
-			return
-		}
-		pResolve(resp.getNamesList());
-	});
-	const names = await namesPromise;
+	const namesResp = await streamClient.ListStreams({});
 
 	const makeButtonClick = (button: HTMLButtonElement, streamName: string, add: boolean) => async (e: Event) => {
 		e.preventDefault();
@@ -37,23 +22,19 @@ async function startup() {
 		button.disabled = true;
 
 		if (add) {
-			const addRequest = new AddStreamRequest();
-			addRequest.setName(streamName);
-			streamClient.addStream(addRequest, (err: ServiceError, resp: AddStreamResponse) => {
-				if (err) {
-					console.error(err);
-					button.disabled = false;
-				}
-			});
+			try {
+				await streamClient.AddStream({ name: streamName });
+			} catch (err) {
+				console.error(err);
+				button.disabled = false;
+			}
 		} else {
-			const removeRequest = new RemoveStreamRequest();
-			removeRequest.setName(streamName);
-			streamClient.removeStream(removeRequest, (err: ServiceError, resp: RemoveStreamResponse) => {
-				if (err) {
-					console.error(err);
-					button.disabled = false;
-				}
-			});
+			try {
+				await streamClient.RemoveStream({ name: streamName });
+			} catch (err) {
+				console.error(err);
+				button.disabled = false;
+			}
 		}
 	};
 
@@ -138,7 +119,7 @@ async function startup() {
 		streamContainer.appendChild(mediaElementContainer);
 	}
 
-	for (const name of names) {
+	for (const name of namesResp.names) {
 		const container = document.createElement("div");
 		container.id = `stream-${name}`;
 		const button = document.createElement("button");

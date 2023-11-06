@@ -9,4 +9,5 @@ import (
 	_ "github.com/edaniels/golinters/cmd/combined"
 	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
 	_ "github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt"
+	_ "github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc"
 )

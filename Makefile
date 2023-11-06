@@ -14,7 +14,7 @@ build-web: buf-web
 
 tool-install:
 	GOBIN=`pwd`/$(TOOL_BIN)  go install \
-		`go list -f '{{ range $$import := .Imports }} {{ $$import }} {{ end }}' ./tools/tools.go`
+		`go list -e -f '{{ range $$import := .Imports }} {{ $$import }} {{ end }}' ./tools/tools.go`
 
 buf: buf-go buf-web
 
