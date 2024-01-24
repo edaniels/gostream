@@ -1,26 +1,27 @@
 module github.com/edaniels/gostream
 
-go 1.21
+go 1.21.6
 
 require (
 	github.com/bufbuild/buf v1.27.2
 	github.com/disintegration/imaging v1.6.2
 	github.com/edaniels/golinters v0.0.5-0.20210512224240-495d3b8eed19
 	github.com/edaniels/golog v0.0.0-20230215213219-28954395e8d0
-	github.com/gen2brain/malgo v0.11.10
+	github.com/edaniels/goutils v0.0.0-20240124144955-b5400478872a
+	github.com/gen2brain/malgo v0.11.11-0.20231225022531-dd505cb7efd5
 	github.com/golangci/golangci-lint v1.51.2
-	github.com/google/uuid v1.4.0
+	github.com/google/uuid v1.5.0
 	github.com/gotesttools/gotestfmt/v2 v2.4.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.0
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/pion/mediadevices v0.6.0
-	github.com/pion/rtp v1.8.2
-	github.com/pion/webrtc/v3 v3.2.21
+	github.com/pion/rtp v1.8.3
+	github.com/pion/webrtc/v3 v3.2.24
 	github.com/pkg/errors v0.9.1
 	github.com/pseudomuto/protoc-gen-doc v1.3.2
 	go.uber.org/multierr v1.11.0
 	go.viam.com/test v1.1.0
-	go.viam.com/utils v0.1.29
+	go.viam.com/utils v0.1.59
 	goji.io v2.0.2+incompatible
 	google.golang.org/grpc v1.57.0
 	google.golang.org/protobuf v1.31.0
@@ -76,7 +77,7 @@ require (
 	github.com/docker/docker-credential-helpers v0.8.0 // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
-	github.com/edaniels/zeroconf v1.0.9 // indirect
+	github.com/edaniels/zeroconf v1.0.10 // indirect
 	github.com/envoyproxy/protoc-gen-validate v0.10.1 // indirect
 	github.com/esimonov/ifshort v1.0.4 // indirect
 	github.com/ettle/strcase v0.1.1 // indirect
@@ -201,10 +202,10 @@ require (
 	github.com/pion/logging v0.2.2 // indirect
 	github.com/pion/mdns v0.0.8 // indirect
 	github.com/pion/randutil v0.1.0 // indirect
-	github.com/pion/rtcp v1.2.10 // indirect
+	github.com/pion/rtcp v1.2.13 // indirect
 	github.com/pion/sctp v1.8.8 // indirect
 	github.com/pion/sdp/v3 v3.0.6 // indirect
-	github.com/pion/srtp/v2 v2.0.17 // indirect
+	github.com/pion/srtp/v2 v2.0.18 // indirect
 	github.com/pion/stun v0.6.1 // indirect
 	github.com/pion/transport/v2 v2.2.3 // indirect
 	github.com/pion/turn/v2 v2.1.3 // indirect
@@ -280,14 +281,14 @@ require (
 	golang.org/x/crypto v0.14.0 // indirect
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
 	golang.org/x/exp/typeparams v0.0.0-20230203172020-98cc5a0785f9 // indirect
-	golang.org/x/image v0.13.0 // indirect
+	golang.org/x/image v0.15.0 // indirect
 	golang.org/x/mod v0.13.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/oauth2 v0.8.0 // indirect
 	golang.org/x/sync v0.4.0 // indirect
 	golang.org/x/sys v0.14.0 // indirect
 	golang.org/x/term v0.13.0 // indirect
-	golang.org/x/text v0.13.0 // indirect
+	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.14.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230526161137-0005af68ea54 // indirect

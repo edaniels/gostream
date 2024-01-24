@@ -11,13 +11,15 @@ import (
 	"unsafe"
 
 	"github.com/edaniels/golog"
+	utils "github.com/edaniels/goutils"
 	"github.com/gen2brain/malgo"
+
 	// register microphone drivers.
 	_ "github.com/pion/mediadevices/pkg/driver/microphone"
 	"github.com/pion/webrtc/v3"
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
-	goutils "go.viam.com/utils"
+	vutils "go.viam.com/utils"
 	hopus "gopkg.in/hraban/opus.v2"
 
 	"github.com/edaniels/gostream"
@@ -25,7 +27,7 @@ import (
 )
 
 func main() {
-	goutils.ContextualMain(mainWithArgs, logger)
+	utils.ContextualMain(mainWithArgs, logger)
 }
 
 var (
@@ -35,14 +37,14 @@ var (
 
 // Arguments for the command.
 type Arguments struct {
-	Port     goutils.NetPortFlag `flag:"0"`
-	Dump     bool                `flag:"dump"`
-	Playback bool                `flag:"playback"`
+	Port     vutils.NetPortFlag `flag:"0"`
+	Dump     bool               `flag:"dump"`
+	Playback bool               `flag:"playback"`
 }
 
 func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error {
 	var argsParsed Arguments
-	if err := goutils.ParseFlags(args, &argsParsed); err != nil {
+	if err := vutils.ParseFlags(args, &argsParsed); err != nil {
 		return err
 	}
 	if argsParsed.Dump {
@@ -58,7 +60,7 @@ func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error
 		return nil
 	}
 	if argsParsed.Port == 0 {
-		argsParsed.Port = goutils.NetPortFlag(defaultPort)
+		argsParsed.Port = vutils.NetPortFlag(defaultPort)
 	}
 
 	return runServer(
@@ -77,7 +79,7 @@ func runServer(
 ) (err error) {
 	audioSource, err := gostream.GetAnyAudioSource(gostream.DefaultConstraints, logger)
 	if err != nil {
-		return err
+		return utils.ErrorWithStack(err)
 	}
 	defer func() {
 		err = multierr.Combine(err, audioSource.Close(ctx))
@@ -154,7 +156,7 @@ func decodeAndPlayTrack(ctx context.Context, track *webrtc.TrackRemote) {
 				panic(err)
 			}
 			defer func() {
-				goutils.UncheckedErrorFunc(mCtx.Uninit)
+				vutils.UncheckedErrorFunc(mCtx.Uninit)
 				mCtx.Free()
 			}()
 

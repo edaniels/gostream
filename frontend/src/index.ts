@@ -38,7 +38,7 @@ async function startup() {
 		}
 	};
 
-	webRTCConn.peerConnection.ontrack = async event => {
+	webRTCConn.peerConnection.ontrack = async (event: any) => {
 		const mediaElementContainer = document.createElement('div');
 		mediaElementContainer.id = event.track.id;
 		const mediaElement = document.createElement(event.track.kind);
@@ -64,7 +64,7 @@ async function startup() {
 			button.disabled = false;
 
 			let audioSender: RTCRtpSender;
-			stream.onremovetrack = async event => {
+			stream.onremovetrack = async (event: any) => {
 				const mediaElementContainer = document.getElementById(event.track.id)!;
 				const mediaElement = mediaElementContainer.getElementsByTagName(event.track.kind)[0];
 				if (audioSender) {

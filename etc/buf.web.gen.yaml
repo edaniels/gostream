@@ -9,7 +9,9 @@ plugins:
     opt:
       - import_style=commonjs
       - mode=grpcwebtext
-  - plugin: buf.build/community/stephenh-ts-proto:v1.163.0
+  - plugin: buf.build/community/stephenh-ts-proto:v1.166.4
     out: dist/js
     opt:
       - outputClientImpl=grpc-web
+      - esModuleInterop=true
+      - importSuffix=.js

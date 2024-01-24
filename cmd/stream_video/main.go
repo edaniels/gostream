@@ -5,11 +5,13 @@ import (
 	"context"
 
 	"github.com/edaniels/golog"
+	utils "github.com/edaniels/goutils"
+
 	// register video drivers.
 	_ "github.com/pion/mediadevices/pkg/driver/camera"
 	_ "github.com/pion/mediadevices/pkg/driver/screen"
 	"go.uber.org/multierr"
-	goutils "go.viam.com/utils"
+	vutils "go.viam.com/utils"
 
 	"github.com/edaniels/gostream"
 	"github.com/edaniels/gostream/codec/vpx"
@@ -17,7 +19,7 @@ import (
 )
 
 func main() {
-	goutils.ContextualMain(mainWithArgs, logger)
+	utils.ContextualMain(mainWithArgs, logger)
 }
 
 var (
@@ -27,15 +29,15 @@ var (
 
 // Arguments for the command.
 type Arguments struct {
-	Port       goutils.NetPortFlag `flag:"0"`
-	Camera     bool                `flag:"camera,usage=use camera"`
-	DupeStream bool                `flag:"dupe_stream,usage=duplicate stream"`
-	Dump       bool                `flag:"dump"`
+	Port       vutils.NetPortFlag `flag:"0"`
+	Camera     bool               `flag:"camera,usage=use camera"`
+	DupeStream bool               `flag:"dupe_stream,usage=duplicate stream"`
+	Dump       bool               `flag:"dump"`
 }
 
 func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error {
 	var argsParsed Arguments
-	if err := goutils.ParseFlags(args, &argsParsed); err != nil {
+	if err := vutils.ParseFlags(args, &argsParsed); err != nil {
 		return err
 	}
 	if argsParsed.Dump {
@@ -56,7 +58,7 @@ func mainWithArgs(ctx context.Context, args []string, logger golog.Logger) error
 		return nil
 	}
 	if argsParsed.Port == 0 {
-		argsParsed.Port = goutils.NetPortFlag(defaultPort)
+		argsParsed.Port = vutils.NetPortFlag(defaultPort)
 	}
 
 	return runServer(
@@ -82,7 +84,7 @@ func runServer(
 		videoSource, err = gostream.GetAnyScreenSource(gostream.DefaultConstraints, logger)
 	}
 	if err != nil {
-		return err
+		return utils.ErrorWithStack(err)
 	}
 	defer func() {
 		err = multierr.Combine(err, videoSource.Close(ctx))
