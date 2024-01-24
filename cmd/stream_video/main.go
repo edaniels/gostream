@@ -6,7 +6,6 @@ import (
 
 	"github.com/edaniels/golog"
 	utils "github.com/edaniels/goutils"
-
 	// register video drivers.
 	_ "github.com/pion/mediadevices/pkg/driver/camera"
 	_ "github.com/pion/mediadevices/pkg/driver/screen"

@@ -1,7 +1,6 @@
 package gostream
 
 import (
-	"fmt"
 	"image"
 	"math"
 	"regexp"
@@ -348,10 +347,8 @@ func newAudioSourceFromDriver(
 	if err := audioDriver.Open(); err != nil {
 		return nil, errors.WithStack(err)
 	}
-	fmt.Println("Try", mediaProp)
 	reader, err := recorder.AudioRecord(mediaProp)
 	if err != nil {
-		fmt.Printf("??? %T\n", recorder)
 		return nil, errors.WithStack(err)
 	}
 	return newMediaSource[wave.Audio](audioDriver, mediaReaderFuncNoCtx[wave.Audio](reader.Read), mediaProp.Audio), nil
