@@ -8,13 +8,13 @@ require (
 	github.com/edaniels/golinters v0.0.5-0.20210512224240-495d3b8eed19
 	github.com/edaniels/golog v0.0.0-20230215213219-28954395e8d0
 	github.com/edaniels/goutils v0.0.0-20240124144955-b5400478872a
-	github.com/gen2brain/malgo v0.11.11-0.20231225022531-dd505cb7efd5
+	github.com/gen2brain/malgo v0.11.21
 	github.com/golangci/golangci-lint v1.51.2
 	github.com/google/uuid v1.5.0
 	github.com/gotesttools/gotestfmt/v2 v2.4.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.0
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
-	github.com/pion/mediadevices v0.6.0
+	github.com/pion/mediadevices v0.6.1
 	github.com/pion/rtp v1.8.3
 	github.com/pion/webrtc/v3 v3.2.24
 	github.com/pkg/errors v0.9.1
